@@ -1,11 +1,10 @@
 """Tipos del dominio: lo que la API devuelve, con nombres de la API.
 
 Los campos conservan el nombre que viaja en el JSON (`clave_rastreo`,
-`cuenta_beneficiaria`, `banxico_status`). Un SDK que los traduce obliga a
-aprender dos vocabularios y a volver a la referencia en cada duda.
+`cuenta_beneficiaria`, `banxico_status`).
 
-Cada modelo guarda además el diccionario original en `raw`, de modo que un campo
-que la API añada mañana esté disponible hoy sin esperar una versión del SDK.
+Cada modelo guarda el documento original en `raw`. Un campo que la API añada
+después queda accesible ahí sin esperar a una versión nueva del SDK.
 """
 
 from __future__ import annotations
@@ -119,8 +118,8 @@ class Validation:
     def has_cep(self) -> bool:
         """`True` cuando hay comprobante que descargar.
 
-        Se deriva de `links.cep_xml`, que es lo que el servidor publica: un
-        `returned` nacido de `cep_unavailable` nunca lo trae.
+        Se deriva de `links.cep_xml`, que es lo que publica el servidor. Un
+        `returned` nacido de `cep_unavailable` no lo trae.
         """
         return bool(self.links.get("cep_xml"))
 

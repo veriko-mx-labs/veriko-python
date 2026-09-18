@@ -4,9 +4,9 @@ Ninguna prueba llama a la API de Veriko. Lo que se prueba es el SDK contra
 respuestas guardadas en `tests/recordings/`, servidas por un servidor HTTP de
 verdad en `127.0.0.1`.
 
-Es deliberado que pase por HTTP real en lugar de sustituir el transporte: así se
-ejercita lo que el SDK hace de verdad —cabeceras, códigos de estado, cuerpos
-binarios, la traducción de un `HTTPError` de urllib— y no una imitación.
+El arnés pasa por HTTP real en lugar de sustituir el transporte. Así se ejercita
+lo que el SDK ejecuta en producción: cabeceras, códigos de estado, cuerpos
+binarios y la traducción de un `HTTPError` de urllib.
 """
 
 from __future__ import annotations

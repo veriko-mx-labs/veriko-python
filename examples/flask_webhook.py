@@ -7,13 +7,13 @@
 El secreto lo devuelve `POST /v1/webhooks` al registrar el endpoint, una sola
 vez. Si se pierde, se rota con `POST /v1/webhooks/{id}/regenerate-secret`.
 
-Dos cosas que importan y que no se ven hasta que fallan:
+Dos detalles del receptor:
 
-1. Lo que se firma es el cuerpo **crudo**. `request.get_data()` lo devuelve tal
-   como llegó; `request.get_json()` ya lo interpretó, y volver a serializarlo
-   cambia los bytes y rompe la firma.
-2. Responder `2xx` primero y procesar después. La entrega tiene 10 segundos; un
-   receptor que procesa antes de responder provoca reintentos innecesarios.
+1. Lo que se firma es el cuerpo crudo. `request.get_data()` lo devuelve tal como
+   llegó; `request.get_json()` ya lo interpretó, y volver a serializarlo cambia
+   los bytes y rompe la firma.
+2. La entrega dispone de 10 segundos. Responder `2xx` primero y procesar después
+   evita reintentos innecesarios.
 """
 
 import os
@@ -42,7 +42,7 @@ def recibir():
             SECRET,
         )
     except SignatureVerificationError:
-        # Firma que no cuadra: no se procesa y no se reintenta.
+        # Firma que no cuadra: el cuerpo no se procesa.
         return "", 400
 
     if delivery_id in entregas_vistas:

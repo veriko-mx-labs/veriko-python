@@ -1,9 +1,10 @@
 # veriko · SDK de Python para la API del CEP
 
 Cliente oficial de [Veriko](https://veriko.mx) para Python. Valida transferencias SPEI mexicanas
-contra el CEP de Banco de México, descarga el comprobante y verifica la firma de los webhooks.
+contra el CEP de Banco de México, descarga el comprobante oficial y verifica la firma de los
+webhooks.
 
-Sin dependencias: usa la biblioteca estándar. Python 3.9 o superior.
+Sin dependencias de runtime. Python 3.9 o superior.
 
 ```python
 from veriko import Veriko
@@ -23,20 +24,17 @@ print(validation.status)  # 'valid'
 ## Qué es el CEP
 
 El **Comprobante Electrónico de Pago (CEP)** es el documento que expide el **Banco de México
-(Banxico)** por cada transferencia que pasa por el **SPEI**, el sistema de pagos interbancarios
-mexicano. Lleva el sello digital y la cadena original de la institución receptora, de modo que
-sirve para determinar si una transferencia ocurrió de verdad y por el importe que alguien dice.
+(Banxico)** por cada transferencia que pasa por el SPEI, el sistema de pagos interbancarios
+mexicano. Contiene el sello digital y la cadena original de la institución receptora, de modo que
+acredita que una transferencia ocurrió y por qué importe.
 
-El CEP no es un documento fiscal: no sustituye a una factura. Lo que resuelve es otra cosa —
-confirmar un pago sin esperar a que aparezca en el estado de cuenta, y sin creerle a una captura
-de pantalla.
+El CEP no tiene efectos fiscales: no sustituye a una factura.
 
-Consultarlo a mano se hace en el portal de Banxico, comprobante por comprobante. Eso no escala
-cuando llegan cincuenta pagos al día, y no se puede meter dentro de un flujo de compra.
+Su consulta manual se hace en el portal de Banxico, un comprobante a la vez.
 
 ## Qué hace la API
 
-Veriko consulta el CEP por ti y devuelve un veredicto:
+La API consulta el CEP y devuelve un veredicto en el campo `status`:
 
 | veredicto | significado |
 | --- | --- |
@@ -49,9 +47,8 @@ Veriko consulta el CEP por ti y devuelve un veredicto:
 
 La distinción entre `not_found` y `cep_unavailable` es la que importa al integrar: el primero es
 una respuesta de Banxico sobre la transferencia, el segundo es la ausencia de respuesta.
-Confundirlos lleva a dar por inexistente una transferencia que sólo no pudo consultarse.
 
-Cuando el veredicto es `valid`, el comprobante queda disponible en XML y en PDF.
+Con veredicto `valid`, el comprobante queda disponible en XML y en PDF.
 
 ## Instalación
 
@@ -60,8 +57,6 @@ El paquete todavía no está publicado en PyPI. Mientras tanto se instala desde 
 ```bash
 pip install "git+https://github.com/veriko-mx-labs/veriko-python.git"
 ```
-
-Cuando se publique, será `pip install veriko`.
 
 ## Autenticación
 
@@ -72,7 +67,7 @@ La clave de API se obtiene en el panel ([app.veriko.mx](https://app.veriko.mx)) 
 export VERIKO_API_KEY=veriko_tu_clave_aqui
 ```
 
-O se pasa al construir el cliente, si prefieres gestionarla tú:
+El argumento `api_key` la recibe directamente cuando la gestiona otro mecanismo:
 
 ```python
 client = Veriko(api_key="veriko_tu_clave_aqui")
@@ -80,9 +75,9 @@ client = Veriko(api_key="veriko_tu_clave_aqui")
 
 ## Validar una transferencia
 
-Hace falta la fecha de envío, el importe y **la clave de rastreo o la referencia numérica**. Las
-dos juntas precisan más la búsqueda. El banco emisor, el receptor y la cuenta beneficiaria son
-opcionales y mejoran la identificación.
+La operación exige la fecha de envío, el importe y **la clave de rastreo o la referencia
+numérica**. Enviar las dos precisa la búsqueda. El banco emisor, el receptor y la cuenta
+beneficiaria son opcionales y mejoran la identificación.
 
 ```python
 from veriko import Veriko
@@ -105,8 +100,7 @@ elif validation.status == "not_found":
     print("Banxico no encuentra el pago todavía")
 ```
 
-Los campos conservan el nombre que viaja en el JSON de la API. Un SDK que los traduce obliga a
-aprender dos vocabularios y a volver a la referencia en cada duda.
+Los argumentos conservan el nombre que viaja en el JSON de la API.
 
 Cada llamada consume cuota del plan, y se descuenta al aceptar la petición.
 
@@ -117,10 +111,9 @@ cep = client.get_cep(validation.id, format="pdf")  # o format="xml"
 cep.write_to(cep.filename)  # CEP-<id>.pdf
 ```
 
-`get_cep` devuelve el archivo, no un enlace: el XML que emitió Banxico —con su sello digital y su
-cadena original— o el PDF equivalente. Si la validación no tiene comprobante, la API responde
-`404` con `cep_not_available` y el SDK lanza `NotFoundError`. `validation.has_cep` lo dice antes
-de pedirlo.
+`get_cep()` devuelve el archivo: el XML que emitió Banxico, con su sello digital y su cadena
+original, o el PDF equivalente. `Validation.has_cep` indica si existe antes de pedirlo; cuando no,
+la API responde `404` con `cep_not_available` y el SDK lanza `NotFoundError`.
 
 ## Verificar la firma de un webhook
 
@@ -131,9 +124,8 @@ Cada entrega llega firmada con HMAC-SHA256 del cuerpo, usando el secreto que dev
 X-Webhook-Signature: sha256=<hex>
 ```
 
-Lo que se firma es el cuerpo **tal como llegó**. Si el framework interpreta el JSON y tu código lo
-vuelve a escribir, los bytes cambian y la firma deja de cuadrar. Por eso todos los ejemplos leen
-el cuerpo crudo antes de tocarlo.
+Lo que se firma es el cuerpo **tal como llegó**. Interpretar el JSON y volver a serializarlo
+cambia los bytes y la firma deja de cuadrar.
 
 ```python
 import os
@@ -158,14 +150,13 @@ def recibir():
     if evento.event == "validation.completed" and evento.validation is not None:
         print(evento.validation.id, evento.validation.status)
 
-    return "", 200  # responde 2xx primero, procesa después
+    return "", 200  # responder 2xx primero, procesar después
 ```
 
-`verify_webhook(payload, signature, secret)` hace lo mismo pero devuelve `True` o `False`, para
-quien prefiera decidir el código de respuesta por su cuenta. La comparación es en tiempo
-constante.
+`verify_webhook(payload, signature, secret)` hace la misma comprobación y devuelve `True` o
+`False`, para decidir el código de respuesta aparte. La comparación es en tiempo constante.
 
-Un ejemplo completo con Flask está en [`examples/flask_webhook.py`](examples/flask_webhook.py).
+El receptor completo está en [`examples/flask_webhook.py`](examples/flask_webhook.py).
 
 ### Las cuatro cabeceras de una entrega
 
@@ -176,11 +167,11 @@ Un ejemplo completo con Flask está en [`examples/flask_webhook.py`](examples/fl
 | `X-Veriko-Delivery-Id` | Identificador de la entrega, estable entre reintentos |
 | `X-Veriko-Timestamp` | Momento del envío, ISO 8601 con sufijo `Z` |
 
-Deduplica por `X-Veriko-Delivery-Id`: un reintento repite la misma entrega.
+El `Delivery-Id` es el valor que permite descartar entregas repetidas.
 
 ## Reintentos
 
-Hay dos clases de reintento, y conviene no confundirlas.
+Hay dos mecanismos distintos con el mismo nombre.
 
 **Los del cliente** repiten una petición que falló por causas pasajeras. El SDK reintenta los
 `5xx`, el `408` y el `429`, y respeta el `Retry-After` de la respuesta cuando lo trae. El resto de
@@ -190,8 +181,8 @@ los `4xx` no se reintenta, porque la petición hay que corregirla antes de repet
 client = Veriko(max_retries=3)  # 0 los desactiva; por omisión son 2
 ```
 
-**Los de la API** son otra cosa: el CEP puede tardar en publicarse, así que la API puede seguir
-consultando a Banxico por su cuenta durante horas y avisar por webhook cuando el veredicto cambie.
+**Los de la API** siguen consultando a Banxico durante horas, porque un CEP tarda en publicarse, y
+avisan por webhook cuando el veredicto cambia.
 
 ```python
 from veriko import RetryPolicy
@@ -208,35 +199,34 @@ validation = client.validate_transfer(
 )
 ```
 
-El avance se sigue con `client.get_validation(id)`, que expone `retry_state`, o se espera al
-webhook `validation.retry.resolved`.
+El avance del ciclo se lee en `client.get_validation(id).retry_state`, o se espera al webhook
+`validation.retry.resolved`.
 
 ## Idempotencia
 
-Reintentar un `POST` sin clave de idempotencia puede duplicar la validación —y su cargo— cuando la
-respuesta se perdió pero la petición sí llegó. Con clave, la repetición devuelve la respuesta
-original durante 24 horas.
+Reintentar un `POST` sin clave de idempotencia puede duplicar la validación, y su cargo, cuando la
+respuesta se perdió pero la petición llegó. Con clave, la repetición devuelve la respuesta original
+durante 24 horas.
 
 ```python
 validation = client.validate_transfer(
     fecha="2025-03-15",
     monto=15000.50,
     clave_rastreo="MXBA20250315001234",
-    idempotency_key="pedido-4f3a2b1c",  # el identificador de tu intento de negocio
+    idempotency_key="pedido-4f3a2b1c",  # el identificador del intento de negocio
 )
 ```
 
-La clave debe derivarse del intento de negocio —el número de pedido, de lote o de transacción—,
-no generarse al azar en cada envío: una clave aleatoria por reintento anula la protección.
+La clave se deriva del intento de negocio —el número de pedido, de lote o de transacción—, no se
+genera al azar en cada envío: una clave aleatoria por reintento anula la protección.
 
-Si no la pasas, el SDK genera una por llamada y la repite en sus propios reintentos. Eso protege
-del reintento automático, pero no de que tu proceso muera y alguien reenvíe lo mismo: para eso
-hace falta la tuya.
+Sin `idempotency_key`, el SDK genera una por llamada y la repite en sus propios reintentos. Esa
+clave no sobrevive al proceso que la generó, así que un reenvío posterior sí se ejecuta dos veces.
 
 ## Errores
 
 Todas las excepciones heredan de `VerikoError`. Las de la API traen `code`, que es el contrato
-estable, y no `detail`, que se traduce y puede reformularse entre versiones.
+estable, y `detail`, que se traduce y puede reformularse entre versiones.
 
 ```python
 from veriko import InvalidRequestError, RateLimitError, NotFoundError
@@ -264,16 +254,15 @@ except NotFoundError:  # 404
 | `ConnectionError` | Sin respuesta, con los reintentos agotados |
 | `SignatureVerificationError` | La firma de un webhook no cuadra |
 
-Cada error de la API trae `request_id`: es el dato con el que se investiga un caso puntual.
+Cada error de la API trae `request_id`, que identifica la petición en los registros del sistema.
 
-## Qué cubre esta versión
+## Alcance de esta versión
 
-`validate_transfer`, `get_validation`, `get_cep` y la verificación de webhooks. La API tiene más
-superficie —validación por OCR de una imagen, importación masiva, beneficiarios, finanzas— que
-este SDK todavía no envuelve; se consume con cualquier cliente HTTP contra la
-[referencia](https://docs.veriko.mx).
+`validate_transfer()`, `get_validation()`, `get_cep()` y la verificación de webhooks.
 
-El modo asíncrono (`?async=1`) y el sondeo con `ETag` tampoco están todavía.
+Fuera del alcance por ahora: el modo asíncrono (`?async=1`) con sondeo por `ETag`, la validación
+por OCR de una imagen, la importación masiva, los beneficiarios y las finanzas. Esas operaciones se
+consumen con cualquier cliente HTTP contra la [referencia](https://docs.veriko.mx).
 
 ## Desarrollo
 
@@ -284,16 +273,15 @@ ruff check .    # el estilo
 mypy            # los tipos
 ```
 
-Ninguna prueba llama a la API. El arnés levanta un servidor HTTP local que sirve respuestas
-guardadas en [`tests/recordings/`](tests/recordings), de modo que se ejercita la pila HTTP de
-verdad sin gastar cuota ni depender de la red.
+Ninguna prueba llama a la API. El arnés levanta un servidor HTTP local que sirve las respuestas
+guardadas en [`tests/recordings/`](tests/recordings).
 
 ## Enlaces
 
 - Documentación de la API: [docs.veriko.mx](https://docs.veriko.mx)
 - Spec de OpenAPI: [docs.veriko.mx/openapi.yaml](https://docs.veriko.mx/openapi.yaml)
 - Ejemplos en otros lenguajes: [veriko-mx-labs/examples](https://github.com/veriko-mx-labs/examples)
-- Qué es el CEP, con más detalle: [docs.veriko.mx/es/concepts/cep-concept](https://docs.veriko.mx/es/concepts/cep-concept)
+- El CEP, en detalle: [docs.veriko.mx/es/concepts/cep-concept](https://docs.veriko.mx/es/concepts/cep-concept)
 - Registro de cambios: [CHANGELOG.md](CHANGELOG.md)
 
 ## Licencia

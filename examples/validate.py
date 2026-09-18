@@ -3,8 +3,9 @@
     export VERIKO_API_KEY=veriko_tu_clave_aqui
     python examples/validate.py
 
-Cambia los datos de la transferencia por los tuyos. La fecha es la de envío, en
-formato YYYY-MM-DD, y hace falta la clave de rastreo o la referencia numérica.
+Los datos de la transferencia van en las constantes de abajo. La fecha es la de
+envío, en formato YYYY-MM-DD, y la operación exige la clave de rastreo o la
+referencia numérica.
 """
 
 import sys

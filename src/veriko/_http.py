@@ -1,12 +1,11 @@
 """Transporte HTTP: una petición, sus reintentos y la traducción de errores.
 
-Usa `urllib` de la biblioteca estándar a propósito. El SDK no arrastra
-dependencias de runtime: se instala en un contenedor mínimo, en una función sin
-servidor o junto a cualquier versión de `requests` sin discutir con ella.
+Usa `urllib` de la biblioteca estándar, de modo que el SDK no añade
+dependencias de runtime a quien lo instala.
 
-Qué se reintenta y qué no, igual que lo documenta el portal: los `5xx`, el `408`
-y el `429` admiten reintento; el resto de los `4xx` no, porque la petición hay
-que corregirla antes de repetirla.
+Qué admite reintento, igual que lo documenta el portal: los `5xx`, el `408` y el
+`429`. El resto de los `4xx` no, porque la petición hay que corregirla antes de
+repetirla.
 
 https://docs.veriko.mx/es/concepts/rate-limits
 """

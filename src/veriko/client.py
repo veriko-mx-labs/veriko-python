@@ -118,8 +118,8 @@ class Veriko:
         transferencia, en `YYYY-MM-DD`.
 
         Un `not_found` inmediato no equivale a una transferencia inexistente: un
-        CEP tarda en publicarse. Para eso está `retry_policy`, que deja a la API
-        reintentando por su cuenta y avisando por webhook.
+        CEP tarda en publicarse. `retry_policy` deja a la API consultando de nuevo
+        y avisando por webhook cuando el veredicto cambia.
 
         Cada llamada consume cuota del plan, y se descuenta al aceptar la
         petición.
@@ -197,13 +197,12 @@ class Veriko:
     def get_cep(self, validation_id: str, *, format: str = "xml") -> CepDocument:
         """Descarga el CEP oficial de una validación.
 
-        `GET /v1/validations/{id}/cep`. Devuelve el archivo, no un enlace: el
-        XML que emitió Banxico —con su sello digital y su cadena original— o el
-        PDF equivalente.
+        `GET /v1/validations/{id}/cep`. Devuelve el archivo: el XML que emitió
+        Banxico, con su sello digital y su cadena original, o el PDF equivalente.
 
-        Sólo existe cuando la validación tiene comprobante (`Validation.has_cep`).
-        Si no, la API responde `404` con `cep_not_available`, y el SDK lo lanza
-        como `NotFoundError`.
+        Existe cuando la validación tiene comprobante (`Validation.has_cep`).
+        Cuando no, la API responde `404` con `cep_not_available` y el SDK lo
+        lanza como `NotFoundError`.
 
         Args:
             validation_id: el identificador de la validación.
@@ -238,13 +237,12 @@ class Veriko:
 def _new_idempotency_key() -> str:
     """Una clave por llamada, estable entre los reintentos de esa misma llamada.
 
-    Reintentar un `POST` sin clave de idempotencia puede duplicar la validación
-    —y su cargo— cuando la respuesta se perdió pero la petición sí llegó. Con
-    clave, el reintento devuelve la respuesta original.
+    Reintentar un `POST` sin clave de idempotencia puede duplicar la validación,
+    y su cargo, cuando la respuesta se perdió pero la petición llegó. Con clave,
+    el reintento devuelve la respuesta original.
 
-    Una clave derivada del intento de negocio protege más: sobrevive al proceso
-    que la generó. Por eso `validate_transfer` acepta `idempotency_key`, y esto
-    es sólo el respaldo para quien no la pase.
+    Esta clave no sobrevive al proceso que la generó. La que protege un reenvío
+    posterior es la que se pasa en `idempotency_key`.
     """
     return "veriko-python-" + uuid.uuid4().hex
 

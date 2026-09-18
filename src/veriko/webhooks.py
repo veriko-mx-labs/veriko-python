@@ -6,11 +6,10 @@ hexadecimal, prefijada por el algoritmo:
 
     X-Webhook-Signature: sha256=<hex>
 
-Lo que se firma es el cuerpo **tal como llegó**. Reserializar el JSON —leerlo a
-un diccionario y volverlo a escribir— cambia los bytes y la firma deja de
-cuadrar: el orden de las claves, los espacios y el escape de los caracteres no
-ASCII no se conservan. En un receptor, esto significa leer el cuerpo crudo antes
-de que el framework lo interprete.
+Lo que se firma es el cuerpo tal como llegó. Interpretar el JSON y volver a
+serializarlo cambia los bytes, porque el orden de las claves, los espacios y el
+escape de los caracteres no ASCII no se conservan, y la firma deja de cuadrar.
+El receptor lee el cuerpo crudo antes de que el framework lo interprete.
 
 https://docs.veriko.mx/es/concepts/webhooks-architecture
 """
@@ -51,8 +50,8 @@ def verify_webhook(
     """Comprueba la firma de una entrega. Devuelve `True` o `False`, sin lanzar.
 
     Acepta el valor de la cabecera con o sin el prefijo `sha256=`. La comparación
-    es en tiempo constante: comparar con `==` filtra información por el tiempo de
-    respuesta y convierte la firma en algo adivinable byte a byte.
+    es en tiempo constante, para no filtrar información por el tiempo de
+    respuesta.
 
     Args:
         payload: el cuerpo crudo de la petición, sin reserializar.
@@ -69,10 +68,10 @@ def verify_webhook(
 
 
 def signature_from_headers(headers: Mapping[str, str]) -> str | None:
-    """Busca la cabecera de firma sin importar cómo la haya escrito el framework.
+    """Busca la cabecera de firma en cualquiera de sus grafías.
 
     Los nombres de cabecera no distinguen mayúsculas, y cada framework las
-    entrega a su manera (`HTTP_X_WEBHOOK_SIGNATURE` en WSGI, por ejemplo).
+    entrega a su manera: `HTTP_X_WEBHOOK_SIGNATURE` en WSGI, por ejemplo.
     """
     wanted = {
         SIGNATURE_HEADER.lower(),
@@ -93,9 +92,8 @@ def parse_webhook(
     """Verifica la firma y devuelve el evento ya interpretado.
 
     Raises:
-        SignatureVerificationError: si la firma no cuadra con el cuerpo. El
-            cuerpo no se interpreta en ese caso: verificar antes de leer es el
-            orden correcto.
+        SignatureVerificationError: si la firma no cuadra con el cuerpo. En ese
+            caso el cuerpo no se interpreta.
     """
     if not verify_webhook(payload, signature, secret):
         raise SignatureVerificationError(
