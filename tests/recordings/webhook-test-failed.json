@@ -1,0 +1,26 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "webhook_test_result",
+      "attributes": {
+        "delivered": false,
+        "http_status": 0,
+        "response_time_ms": 5000,
+        "error": "El receptor no respondió antes del tiempo límite"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "bb44cc55dd66",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

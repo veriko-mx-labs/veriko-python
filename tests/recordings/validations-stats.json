@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "total": 128,
+      "valid": 97,
+      "not_found": 19,
+      "cep_unavailable": 8,
+      "returned": 3,
+      "error": 1
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "ee55ff66aa77",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

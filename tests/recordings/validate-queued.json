@@ -1,0 +1,28 @@
+{
+  "status": 202,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"0-queued\"",
+    "Location": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479"
+  },
+  "json": {
+    "data": {
+      "type": "validation",
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "attributes": {
+        "status": "queued",
+        "validation_type": "direct"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "bb22cc33dd44",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      },
+      "next_poll_after_seconds": 3
+    }
+  }
+}

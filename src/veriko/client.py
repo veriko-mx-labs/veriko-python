@@ -1,4 +1,4 @@
-"""El cliente: las operaciones de la API que este SDK cubre."""
+"""El cliente: la entrada al SDK y las familias de operaciones."""
 
 from __future__ import annotations
 
@@ -7,17 +7,28 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
-from ._http import RetryConfig, Transport, filename_from_content_disposition
-from .errors import ConfigurationError, InvalidRequestError
+from ._http import RetryConfig, Transport
+from .errors import ConfigurationError
 from .models import CepDocument, RetryPolicy, Validation
+from .resources import CEP_FORMATS, Catalog, Validations, Webhooks
 
 DEFAULT_BASE_URL = "https://api.veriko.mx/v1"
 DEFAULT_TIMEOUT_SECONDS = 30.0
 API_KEY_ENV_VAR = "VERIKO_API_KEY"
 BASE_URL_ENV_VAR = "VERIKO_BASE_URL"
 
-CEP_FORMATS = ("xml", "pdf")
-_CEP_EXTENSIONS = {"xml": "xml", "pdf": "pdf"}
+
+def new_idempotency_key() -> str:
+    """Una clave por llamada, estable entre los reintentos de esa misma llamada.
+
+    Reintentar un `POST` sin clave de idempotencia puede duplicar la validación,
+    y su cargo, cuando la respuesta se perdió pero la petición llegó. Con clave,
+    el reintento devuelve la respuesta original.
+
+    Esta clave no sobrevive al proceso que la generó. La que protege un reenvío
+    posterior es la que se pasa en `idempotency_key`.
+    """
+    return "veriko-python-" + uuid.uuid4().hex
 
 
 class Veriko:
@@ -27,7 +38,14 @@ class Veriko:
     variable de entorno `VERIKO_API_KEY`. Empieza con `veriko_` y se obtiene en
     el panel: https://app.veriko.mx
 
-    Ejemplo:
+    Las operaciones se agrupan por familia:
+
+    - `client.validations` — validar, consultar, reintentar y descargar.
+    - `client.webhooks` — endpoints y su historial de entregas.
+    - `client.catalog` — bancos y estado del servicio de Banxico.
+
+    Las tres de uso más frecuente están también en la raíz, como atajo:
+
         >>> from veriko import Veriko
         >>> client = Veriko()
         >>> validation = client.validate_transfer(
@@ -88,11 +106,15 @@ class Veriko:
             accept_language=accept_language,
         )
 
+        self.validations = Validations(self._transport)
+        self.webhooks = Webhooks(self._transport)
+        self.catalog = Catalog(self._transport)
+
     @property
     def base_url(self) -> str:
         return self._transport.base_url
 
-    # ── Validar una transferencia ────────────────────────────────────────────
+    # ── Atajos del caso de uso principal ────────────────────────────────────
 
     def validate_transfer(
         self,
@@ -104,155 +126,50 @@ class Veriko:
         cuenta_beneficiaria: str | None = None,
         emisor: str | None = None,
         receptor: str | None = None,
-        receptor_participante: str | None = None,
+        receptor_participante: int | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
         idempotency_key: str | None = None,
     ) -> Validation:
-        """Valida una transferencia SPEI contra el CEP de Banxico.
+        """Atajo de `client.validations.validate()`.
 
-        `POST /v1/validate`. Devuelve el veredicto en `Validation.status`:
-        `valid`, `not_found`, `cep_unavailable`, `returned` o `error`.
-
-        Hace falta `clave_rastreo` o `referencia_numerica` — las dos juntas
-        precisan más la búsqueda. La fecha es la de **envío** de la
-        transferencia, en `YYYY-MM-DD`.
-
-        Un `not_found` inmediato no equivale a una transferencia inexistente: un
-        CEP tarda en publicarse. `retry_policy` deja a la API consultando de nuevo
-        y avisando por webhook cuando el veredicto cambia.
+        Valida una transferencia SPEI contra el CEP de Banxico. Hace falta
+        `clave_rastreo` o `referencia_numerica`; las dos juntas precisan la
+        búsqueda. La fecha es la de **envío**, en `YYYY-MM-DD`.
 
         Cada llamada consume cuota del plan, y se descuenta al aceptar la
         petición.
-
-        Args:
-            fecha: fecha de la transferencia, `YYYY-MM-DD`.
-            monto: importe en pesos, mayor que cero y con hasta dos decimales.
-            clave_rastreo: clave de rastreo, 1 a 30 caracteres.
-            referencia_numerica: referencia numérica, 1 a 7 dígitos.
-            cuenta_beneficiaria: CLABE, tarjeta o celular DiMo del beneficiario.
-            emisor: nombre o código SPEI del banco emisor.
-            receptor: nombre o código SPEI del banco receptor.
-            receptor_participante: clave del participante receptor, si se conoce.
-            retry_policy: política de reintentos automáticos de la API.
-            idempotency_key: identificador del intento de negocio —el número de
-                pedido, de lote o de transacción—. Con él, repetir la petición no
-                duplica la validación durante 24 horas. Si no se pasa, el SDK
-                genera una por llamada, estable entre sus propios reintentos.
-
-        Raises:
-            InvalidRequestError: la petición no es válida (`422`), o falta el
-                identificador de la transferencia.
-            RateLimitError: límite de tasa o cuota agotada (`429`).
-            APIError: cualquier otro error de la API.
         """
-        if not clave_rastreo and not referencia_numerica:
-            raise InvalidRequestError(
-                "Hace falta clave_rastreo o referencia_numerica para buscar la "
-                "transferencia en el CEP",
-                status=422,
-                code="clave_or_ref_required",
-            )
-
-        body: dict[str, Any] = {"fecha": fecha, "monto": monto}
-        optional = {
-            "clave_rastreo": clave_rastreo,
-            "referencia_numerica": referencia_numerica,
-            "cuenta_beneficiaria": cuenta_beneficiaria,
-            "emisor": emisor,
-            "receptor": receptor,
-            "receptor_participante": receptor_participante,
-        }
-        for name, value in optional.items():
-            if value is not None:
-                body[name] = value
-        if retry_policy is not None:
-            body["retry_policy"] = (
-                retry_policy.to_payload()
-                if isinstance(retry_policy, RetryPolicy)
-                else dict(retry_policy)
-            )
-
-        response = self._transport.request(
-            "POST",
-            "/validate",
-            json_body=body,
-            extra_headers={"Idempotency-Key": idempotency_key or _new_idempotency_key()},
+        return self.validations.validate(
+            fecha=fecha,
+            monto=monto,
+            clave_rastreo=clave_rastreo,
+            referencia_numerica=referencia_numerica,
+            cuenta_beneficiaria=cuenta_beneficiaria,
+            emisor=emisor,
+            receptor=receptor,
+            receptor_participante=receptor_participante,
+            retry_policy=retry_policy,
+            idempotency_key=idempotency_key,
         )
-        return Validation.from_response(response.json())
 
-    # ── Consultar una validación ya hecha ───────────────────────────────────
-
-    def get_validation(self, validation_id: str) -> Validation:
-        """Lee una validación por su identificador.
-
-        `GET /v1/validations/{id}`. Es la operación con la que se sigue una
-        validación que quedó reintentando: el veredicto final aparece cuando
-        `Validation.is_terminal` es `True`.
-        """
-        response = self._transport.request("GET", "/validations/" + _path_segment(validation_id))
-        return Validation.from_response(response.json())
-
-    # ── Obtener el CEP ──────────────────────────────────────────────────────
+    def get_validation(self, validation_id: str, *, if_none_match: str | None = None) -> Validation:
+        """Atajo de `client.validations.get()`."""
+        return self.validations.get(validation_id, if_none_match=if_none_match)
 
     def get_cep(self, validation_id: str, *, format: str = "xml") -> CepDocument:
-        """Descarga el CEP oficial de una validación.
+        """Atajo de `client.validations.cep()`.
 
-        `GET /v1/validations/{id}/cep`. Devuelve el archivo: el XML que emitió
-        Banxico, con su sello digital y su cadena original, o el PDF equivalente.
-
-        Existe cuando la validación tiene comprobante (`Validation.has_cep`).
-        Cuando no, la API responde `404` con `cep_not_available` y el SDK lo
-        lanza como `NotFoundError`.
-
-        Args:
-            validation_id: el identificador de la validación.
-            format: `xml` (por omisión) o `pdf`.
-
-        Raises:
-            ConfigurationError: si `format` no es `xml` ni `pdf`.
-            NotFoundError: la validación no existe, o no tiene comprobante.
+        Descarga el comprobante oficial: el XML que emitió Banxico, con su sello
+        digital y su cadena original, o el PDF equivalente.
         """
-        if format not in CEP_FORMATS:
-            raise ConfigurationError("El formato del CEP es 'xml' o 'pdf'; llegó " + repr(format))
-
-        accept = "application/xml" if format == "xml" else "application/pdf"
-        response = self._transport.request(
-            "GET",
-            "/validations/" + _path_segment(validation_id) + "/cep",
-            query={"format": format},
-            accept=accept + ", application/json",
-        )
-        fallback = "CEP-" + validation_id + "." + _CEP_EXTENSIONS[format]
-        return CepDocument(
-            validation_id=validation_id,
-            content=response.body,
-            content_type=response.headers.get("content-type", accept),
-            format=format,
-            filename=filename_from_content_disposition(
-                response.headers.get("content-disposition"), fallback
-            ),
-        )
+        return self.validations.cep(validation_id, format=format)
 
 
-def _new_idempotency_key() -> str:
-    """Una clave por llamada, estable entre los reintentos de esa misma llamada.
-
-    Reintentar un `POST` sin clave de idempotencia puede duplicar la validación,
-    y su cargo, cuando la respuesta se perdió pero la petición llegó. Con clave,
-    el reintento devuelve la respuesta original.
-
-    Esta clave no sobrevive al proceso que la generó. La que protege un reenvío
-    posterior es la que se pasa en `idempotency_key`.
-    """
-    return "veriko-python-" + uuid.uuid4().hex
-
-
-def _path_segment(value: str) -> str:
-    """Un identificador que va en la ruta no puede traer barras ni espacios."""
-    cleaned = str(value).strip()
-    if not cleaned or "/" in cleaned or "?" in cleaned or "#" in cleaned:
-        raise ConfigurationError("Identificador de validación inservible: " + repr(value))
-    return cleaned
-
-
-__all__ = ["API_KEY_ENV_VAR", "BASE_URL_ENV_VAR", "CEP_FORMATS", "DEFAULT_BASE_URL", "Veriko"]
+__all__ = [
+    "API_KEY_ENV_VAR",
+    "BASE_URL_ENV_VAR",
+    "CEP_FORMATS",
+    "DEFAULT_BASE_URL",
+    "Veriko",
+    "new_idempotency_key",
+]

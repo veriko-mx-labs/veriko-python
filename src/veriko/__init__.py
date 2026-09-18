@@ -23,7 +23,7 @@ Documentación de la API: https://docs.veriko.mx
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from ._http import RetryConfig
 from .client import (
@@ -50,13 +50,22 @@ from .errors import (
 from .models import (
     RETRYABLE_OUTCOMES,
     TERMINAL_STATUSES,
+    Bank,
     CepDocument,
+    Document,
     QueuedValidation,
+    RetryAttempt,
     RetryPolicy,
     RetryState,
     Validation,
+    ValidationSummary,
+    WebhookDelivery,
+    WebhookEndpoint,
     WebhookEvent,
+    WebhookTestResult,
 )
+from .pagination import Page
+from .resources import EXPORT_FORMATS, Catalog, Validations, Webhooks
 from .webhooks import (
     DELIVERY_ID_HEADER,
     EVENT_HEADER,
@@ -75,30 +84,42 @@ __all__ = [
     "DEFAULT_BASE_URL",
     "DELIVERY_ID_HEADER",
     "EVENT_HEADER",
+    "EXPORT_FORMATS",
     "RETRYABLE_OUTCOMES",
     "SIGNATURE_HEADER",
     "TERMINAL_STATUSES",
     "TIMESTAMP_HEADER",
     "APIError",
     "AuthenticationError",
+    "Bank",
+    "Catalog",
     "CepDocument",
     "ConfigurationError",
     "ConflictError",
     "ConnectionError",
+    "Document",
     "ForbiddenError",
     "InvalidRequestError",
     "NotFoundError",
+    "Page",
     "QueuedValidation",
     "RateLimitError",
+    "RetryAttempt",
     "RetryConfig",
     "RetryPolicy",
     "RetryState",
     "ServerError",
     "SignatureVerificationError",
     "Validation",
+    "ValidationSummary",
+    "Validations",
     "Veriko",
     "VerikoError",
+    "WebhookDelivery",
+    "WebhookEndpoint",
     "WebhookEvent",
+    "WebhookTestResult",
+    "Webhooks",
     "__version__",
     "compute_signature",
     "parse_webhook",

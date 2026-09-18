@@ -1,0 +1,31 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "metric": "latency",
+      "window": "24h",
+      "points": [
+        {
+          "at": "2025-03-15T13:00:00Z",
+          "value": 780
+        },
+        {
+          "at": "2025-03-15T14:00:00Z",
+          "value": 820
+        }
+      ]
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "bb00cc11dd22",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

@@ -5,6 +5,43 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+## [0.2.0] — 2026-09-18
+
+La superficie pasa de 3 operaciones a 27: las familias `validations`, `webhooks`
+y `catalog` completas.
+
+### Añadido
+
+- `client.validations`: validación por imagen (`validate_ocr`), modo asíncrono
+  (`enqueue`, `enqueue_ocr`) con sondeo por `ETag` (`wait_for`), listado con
+  paginación (`list`, `iter`), estadísticas, exportación en CSV y XLSX, imagen
+  del comprobante, intentos de reintento, cambio de la política de reintentos,
+  cancelación, retirada del historial y envío del comprobante a Telegram.
+- `client.webhooks`: registrar, listar, cambiar y retirar endpoints; evento de
+  prueba; rotación del secreto; historial de entregas con paginación y su
+  exportación.
+- `client.catalog`: catálogo de bancos SPEI, banco emisor de una tarjeta y
+  estado del servicio de Banxico con su serie temporal.
+- `Page` y los iteradores `iter*`, que piden la página siguiente sólo cuando la
+  anterior se agota.
+- `Validation.is_settled`: distingue un veredicto firme de uno terminal que
+  todavía puede cambiar porque hay reintentos en marcha. Es lo que espera
+  `wait_for()`.
+- Los tipos `ValidationSummary`, `WebhookEndpoint`, `WebhookDelivery`,
+  `WebhookTestResult`, `RetryAttempt`, `Bank` y `Document`.
+
+### Cambiado
+
+- `validate_transfer()`, `get_validation()` y `get_cep()` siguen en la raíz del
+  cliente y se comportan igual: ahora delegan en la familia correspondiente.
+- `Validation` gana el campo `etag`, que `get()` rellena con la cabecera de la
+  respuesta.
+
+### Pendiente para versiones siguientes
+
+- Beneficiarios, con su importación masiva.
+- Métricas de consumo y límites de tasa.
+
 ## [0.1.0] — 2026-09-18
 
 Primera versión del SDK oficial de Python.
@@ -32,5 +69,6 @@ Primera versión del SDK oficial de Python.
 - Validación por OCR de una imagen de comprobante.
 - Beneficiarios, importación masiva y finanzas.
 
-[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.1.0...HEAD
+[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.2.0
 [0.1.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.1.0

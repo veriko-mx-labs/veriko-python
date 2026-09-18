@@ -50,6 +50,19 @@ una respuesta de Banxico sobre la transferencia, el segundo es la ausencia de re
 
 Con veredicto `valid`, el comprobante queda disponible en XML y en PDF.
 
+## Las familias de operaciones
+
+El cliente agrupa la API en tres familias:
+
+| familia | qué cubre |
+| --- | --- |
+| `client.validations` | Validar por campos o por imagen, consultar, listar, exportar, la política de reintentos y la descarga del comprobante |
+| `client.webhooks` | Registrar endpoints, rotar su secreto, enviar un evento de prueba y leer el historial de entregas |
+| `client.catalog` | Catálogo de bancos SPEI, banco emisor de una tarjeta y estado del servicio de Banxico |
+
+Las tres operaciones de uso más frecuente están también en la raíz del cliente,
+como atajo: `validate_transfer()`, `get_validation()` y `get_cep()`.
+
 ## Instalación
 
 El paquete todavía no está publicado en PyPI. Mientras tanto se instala desde el repositorio:
@@ -104,6 +117,57 @@ Los argumentos conservan el nombre que viaja en el JSON de la API.
 
 Cada llamada consume cuota del plan, y se descuenta al aceptar la petición.
 
+### Desde la imagen del comprobante
+
+```python
+validation = client.validations.validate_ocr(
+    image="comprobante.png",  # ruta, bytes o un objeto Path
+    cuenta_beneficiaria="012180004412345678",  # obligatoria para celular DiMo
+)
+```
+
+El SDK lee el archivo y lo codifica en base64. `image_url` sirve para una imagen
+ya publicada en HTTPS. Formatos: JPEG, PNG o WebP.
+
+### Sin esperar al veredicto
+
+Para volumen, la API acepta la petición y responde con el identificador:
+
+```python
+queued = client.validations.enqueue(
+    fecha="2025-03-15",
+    monto=15000.50,
+    clave_rastreo="MXBA20250315001234",
+)
+
+validation = client.validations.wait_for(queued.id)  # sondea hasta el veredicto
+```
+
+`wait_for()` manda el `ETag` de la respuesta anterior en cada vuelta, así que un
+sondeo que no encuentra cambios no descarga otra vez el mismo cuerpo. Espera a
+que el veredicto quede firme, no sólo a que el estado sea terminal: una
+validación con reintentos en marcha llega a `not_found` y sigue cambiando
+después. Esa distinción es `Validation.is_settled`.
+
+La alternativa a sondear es suscribirse al webhook `validation.completed`.
+
+### Listar y recorrer el historial
+
+```python
+pagina = client.validations.list(status="valid", per_page=50)
+print(pagina.total, "validaciones,", pagina.total_pages, "páginas")
+
+for validation in client.validations.iter(from_="2025-03-01", to="2025-03-31"):
+    print(validation.id, validation.status)
+```
+
+`iter()` pide la página siguiente sólo cuando la anterior se agota. El filtro de
+fecha es `from_` con guion bajo, porque `from` es palabra reservada de Python;
+viaja como `from`.
+
+El historial se exporta entero con `client.validations.export(format="csv")`, que
+admite también `xlsx`.
+
 ## Descargar el CEP
 
 ```python
@@ -114,6 +178,30 @@ cep.write_to(cep.filename)  # CEP-<id>.pdf
 `get_cep()` devuelve el archivo: el XML que emitió Banxico, con su sello digital y su cadena
 original, o el PDF equivalente. `Validation.has_cep` indica si existe antes de pedirlo; cuando no,
 la API responde `404` con `cep_not_available` y el SDK lanza `NotFoundError`.
+
+## Registrar un webhook
+
+```python
+endpoint = client.webhooks.create(
+    url="https://miapp.example.com/hooks/pagos",
+    events=["validation.completed"],
+)
+
+print(endpoint.secret)  # whsec_… — guárdalo: la API no lo vuelve a entregar
+```
+
+El secreto de firma viaja **una sola vez**, en esta respuesta. Si se pierde,
+`client.webhooks.regenerate_secret(endpoint.id)` devuelve uno nuevo, y el
+anterior deja de valer.
+
+`client.webhooks.test(endpoint.id)` manda un evento de prueba y dice si el
+receptor lo aceptó. Las entregas de prueba no cuentan para el contador de fallos
+consecutivos que apaga un endpoint a los tres seguidos; cuando eso pasa, el
+estado queda en `auto_disabled` y se reactiva con
+`client.webhooks.update(id, status="active")`.
+
+El historial de intentos está en `client.webhooks.deliveries()`, con o sin
+identificador de endpoint.
 
 ## Verificar la firma de un webhook
 
@@ -258,11 +346,18 @@ Cada error de la API trae `request_id`, que identifica la petición en los regis
 
 ## Alcance de esta versión
 
-`validate_transfer()`, `get_validation()`, `get_cep()` y la verificación de webhooks.
+Las familias `validations`, `webhooks` y `catalog` completas: 27 operaciones de la
+API, incluidas la validación por imagen, el modo asíncrono con sondeo por `ETag`,
+la paginación, las exportaciones y el ciclo de vida de los endpoints de webhook.
 
-Fuera del alcance por ahora: el modo asíncrono (`?async=1`) con sondeo por `ETag`, la validación
-por OCR de una imagen, la importación masiva, los beneficiarios y las finanzas. Esas operaciones se
-consumen con cualquier cliente HTTP contra la [referencia](https://docs.veriko.mx).
+Fuera del alcance, y previsto para la siguiente versión: beneficiarios, con su
+importación masiva, y las métricas de consumo.
+
+Fuera del alcance a propósito: finanzas, métricas propias, catálogo de planes,
+suscripción y el resumen del panel. Son superficie de interfaz, se consumen una
+vez o desde la propia aplicación, y cada una arrastra formatos de exportación que
+no aportan al SDK. Están en la [referencia](https://docs.veriko.mx) para quien las
+necesite con un cliente HTTP.
 
 ## Desarrollo
 
