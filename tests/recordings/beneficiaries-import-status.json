@@ -1,0 +1,36 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "beneficiary_import",
+      "id": "42",
+      "attributes": {
+        "status": "preview_ready",
+        "file_format": "csv",
+        "parse_mode": "template",
+        "total_rows": 150,
+        "valid_count": 120,
+        "correctable_count": 20,
+        "fatal_count": 5,
+        "duplicate_count": 5,
+        "committed_count": 0,
+        "skipped_count": 0,
+        "llm_invoked": false,
+        "error_code": null,
+        "error_summary": null,
+        "created_at": "2026-05-16T10:00:00Z",
+        "parsed_at": "2026-05-16T10:00:08Z",
+        "committed_at": null,
+        "completed_at": null
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "c009d010e011"
+    }
+  }
+}

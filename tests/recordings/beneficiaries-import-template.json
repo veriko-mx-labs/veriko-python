@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": "attachment; filename=\"beneficiarios_plantilla.csv\""
+  },
+  "body_base64": "QWxpYXMsQ3VlbnRhLFRpcG8KUHJvdmVlZG9yIGRlIGVqZW1wbG8sMDEyMTgwMDA0NDEyMzQ1Njc4LENMQUJFCg=="
+}

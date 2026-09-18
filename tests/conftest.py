@@ -140,6 +140,7 @@ def _make_handler(server: RecordingServer) -> Any:
         do_GET = _handle
         do_POST = _handle
         do_PUT = _handle
+        do_PATCH = _handle
         do_DELETE = _handle
 
         def log_message(self, *args: Any) -> None:  # silencio en la salida de pytest

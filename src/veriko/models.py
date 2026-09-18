@@ -30,6 +30,9 @@ TERMINAL_STATUSES = (
     "error",
 )
 
+# Estados finales de una importación de beneficiarios.
+IMPORT_TERMINAL_STATUSES = ("completed", "failed", "cancelled")
+
 
 @dataclass(frozen=True)
 class RetryPolicy:
@@ -394,6 +397,289 @@ class Bank:
 
 
 @dataclass(frozen=True)
+class Beneficiary:
+    """Una cuenta beneficiaria guardada: CLABE, tarjeta o celular DiMo.
+
+    https://docs.veriko.mx/es/concepts/beneficiaries
+    """
+
+    id: str
+    account_number: str | None = None
+    account_type: str | None = None
+    bank_code: str | None = None
+    bank_name: str | None = None
+    label: str | None = None
+    status: str | None = None
+    created_at: str | None = None
+    attributes: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @property
+    def is_archived(self) -> bool:
+        """`True` cuando el beneficiario fue archivado y no figura en la lista activa."""
+        return self.status == "inactive"
+
+    @classmethod
+    def from_item(cls, item: dict[str, Any]) -> Beneficiary:
+        attributes: dict[str, Any] = item.get("attributes") or {}
+        return cls(
+            id=str(item.get("id") or ""),
+            account_number=attributes.get("account_number"),
+            account_type=attributes.get("account_type"),
+            bank_code=attributes.get("bank_code"),
+            bank_name=attributes.get("bank_name"),
+            label=attributes.get("label"),
+            status=attributes.get("status"),
+            created_at=attributes.get("created_at"),
+            attributes=attributes,
+            raw=item,
+        )
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> Beneficiary:
+        data = body.get("data")
+        return cls.from_item(data if isinstance(data, dict) else {})
+
+
+@dataclass(frozen=True)
+class BeneficiaryLookup:
+    """La cuenta resuelta por `beneficiaries.lookup()` dentro de la lista propia."""
+
+    account_number: str | None = None
+    account_type: str | None = None
+    bank_code: str | None = None
+    bank_name: str | None = None
+    label: str | None = None
+    attributes: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> BeneficiaryLookup:
+        data = body.get("data") or {}
+        attributes: dict[str, Any] = data.get("attributes") or {}
+        return cls(
+            account_number=attributes.get("account_number"),
+            account_type=attributes.get("account_type"),
+            bank_code=attributes.get("bank_code"),
+            bank_name=attributes.get("bank_name"),
+            label=attributes.get("label"),
+            attributes=attributes,
+            raw=body,
+        )
+
+
+@dataclass(frozen=True)
+class AccountValidation:
+    """Resultado de `beneficiaries.validate_account()`: la estructura de una cuenta.
+
+    Un número mal formado no es un error de la petición, sino un resultado que se
+    lee en `checksum_valid` o en `account_type`.
+    """
+
+    input: str | None = None
+    length: int | None = None
+    is_numeric: bool = False
+    account_type: str | None = None
+    is_complete: bool = False
+    checksum_valid: bool = False
+    computed_control_digit: str | None = None
+    auto_completed: str | None = None
+    bank: dict[str, Any] = field(default_factory=dict)
+    card: dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> AccountValidation:
+        data = body.get("data") or {}
+        attributes: dict[str, Any] = data.get("attributes") or {}
+        bank = attributes.get("bank")
+        card = attributes.get("card")
+        return cls(
+            input=attributes.get("input"),
+            length=attributes.get("length"),
+            is_numeric=bool(attributes.get("is_numeric", False)),
+            account_type=attributes.get("account_type"),
+            is_complete=bool(attributes.get("is_complete", False)),
+            checksum_valid=bool(attributes.get("checksum_valid", False)),
+            computed_control_digit=attributes.get("computed_control_digit"),
+            auto_completed=attributes.get("auto_completed"),
+            bank=bank if isinstance(bank, dict) else {},
+            card=card if isinstance(card, dict) else {},
+            attributes=attributes,
+            raw=body,
+        )
+
+
+@dataclass(frozen=True)
+class BeneficiaryImportJob:
+    """Un trabajo de importación masiva de beneficiarios y su avance.
+
+    Ciclo de vida: `pending` → `parsing` → `preview_ready` → `committing` →
+    `completed` (o `failed` / `cancelled`).
+
+    https://docs.veriko.mx/es/concepts/bulk-imports
+    """
+
+    id: str
+    status: str | None = None
+    file_format: str | None = None
+    parse_mode: str | None = None
+    total_rows: int | None = None
+    valid_count: int | None = None
+    correctable_count: int | None = None
+    fatal_count: int | None = None
+    duplicate_count: int | None = None
+    committed_count: int | None = None
+    skipped_count: int | None = None
+    llm_invoked: bool = False
+    error_code: str | None = None
+    error_summary: str | None = None
+    created_at: str | None = None
+    parsed_at: str | None = None
+    committed_at: str | None = None
+    completed_at: str | None = None
+    attributes: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @property
+    def is_terminal(self) -> bool:
+        """`True` cuando el trabajo terminó, con éxito o no."""
+        return self.status in IMPORT_TERMINAL_STATUSES
+
+    @property
+    def is_preview_ready(self) -> bool:
+        """`True` cuando las filas ya están listas para revisar y corregir."""
+        return self.status == "preview_ready"
+
+    @property
+    def is_settled(self) -> bool:
+        """`True` cuando el trabajo ya no avanza por sí solo.
+
+        Cubre `preview_ready`, donde el avance se detiene a esperar la revisión
+        del usuario, y los estados finales. Es lo que espera `import_wait()`.
+        """
+        return self.is_preview_ready or self.is_terminal
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> BeneficiaryImportJob:
+        data = body.get("data") or {}
+        attributes: dict[str, Any] = data.get("attributes") or {}
+        return cls(
+            id=str(data.get("id") or ""),
+            status=attributes.get("status"),
+            file_format=attributes.get("file_format"),
+            parse_mode=attributes.get("parse_mode"),
+            total_rows=attributes.get("total_rows"),
+            valid_count=attributes.get("valid_count"),
+            correctable_count=attributes.get("correctable_count"),
+            fatal_count=attributes.get("fatal_count"),
+            duplicate_count=attributes.get("duplicate_count"),
+            committed_count=attributes.get("committed_count"),
+            skipped_count=attributes.get("skipped_count"),
+            llm_invoked=bool(attributes.get("llm_invoked", False)),
+            error_code=attributes.get("error_code"),
+            error_summary=attributes.get("error_summary"),
+            created_at=attributes.get("created_at"),
+            parsed_at=attributes.get("parsed_at"),
+            committed_at=attributes.get("committed_at"),
+            completed_at=attributes.get("completed_at"),
+            attributes=attributes,
+            raw=body,
+        )
+
+
+@dataclass(frozen=True)
+class BeneficiaryImportRow:
+    """Una fila extraída de un archivo de importación, con su grupo y sus correcciones."""
+
+    id: str
+    row_index: int | None = None
+    status: str | None = None
+    parsed_account: str | None = None
+    parsed_account_type: str | None = None
+    parsed_bank_code: str | None = None
+    parsed_bank_name: str | None = None
+    parsed_label: str | None = None
+    error_codes: list[str] = field(default_factory=list)
+    corrections_applied: dict[str, Any] = field(default_factory=dict)
+    user_overrides: dict[str, Any] = field(default_factory=dict)
+    raw_preview: dict[str, Any] = field(default_factory=dict)
+    created_beneficiary_id: int | None = None
+    attributes: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_item(cls, item: dict[str, Any]) -> BeneficiaryImportRow:
+        attributes: dict[str, Any] = item.get("attributes") or {}
+        errores = attributes.get("error_codes")
+        correcciones = attributes.get("corrections_applied")
+        sobreescrituras = attributes.get("user_overrides")
+        previa = attributes.get("raw_preview")
+        return cls(
+            id=str(item.get("id") or ""),
+            row_index=attributes.get("row_index"),
+            status=attributes.get("status"),
+            parsed_account=attributes.get("parsed_account"),
+            parsed_account_type=attributes.get("parsed_account_type"),
+            parsed_bank_code=attributes.get("parsed_bank_code"),
+            parsed_bank_name=attributes.get("parsed_bank_name"),
+            parsed_label=attributes.get("parsed_label"),
+            error_codes=list(errores) if isinstance(errores, list) else [],
+            corrections_applied=correcciones if isinstance(correcciones, dict) else {},
+            user_overrides=sobreescrituras if isinstance(sobreescrituras, dict) else {},
+            raw_preview=previa if isinstance(previa, dict) else {},
+            created_beneficiary_id=attributes.get("created_beneficiary_id"),
+            attributes=attributes,
+            raw=item,
+        )
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> BeneficiaryImportRow:
+        data = body.get("data")
+        return cls.from_item(data if isinstance(data, dict) else {})
+
+
+@dataclass(frozen=True)
+class UsageSummary:
+    """La cuota de validaciones del plan en curso, con el nivel de aviso.
+
+    `tone` resume el consumo: `ok` por debajo del 70 %, `warn` entre el 70 % y el
+    89 %, y `danger` a partir del 90 % o con la cuota agotada.
+    """
+
+    plan_slug: str | None = None
+    plan_name: str | None = None
+    limit: int | None = None
+    used: int | None = None
+    remaining: int | None = None
+    used_percent: float | None = None
+    tone: str | None = None
+    resets_at: str | None = None
+    next_reset_at: str | None = None
+    attributes: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> UsageSummary:
+        data = body.get("data") or {}
+        attributes: dict[str, Any] = data.get("attributes") or {}
+        return cls(
+            plan_slug=attributes.get("plan_slug"),
+            plan_name=attributes.get("plan_name"),
+            limit=attributes.get("limit"),
+            used=attributes.get("used"),
+            remaining=attributes.get("remaining"),
+            used_percent=attributes.get("used_percent"),
+            tone=attributes.get("tone"),
+            resets_at=attributes.get("resets_at"),
+            next_reset_at=attributes.get("next_reset_at"),
+            attributes=attributes,
+            raw=body,
+        )
+
+
+@dataclass(frozen=True)
 class Document:
     """Un archivo que devuelve la API: el CEP, una imagen o una exportación."""
 
@@ -412,15 +698,22 @@ class Document:
 
 
 __all__ = [
+    "IMPORT_TERMINAL_STATUSES",
     "RETRYABLE_OUTCOMES",
     "TERMINAL_STATUSES",
+    "AccountValidation",
     "Bank",
+    "Beneficiary",
+    "BeneficiaryImportJob",
+    "BeneficiaryImportRow",
+    "BeneficiaryLookup",
     "CepDocument",
     "Document",
     "QueuedValidation",
     "RetryAttempt",
     "RetryPolicy",
     "RetryState",
+    "UsageSummary",
     "Validation",
     "ValidationStatus",
     "ValidationSummary",

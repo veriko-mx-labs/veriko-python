@@ -10,7 +10,7 @@ from typing import Any
 from ._http import RetryConfig, Transport
 from .errors import ConfigurationError
 from .models import CepDocument, RetryPolicy, Validation
-from .resources import CEP_FORMATS, Catalog, Validations, Webhooks
+from .resources import CEP_FORMATS, Beneficiaries, Catalog, Usage, Validations, Webhooks
 
 DEFAULT_BASE_URL = "https://api.veriko.mx/v1"
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -43,6 +43,8 @@ class Veriko:
     - `client.validations` — validar, consultar, reintentar y descargar.
     - `client.webhooks` — endpoints y su historial de entregas.
     - `client.catalog` — bancos y estado del servicio de Banxico.
+    - `client.beneficiaries` — cuentas guardadas y su importación masiva.
+    - `client.usage` — cuota, límites y registro de actividad.
 
     Las tres de uso más frecuente están también en la raíz, como atajo:
 
@@ -109,6 +111,8 @@ class Veriko:
         self.validations = Validations(self._transport)
         self.webhooks = Webhooks(self._transport)
         self.catalog = Catalog(self._transport)
+        self.beneficiaries = Beneficiaries(self._transport)
+        self.usage = Usage(self._transport)
 
     @property
     def base_url(self) -> str:

@@ -52,13 +52,15 @@ Con veredicto `valid`, el comprobante queda disponible en XML y en PDF.
 
 ## Las familias de operaciones
 
-El cliente agrupa la API en tres familias:
+El cliente agrupa la API en cinco familias:
 
 | familia | qué cubre |
 | --- | --- |
 | `client.validations` | Validar por campos o por imagen, consultar, listar, exportar, la política de reintentos y la descarga del comprobante |
 | `client.webhooks` | Registrar endpoints, rotar su secreto, enviar un evento de prueba y leer el historial de entregas |
 | `client.catalog` | Catálogo de bancos SPEI, banco emisor de una tarjeta y estado del servicio de Banxico |
+| `client.beneficiaries` | Cuentas beneficiarias guardadas y la importación masiva, como ciclo completo |
+| `client.usage` | Cuota de validaciones, límites de tasa y registro de actividad de la API |
 
 Las tres operaciones de uso más frecuente están también en la raíz del cliente,
 como atajo: `validate_transfer()`, `get_validation()` y `get_cep()`.
@@ -344,20 +346,68 @@ except NotFoundError:  # 404
 
 Cada error de la API trae `request_id`, que identifica la petición en los registros del sistema.
 
+## Beneficiarios
+
+`client.beneficiaries` guarda las cuentas a las que se paga: CLABE, tarjeta o celular DiMo. El tipo
+se detecta por longitud y el banco se deriva del número, salvo en un celular, que exige `bank_code`.
+
+```python
+beneficiary = client.beneficiaries.create(
+    account_number="012180004412345678",
+    label="Proveedor ABC",
+)
+
+beneficiary = client.beneficiaries.lookup("012180004412345678")  # la cuenta ya guardada
+```
+
+`validate_account()` comprueba la estructura de una cuenta sin gastar cuota del plan. La lista se
+recorre con `client.beneficiaries.list()`, y se exporta con
+`client.beneficiaries.export(format="csv")`.
+
+### Importación masiva
+
+La importación es un ciclo, no una sola operación:
+
+```python
+plantilla = client.beneficiaries.import_template(format="csv")  # 1. descargar
+plantilla.write_to(plantilla.filename)
+
+trabajo = client.beneficiaries.import_start("beneficiarios.csv")  # 2. subir
+trabajo = client.beneficiaries.import_wait(trabajo.id)  # 3. esperar la vista previa
+
+for fila in client.beneficiaries.iter_import_preview(trabajo.id):  # 4. revisar
+    if fila.status == "correctable":
+        client.beneficiaries.import_edit_row(trabajo.id, fila.id, parsed_bank_code="40012")
+
+client.beneficiaries.import_commit(trabajo.id)  # 5. confirmar
+```
+
+Nada se persiste hasta `import_commit()`. `import_wait()` espera a `preview_ready` o a un estado
+final; el endpoint de estado no expone `ETag`, así que cada vuelta descarga el cuerpo.
+
+## Consumo
+
+```python
+summary = client.usage.summary()
+print(summary.used, "de", summary.limit, "(", summary.tone, ")")
+
+historial = client.usage.history(months=6)
+limites = client.usage.limits()
+```
+
+`client.usage.export(format="csv")` baja el registro de actividad.
+
 ## Alcance de esta versión
 
-Las familias `validations`, `webhooks` y `catalog` completas: 27 operaciones de la
-API, incluidas la validación por imagen, el modo asíncrono con sondeo por `ETag`,
-la paginación, las exportaciones y el ciclo de vida de los endpoints de webhook.
+Las cinco familias completas: `validations`, `webhooks`, `catalog`, `beneficiaries` y `usage`, con
+48 operaciones de la API. Incluyen la validación por imagen, el modo asíncrono con sondeo por
+`ETag`, la paginación, las exportaciones, el ciclo de vida de los endpoints de webhook, la lista de
+cuentas beneficiarias con su importación masiva y las métricas de consumo.
 
-Fuera del alcance, y previsto para la siguiente versión: beneficiarios, con su
-importación masiva, y las métricas de consumo.
-
-Fuera del alcance a propósito: finanzas, métricas propias, catálogo de planes,
-suscripción y el resumen del panel. Son superficie de interfaz, se consumen una
-vez o desde la propia aplicación, y cada una arrastra formatos de exportación que
-no aportan al SDK. Están en la [referencia](https://docs.veriko.mx) para quien las
-necesite con un cliente HTTP.
+Fuera del alcance a propósito: finanzas, métricas propias, catálogo de planes, suscripción y el
+resumen del panel. Son superficie de interfaz, se consumen una vez o desde la propia aplicación, y
+cada una arrastra formatos de exportación que no aportan al SDK. Están en la
+[referencia](https://docs.veriko.mx) para quien las necesite con un cliente HTTP.
 
 ## Desarrollo
 

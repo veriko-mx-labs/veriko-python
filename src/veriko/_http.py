@@ -19,6 +19,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -57,6 +58,15 @@ class Response:
                 headers=self.headers,
             )
         return decoded
+
+
+@dataclass(frozen=True)
+class MultipartFile:
+    """Un archivo adjunto en una petición `multipart/form-data`."""
+
+    filename: str
+    content: bytes
+    content_type: str = "application/octet-stream"
 
 
 @dataclass(frozen=True)
@@ -129,6 +139,7 @@ class Transport:
         query: Mapping[str, Any] | None = None,
         extra_headers: Mapping[str, str] | None = None,
         accept: str = "application/json",
+        multipart: Mapping[str, str | MultipartFile] | None = None,
     ) -> Response:
         url = self._build_url(path, query)
         payload: bytes | None = None
@@ -142,6 +153,9 @@ class Transport:
         if json_body is not None:
             payload = json.dumps(json_body, ensure_ascii=False).encode("utf-8")
             headers["Content-Type"] = "application/json; charset=utf-8"
+        if multipart is not None:
+            payload, content_type = _encode_multipart(multipart)
+            headers["Content-Type"] = content_type
         if extra_headers:
             for name, value in extra_headers.items():
                 if value is not None:
@@ -180,7 +194,14 @@ class Transport:
     def _build_url(self, path: str, query: Mapping[str, Any] | None) -> str:
         url = self.base_url + "/" + path.lstrip("/")
         if query:
-            pairs = [(k, str(v)) for k, v in query.items() if v is not None]
+            pairs: list[tuple[str, str]] = []
+            for name, value in query.items():
+                if value is None:
+                    continue
+                if isinstance(value, (list, tuple)):
+                    pairs.extend((name, str(item)) for item in value)
+                else:
+                    pairs.append((name, str(value)))
             if pairs:
                 url = url + "?" + urllib.parse.urlencode(pairs)
         return url
@@ -260,6 +281,35 @@ def _lower_headers(items: Any) -> dict[str, str]:
     return {str(name).lower(): str(value) for name, value in items}
 
 
+def _encode_multipart(fields: Mapping[str, str | MultipartFile]) -> tuple[bytes, str]:
+    """Codifica un cuerpo `multipart/form-data` y devuelve bytes y content-type."""
+    boundary = "veriko-" + uuid.uuid4().hex
+    chunks: list[bytes] = []
+    for name, value in fields.items():
+        chunks.append(("--" + boundary).encode("ascii"))
+        if isinstance(value, MultipartFile):
+            disposition = (
+                'Content-Disposition: form-data; name="'
+                + name
+                + '"; filename="'
+                + value.filename
+                + '"'
+            )
+            chunks.append(disposition.encode("utf-8"))
+            chunks.append(("Content-Type: " + value.content_type).encode("ascii"))
+            chunks.append(b"")
+            chunks.append(value.content)
+        else:
+            chunks.append(('Content-Disposition: form-data; name="' + name + '"').encode("utf-8"))
+            chunks.append(b"")
+            chunks.append(str(value).encode("utf-8"))
+        chunks.append(b"")
+    chunks.append(("--" + boundary + "--").encode("ascii"))
+    chunks.append(b"")
+    body = b"\r\n".join(chunks)
+    return body, "multipart/form-data; boundary=" + boundary
+
+
 def filename_from_content_disposition(value: str | None, fallback: str) -> str:
     """Saca el nombre de archivo de `Content-Disposition`, o usa el de respaldo."""
     if not value:
@@ -275,6 +325,7 @@ def filename_from_content_disposition(value: str | None, fallback: str) -> str:
 
 __all__ = [
     "RETRYABLE_STATUSES",
+    "MultipartFile",
     "Response",
     "RetryConfig",
     "Transport",

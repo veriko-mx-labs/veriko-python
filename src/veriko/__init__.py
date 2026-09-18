@@ -23,7 +23,7 @@ Documentación de la API: https://docs.veriko.mx
 
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from ._http import RetryConfig
 from .client import (
@@ -48,15 +48,22 @@ from .errors import (
     VerikoError,
 )
 from .models import (
+    IMPORT_TERMINAL_STATUSES,
     RETRYABLE_OUTCOMES,
     TERMINAL_STATUSES,
+    AccountValidation,
     Bank,
+    Beneficiary,
+    BeneficiaryImportJob,
+    BeneficiaryImportRow,
+    BeneficiaryLookup,
     CepDocument,
     Document,
     QueuedValidation,
     RetryAttempt,
     RetryPolicy,
     RetryState,
+    UsageSummary,
     Validation,
     ValidationSummary,
     WebhookDelivery,
@@ -65,7 +72,15 @@ from .models import (
     WebhookTestResult,
 )
 from .pagination import Page
-from .resources import EXPORT_FORMATS, Catalog, Validations, Webhooks
+from .resources import (
+    EXPORT_FORMATS,
+    TEMPLATE_FORMATS,
+    Beneficiaries,
+    Catalog,
+    Usage,
+    Validations,
+    Webhooks,
+)
 from .webhooks import (
     DELIVERY_ID_HEADER,
     EVENT_HEADER,
@@ -85,13 +100,21 @@ __all__ = [
     "DELIVERY_ID_HEADER",
     "EVENT_HEADER",
     "EXPORT_FORMATS",
+    "IMPORT_TERMINAL_STATUSES",
     "RETRYABLE_OUTCOMES",
     "SIGNATURE_HEADER",
+    "TEMPLATE_FORMATS",
     "TERMINAL_STATUSES",
     "TIMESTAMP_HEADER",
     "APIError",
+    "AccountValidation",
     "AuthenticationError",
     "Bank",
+    "Beneficiaries",
+    "Beneficiary",
+    "BeneficiaryImportJob",
+    "BeneficiaryImportRow",
+    "BeneficiaryLookup",
     "Catalog",
     "CepDocument",
     "ConfigurationError",
@@ -110,6 +133,8 @@ __all__ = [
     "RetryState",
     "ServerError",
     "SignatureVerificationError",
+    "Usage",
+    "UsageSummary",
     "Validation",
     "ValidationSummary",
     "Validations",

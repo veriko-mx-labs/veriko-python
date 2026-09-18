@@ -5,6 +5,41 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+## [0.3.0] — 2026-09-18
+
+La superficie pasa de 27 operaciones a 48: se suman las familias
+`beneficiaries` y `usage`. Es la segunda y última tanda del alcance fijado.
+
+### Añadido
+
+- `client.beneficiaries`: registrar, listar, cambiar y archivar cuentas
+  beneficiarias; validación estructural de una cuenta sin gastar cuota
+  (`validate_account`); resolución de una cuenta en la lista propia (`lookup`);
+  exportación en CSV y XLSX; y la importación masiva como ciclo
+  (`import_template`, `import_start`, `import_status`, `import_preview`,
+  `import_edit_row`, `import_remove_row`, `import_commit` e `import_wait`).
+- `client.usage`: cuota del plan (`summary`), historial mensual (`history`),
+  desglose por operación (`breakdown`), límites de tasa (`limits`), mapa de
+  calor (`heatmap`), métricas de la API (`api_usage`) y su exportación
+  (`export`).
+- Los tipos `Beneficiary`, `BeneficiaryLookup`, `AccountValidation`,
+  `BeneficiaryImportJob`, `BeneficiaryImportRow` y `UsageSummary`.
+- `BeneficiaryImportJob.is_settled`: la condición que espera `import_wait()`
+  (`preview_ready` o un estado final).
+- Subida de archivos `multipart/form-data` en el transporte, sin dependencias
+  de runtime.
+
+### Cambiado
+
+- El transporte codifica los valores de consulta que son listas como
+  parámetros repetidos, para el filtro `buckets` de la vista previa.
+- El arnés de pruebas entiende `PATCH`, que usa la corrección de filas.
+
+### Pendiente para versiones siguientes
+
+- Nada dentro del alcance fijado. Quedan fuera de propósito finanzas, métricas
+  propias, catálogo de planes, suscripción y el resumen del panel.
+
 ## [0.2.0] — 2026-09-18
 
 La superficie pasa de 3 operaciones a 27: las familias `validations`, `webhooks`
@@ -69,6 +104,7 @@ Primera versión del SDK oficial de Python.
 - Validación por OCR de una imagen de comprobante.
 - Beneficiarios, importación masiva y finanzas.
 
-[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.2.0...HEAD
+[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.0
 [0.2.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.2.0
 [0.1.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.1.0

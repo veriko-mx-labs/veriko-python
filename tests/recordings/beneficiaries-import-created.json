@@ -1,0 +1,20 @@
+{
+  "status": 202,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "beneficiary_import",
+      "id": "42",
+      "attributes": {
+        "status": "pending"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "a007b008c009"
+    }
+  }
+}

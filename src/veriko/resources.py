@@ -14,15 +14,21 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from ._http import Response, Transport, filename_from_content_disposition
+from ._http import MultipartFile, Response, Transport, filename_from_content_disposition
 from .errors import APIError, ConfigurationError, InvalidRequestError
 from .models import (
+    AccountValidation,
     Bank,
+    Beneficiary,
+    BeneficiaryImportJob,
+    BeneficiaryImportRow,
+    BeneficiaryLookup,
     CepDocument,
     Document,
     QueuedValidation,
     RetryAttempt,
     RetryPolicy,
+    UsageSummary,
     Validation,
     ValidationSummary,
     WebhookDelivery,
@@ -33,10 +39,27 @@ from .pagination import Page, iterate_pages
 
 CEP_FORMATS = ("xml", "pdf")
 EXPORT_FORMATS = ("csv", "xlsx")
+TEMPLATE_FORMATS = ("csv", "xlsx", "xls", "txt", "json")
 
 _EXPORT_CONTENT_TYPES = {
     "csv": "text/csv",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+_TEMPLATE_CONTENT_TYPES = {
+    "csv": "text/csv",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "xls": "application/vnd.ms-excel",
+    "txt": "text/plain",
+    "json": "application/json",
+}
+
+_IMPORT_CONTENT_TYPES = {
+    ".csv": "text/csv",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xls": "application/vnd.ms-excel",
+    ".txt": "text/plain",
+    ".pdf": "application/pdf",
 }
 
 
@@ -718,6 +741,399 @@ class Catalog(_Resource):
         return data if isinstance(data, dict) else {}
 
 
+class Beneficiaries(_Resource):
+    """Cuentas beneficiarias guardadas y su importación masiva."""
+
+    # ── La lista blanca ─────────────────────────────────────────────────────
+
+    def create(
+        self,
+        *,
+        account_number: str,
+        bank_code: str | None = None,
+        label: str | None = None,
+    ) -> Beneficiary:
+        """Registra una cuenta beneficiaria.
+
+        `POST /beneficiaries`. El tipo se detecta por longitud: CLABE (18
+        dígitos), tarjeta (16) o celular DiMo (10). Para un celular, `bank_code`
+        es obligatorio; en CLABE y tarjeta se deriva del número. Un alta de una
+        cuenta archivada la reactiva.
+        """
+        if not account_number:
+            raise InvalidRequestError(
+                "Hace falta account_number para registrar el beneficiario",
+                status=422,
+                code="account_number_required",
+            )
+        body = _clean({"account_number": account_number, "bank_code": bank_code, "label": label})
+        response = self._transport.request("POST", "/beneficiaries", json_body=body)
+        return Beneficiary.from_response(response.json())
+
+    def list(self, *, with_archived: str | None = None) -> Sequence[Beneficiary]:
+        """Lista las cuentas beneficiarias guardadas.
+
+        `GET /beneficiaries`. Sin paginar: vuelve la lista completa. El filtro
+        `with_archived` vale `0` para sólo activas, `1` para sólo archivadas; sin
+        él, las dos.
+        """
+        response = self._transport.request(
+            "GET", "/beneficiaries", query=_clean({"with_archived": with_archived})
+        )
+        datos = response.json().get("data")
+        if not isinstance(datos, list):
+            return []
+        return [Beneficiary.from_item(item) for item in datos if isinstance(item, dict)]
+
+    def update(
+        self,
+        beneficiary_id: str,
+        *,
+        label: str | None = None,
+        account_number: str | None = None,
+        bank_code: str | None = None,
+    ) -> Beneficiary:
+        """Cambia la etiqueta, la cuenta o el banco de un beneficiario.
+
+        `PUT /beneficiaries/{id}`. Un `account_number` nuevo vuelve a derivar el
+        tipo y el banco; `bank_code` solo se aplica sobre cuentas de tipo
+        celular.
+        """
+        body = _clean({"label": label, "account_number": account_number, "bank_code": bank_code})
+        if not body:
+            raise InvalidRequestError(
+                "No hay nada que cambiar: pasa label, account_number o bank_code",
+                status=422,
+                code="no_valid_fields",
+            )
+        response = self._transport.request(
+            "PUT", "/beneficiaries/" + _path_segment(beneficiary_id), json_body=body
+        )
+        return Beneficiary.from_response(response.json())
+
+    def delete(self, beneficiary_id: str) -> None:
+        """Archiva un beneficiario.
+
+        `DELETE /beneficiaries/{id}`. El registro no se borra: sale de la lista
+        activa y se consulta con `with_archived=1`. Un alta posterior con la
+        misma cuenta lo reactiva. La API responde `204`.
+        """
+        self._transport.request("DELETE", "/beneficiaries/" + _path_segment(beneficiary_id))
+
+    def validate_account(self, account: str, *, type: str | None = None) -> AccountValidation:
+        """Comprueba la estructura de un número de cuenta.
+
+        `GET /beneficiaries/validate-account`. Verifica el dígito de control de
+        la CLABE o el Luhn de la tarjeta y resuelve el banco. No consume cuota
+        del plan. Un número mal formado no es un error: se lee en
+        `checksum_valid` o en `account_type`.
+        """
+        response = self._transport.request(
+            "GET",
+            "/beneficiaries/validate-account",
+            query=_clean({"account": account, "type": type}),
+        )
+        return AccountValidation.from_response(response.json())
+
+    def lookup(self, account: str) -> BeneficiaryLookup:
+        """Resuelve una cuenta concreta dentro de la lista propia.
+
+        `GET /beneficiaries/lookup`. Devuelve los datos del banco cuando la
+        cuenta está entre las guardadas; si no, la API responde `404`.
+        """
+        response = self._transport.request(
+            "GET", "/beneficiaries/lookup", query={"account": account}
+        )
+        return BeneficiaryLookup.from_response(response.json())
+
+    def export(
+        self,
+        *,
+        format: str = "csv",
+        with_archived: str | None = None,
+        limit: int | None = None,
+    ) -> Document:
+        """Exporta la lista de beneficiarios en CSV o en XLSX.
+
+        `GET /beneficiaries/export`. Los números salen enmascarados salvo la
+        CLABE; `limit` solo baja el tope de 100 000 filas.
+        """
+        return _export(
+            self._transport,
+            "/beneficiaries/export",
+            format,
+            {"with_archived": with_archived, "limit": limit},
+            "beneficiarios",
+        )
+
+    # ── Importación masiva ──────────────────────────────────────────────────
+
+    def import_template(self, *, format: str = "csv") -> Document:
+        """Descarga la plantilla para la importación masiva.
+
+        `GET /beneficiaries/imports/template`. Sirve de punto de partida del
+        ciclo: descargar, rellenar, subir, revisar y confirmar.
+        """
+        if format not in TEMPLATE_FORMATS:
+            raise ConfigurationError(
+                "El formato de plantilla es 'csv', 'xlsx', 'xls', 'txt' o 'json'; llegó "
+                + repr(format)
+            )
+        accept = _TEMPLATE_CONTENT_TYPES[format]
+        response = self._transport.request(
+            "GET",
+            "/beneficiaries/imports/template",
+            query={"format": format},
+            accept=accept + ", application/json",
+        )
+        return _document(response, "beneficiarios-plantilla." + format, accept)
+
+    def import_start(
+        self,
+        file: bytes | str | Path,
+        *,
+        parse_mode: str = "template",
+        filename: str | None = None,
+    ) -> BeneficiaryImportJob:
+        """Sube un archivo y abre un trabajo de importación.
+
+        `POST /beneficiaries/imports`. `file` puede ser bytes o una ruta, que el
+        SDK lee del disco. `parse_mode` es `template` (encabezados canónicos) o
+        `free` (formato libre). La respuesta es un `202` con el trabajo en
+        estado `pending`; nada se persiste hasta `import_commit()`.
+        """
+        content, nombre, content_type = _import_file(file, filename)
+        response = self._transport.request(
+            "POST",
+            "/beneficiaries/imports",
+            multipart={
+                "parse_mode": parse_mode,
+                "file": MultipartFile(filename=nombre, content=content, content_type=content_type),
+            },
+        )
+        return BeneficiaryImportJob.from_response(response.json())
+
+    def import_status(self, import_id: str) -> BeneficiaryImportJob:
+        """Lee el estado de un trabajo de importación y sus contadores.
+
+        `GET /beneficiaries/imports/{id}`.
+        """
+        response = self._transport.request(
+            "GET", "/beneficiaries/imports/" + _path_segment(import_id)
+        )
+        return BeneficiaryImportJob.from_response(response.json())
+
+    def import_preview(
+        self,
+        import_id: str,
+        *,
+        page: int | None = None,
+        per_page: int | None = None,
+        buckets: Sequence[str] | None = None,
+    ) -> Page[BeneficiaryImportRow]:
+        """Lista las filas extraídas de la importación, paginadas.
+
+        `GET /beneficiaries/imports/{id}/preview`. Disponible en `preview_ready`
+        o después. `buckets` filtra por grupo (`valid`, `correctable`, `fatal`,
+        `duplicate_account`, `duplicate_alias`).
+        """
+        response = self._transport.request(
+            "GET",
+            "/beneficiaries/imports/" + _path_segment(import_id) + "/preview",
+            query=_clean({"page": page, "per_page": per_page, "buckets": buckets}),
+        )
+        return Page.from_response(response.json(), BeneficiaryImportRow.from_item)
+
+    def iter_import_preview(self, import_id: str, **filtros: Any) -> Iterator[BeneficiaryImportRow]:
+        """Recorre todas las filas de la vista previa, página a página."""
+        max_pages = filtros.pop("max_pages", None)
+        inicio = int(filtros.pop("page", 1) or 1)
+        return iterate_pages(
+            lambda numero: self.import_preview(import_id, page=numero, **filtros),
+            start_page=inicio,
+            max_pages=max_pages,
+        )
+
+    def import_edit_row(
+        self,
+        import_id: str,
+        row_id: str,
+        *,
+        parsed_account: str | None = None,
+        parsed_label: str | None = None,
+        parsed_account_type: str | None = None,
+        parsed_bank_code: str | None = None,
+        parsed_bank_name: str | None = None,
+    ) -> BeneficiaryImportRow:
+        """Corrige una fila de la vista previa antes de confirmar.
+
+        `PATCH /beneficiaries/imports/{id}/rows/{row_id}`. Sólo los campos
+        presentes se sobreescriben; la fila se reprocesa y su grupo puede
+        cambiar con la corrección.
+        """
+        body = _clean(
+            {
+                "parsed_account": parsed_account,
+                "parsed_label": parsed_label,
+                "parsed_account_type": parsed_account_type,
+                "parsed_bank_code": parsed_bank_code,
+                "parsed_bank_name": parsed_bank_name,
+            }
+        )
+        if not body:
+            raise InvalidRequestError(
+                "No hay nada que corregir: pasa alguno de los campos parsed_*",
+                status=422,
+                code="no_valid_fields",
+            )
+        response = self._transport.request(
+            "PATCH",
+            "/beneficiaries/imports/" + _path_segment(import_id) + "/rows/" + _path_segment(row_id),
+            json_body=body,
+        )
+        return BeneficiaryImportRow.from_response(response.json())
+
+    def import_remove_row(self, import_id: str, row_id: str) -> None:
+        """Quita una fila de la vista previa.
+
+        `DELETE /beneficiaries/imports/{id}/rows/{row_id}`. La API responde `204`.
+        """
+        self._transport.request(
+            "DELETE",
+            "/beneficiaries/imports/" + _path_segment(import_id) + "/rows/" + _path_segment(row_id),
+        )
+
+    def import_commit(self, import_id: str) -> BeneficiaryImportJob:
+        """Confirma la importación y dispara la persistencia de sus filas.
+
+        `POST /beneficiaries/imports/{id}/commit`. La operación es asíncrona: la
+        respuesta es un `202` con el trabajo en `committing`, y el resultado se
+        sigue con `import_wait()`.
+        """
+        response = self._transport.request(
+            "POST", "/beneficiaries/imports/" + _path_segment(import_id) + "/commit"
+        )
+        return BeneficiaryImportJob.from_response(response.json())
+
+    def import_wait(
+        self,
+        import_id: str,
+        *,
+        timeout: float = 300.0,
+        poll_interval: float = 2.0,
+        sleep: Any = None,
+    ) -> BeneficiaryImportJob:
+        """Sondea una importación hasta que su avance se detiene.
+
+        Espera a `BeneficiaryImportJob.is_settled`: `preview_ready` o un estado
+        final. A diferencia de `validations.wait_for()`, aquí no hay `ETag` que
+        reutilizar: el endpoint de estado no lo expone, así que cada sondeo
+        descarga el cuerpo entero.
+
+        Raises:
+            TimeoutError: si se agota `timeout` sin llegar a un estado firme.
+        """
+        dormir: Any = sleep or time.sleep
+        limite = time.monotonic() + timeout
+        while True:
+            trabajo = self.import_status(import_id)
+            if trabajo.is_settled:
+                return trabajo
+            if time.monotonic() >= limite:
+                raise TimeoutError(
+                    "La importación "
+                    + import_id
+                    + " no llegó a preview_ready ni a un estado final en "
+                    + str(timeout)
+                    + " s"
+                )
+            dormir(poll_interval)
+
+
+class Usage(_Resource):
+    """Consumo y límites: la cuota del plan y el registro de actividad."""
+
+    def summary(self) -> UsageSummary:
+        """Devuelve la cuota de validaciones del plan en curso.
+
+        `GET /usage/summary`. Trae el límite, lo consumido, lo restante y el
+        nivel de aviso en `tone`.
+        """
+        response = self._transport.request("GET", "/usage/summary")
+        return UsageSummary.from_response(response.json())
+
+    def history(self, *, months: int | None = None) -> dict[str, Any]:
+        """Devuelve el consumo mensual de los últimos `months` meses.
+
+        `GET /usage/history`. De más reciente a más antiguo. El límite que
+        acompaña a cada fila es el de hoy, no el que regía aquel mes.
+        """
+        response = self._transport.request(
+            "GET", "/usage/history", query=_clean({"months": months})
+        )
+        return _data_attributes(response)
+
+    def breakdown(self, *, period: str | None = None) -> dict[str, Any]:
+        """Desglosa el consumo por tipo de operación contabilizada.
+
+        `GET /usage/breakdown`. `period` es `current` para el mes en curso o una
+        cadena `YYYY-MM`.
+        """
+        response = self._transport.request(
+            "GET", "/usage/breakdown", query=_clean({"period": period})
+        )
+        return _data_attributes(response)
+
+    def limits(self) -> dict[str, Any]:
+        """Devuelve los límites de tasa aplicables, por contexto.
+
+        `GET /usage/limits`. Sólo la configuración vigente, sin contadores en
+        vivo; son ajenos a la cuota mensual de `summary()`.
+        """
+        response = self._transport.request("GET", "/usage/limits")
+        return _data_attributes(response)
+
+    def heatmap(self, *, days: int | None = None) -> dict[str, Any]:
+        """Devuelve las validaciones agrupadas por día y hora.
+
+        `GET /usage/heatmap`. Cubre los últimos `days` días (máximo 90) y sólo
+        trae las celdas con al menos una validación.
+        """
+        response = self._transport.request("GET", "/usage/heatmap", query=_clean({"days": days}))
+        return _data_attributes(response)
+
+    def api_usage(self) -> dict[str, Any]:
+        """Devuelve las métricas de uso de la API de la cuenta.
+
+        `GET /api/usage`. Reúne las peticiones de hoy y del mes, la cuota del
+        plan, las últimas peticiones y el estado del servicio de Banxico.
+        """
+        response = self._transport.request("GET", "/api/usage")
+        data = response.json().get("data")
+        return data if isinstance(data, dict) else {}
+
+    def export(
+        self,
+        *,
+        format: str = "csv",
+        from_: str | None = None,
+        to: str | None = None,
+        limit: int | None = None,
+    ) -> Document:
+        """Exporta el registro de actividad en CSV o en XLSX.
+
+        `GET /api/usage/export`. `from_` y `to` acotan el rango, las dos
+        inclusive; `limit` solo baja el tope de 100 000 filas.
+        """
+        return _export(
+            self._transport,
+            "/api/usage/export",
+            format,
+            {"from_": from_, "to": to, "limit": limit},
+            "actividad-api",
+        )
+
+
 # ── Ayudantes compartidos ───────────────────────────────────────────────────
 
 
@@ -731,6 +1147,34 @@ def _encode_image(image: bytes | str | Path) -> str:
             raise ConfigurationError("No existe el archivo de imagen: " + str(image))
         crudo = ruta.read_bytes()
     return base64.b64encode(crudo).decode("ascii")
+
+
+def _import_file(file: bytes | str | Path, filename: str | None) -> tuple[bytes, str, str]:
+    """Devuelve el contenido de un archivo de importación, su nombre y su tipo."""
+    if isinstance(file, bytes):
+        contenido = file
+        nombre = filename or "beneficiarios.csv"
+    else:
+        ruta = Path(file)
+        if not ruta.is_file():
+            raise ConfigurationError("No existe el archivo: " + str(file))
+        contenido = ruta.read_bytes()
+        nombre = filename or ruta.name
+    return contenido, nombre, _content_type_for(nombre)
+
+
+def _content_type_for(filename: str) -> str:
+    """El content-type de un archivo por su extensión, o genérico si no casa."""
+    return _IMPORT_CONTENT_TYPES.get(Path(filename).suffix.lower(), "application/octet-stream")
+
+
+def _data_attributes(response: Response) -> dict[str, Any]:
+    """El objeto `data.attributes` de una respuesta, o vacío si no está."""
+    data = response.json().get("data")
+    if not isinstance(data, dict):
+        return {}
+    attributes = data.get("attributes")
+    return attributes if isinstance(attributes, dict) else {}
 
 
 def _document(response: Response, fallback: str, accept: str) -> Document:
@@ -765,4 +1209,13 @@ def _export(
     return _document(response, fallback + "." + format, accept)
 
 
-__all__ = ["CEP_FORMATS", "EXPORT_FORMATS", "Catalog", "Validations", "Webhooks"]
+__all__ = [
+    "CEP_FORMATS",
+    "EXPORT_FORMATS",
+    "TEMPLATE_FORMATS",
+    "Beneficiaries",
+    "Catalog",
+    "Usage",
+    "Validations",
+    "Webhooks",
+]
