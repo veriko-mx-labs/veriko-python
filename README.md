@@ -418,7 +418,8 @@ client.beneficiaries.import_commit(trabajo.id)  # 5. confirmar
 ```
 
 Nada se persiste hasta `import_commit()`. `import_wait()` espera a `preview_ready` o a un estado
-final; el endpoint de estado no expone `ETag`, así que cada vuelta descarga el cuerpo.
+final; el endpoint de estado no expone `ETag`, así que cada vuelta descarga el cuerpo. Una
+importación que todavía no se confirmó se cancela con `import_cancel()`.
 
 ## Consumo
 
@@ -434,7 +435,7 @@ limites = client.usage.limits()
 
 ## Alcance de esta versión
 
-48 operaciones de la API, repartidas en las cinco familias del cliente: `validations`, `webhooks`,
+49 operaciones de la API, repartidas en las cinco familias del cliente: `validations`, `webhooks`,
 `catalog`, `beneficiaries` y `usage`. Incluyen la validación por imagen, el modo asíncrono con
 sondeo por `ETag`, la paginación, las exportaciones, el ciclo de vida de los endpoints de webhook,
 la lista de cuentas beneficiarias con su importación masiva y las métricas de consumo.
@@ -443,9 +444,6 @@ El SDK cubre sólo operaciones de máquina a máquina, las que aceptan la clave 
 Las que únicamente aceptan la cookie de sesión son de la interfaz y no entran en ninguna versión: la
 importación masiva de validaciones, las sesiones de usuario, el playground y el directorio de
 cuentas.
-
-La cancelación de una importación de beneficiarios (`DELETE /beneficiaries/imports/{id}`) todavía no
-tiene método.
 
 Fuera del alcance a propósito: finanzas, métricas propias, catálogo de planes, suscripción y el
 resumen del panel. Son superficie de interfaz, se consumen una vez o desde la propia aplicación, y

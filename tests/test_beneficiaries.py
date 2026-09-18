@@ -259,6 +259,24 @@ def test_quitar_una_fila_de_la_vista_previa(client: Veriko, server: RecordingSer
     assert server.requests[0].path == "/v1/beneficiaries/imports/" + IMPORT_ID + "/rows/102"
 
 
+def test_cancelar_una_importacion_sin_confirmar(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("no-content")
+
+    client.beneficiaries.import_cancel(IMPORT_ID)
+
+    assert server.requests[0].method == "DELETE"
+    assert server.requests[0].path == "/v1/beneficiaries/imports/" + IMPORT_ID
+
+
+def test_un_identificador_inservible_no_cancela_nada(
+    client: Veriko, server: RecordingServer
+) -> None:
+    with pytest.raises(ConfigurationError):
+        client.beneficiaries.import_cancel("42/commit")
+
+    assert server.requests == []
+
+
 def test_confirmar_la_importacion(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("beneficiaries-import-committed")
 

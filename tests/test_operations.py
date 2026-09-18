@@ -1,4 +1,4 @@
-"""Las 48 operaciones que cubre el SDK, contra el spec público.
+"""Las 49 operaciones que cubre el SDK, contra el spec público.
 
 Cada caso llama a un método con todos sus argumentos opcionales y comprueba que lo
 que llegó al servidor existe en el spec: el método y la ruta, los parámetros de
@@ -324,6 +324,11 @@ CASOS = [
         lambda c: c.beneficiaries.import_status(IMPORT),
     ),
     Caso(
+        "cancelBeneficiaryImport",
+        "no-content",
+        lambda c: c.beneficiaries.import_cancel(IMPORT),
+    ),
+    Caso(
         "getBeneficiaryImportPreview",
         "beneficiaries-import-preview",
         lambda c: c.beneficiaries.import_preview(IMPORT, page=2, per_page=5, buckets=["valid"]),
@@ -383,10 +388,6 @@ CASOS = [
     ),
 ]
 
-# Las operaciones de las etiquetas Beneficiaries y Usage que aceptan la clave de API y
-# todavía no tienen método.
-SIN_METODO = {"cancelBeneficiaryImport"}
-
 
 @pytest.mark.parametrize(
     "caso", CASOS, ids=[f"{c.operacion}-{c.grabacion}-{n}" for n, c in enumerate(CASOS)]
@@ -432,10 +433,10 @@ def test_lo_que_el_sdk_envia_existe_en_el_spec(
             assert campos == sorted(propiedades)
 
 
-def test_son_las_48_operaciones_de_esta_version() -> None:
+def test_son_las_49_operaciones_de_esta_version() -> None:
     cubiertas = {caso.operacion for caso in CASOS}
 
-    assert len(cubiertas) == 48
+    assert len(cubiertas) == 49
 
 
 def test_las_familias_completas_no_traen_operaciones_sin_metodo() -> None:
@@ -447,8 +448,7 @@ def test_las_familias_completas_no_traen_operaciones_sin_metodo() -> None:
         if familias & set(operacion.get("tags", [])) and accepts_api_key(operacion)
     }
 
-    assert de_maquina - cubiertas == SIN_METODO
-    assert cubiertas <= de_maquina
+    assert de_maquina == cubiertas
 
 
 def test_ninguna_operacion_de_sesion_tiene_metodo() -> None:

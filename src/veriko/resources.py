@@ -1118,6 +1118,16 @@ class Beneficiaries(_Resource):
         )
         return BeneficiaryImportJob.from_response(response.json())
 
+    def import_cancel(self, import_id: str) -> None:
+        """Cancela una importación que todavía no se confirmó.
+
+        `DELETE /beneficiaries/imports/{id}`. Admite los estados `pending`,
+        `parsing` y `preview_ready`; con uno terminal o en `committing`, la API
+        responde `404`. Las cuentas que una confirmación ya persistió se archivan
+        una a una con `delete()`. La API responde `204`.
+        """
+        self._transport.request("DELETE", "/beneficiaries/imports/" + _path_segment(import_id))
+
     def import_wait(
         self,
         import_id: str,

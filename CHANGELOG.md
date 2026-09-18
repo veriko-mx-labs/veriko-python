@@ -5,6 +5,22 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+## [0.4.0] — 2026-09-18
+
+La superficie pasa de 48 operaciones a 49: `beneficiaries` gana la cancelación de
+una importación, y con ella el SDK cubre todas las operaciones de máquina a máquina de
+sus cinco familias.
+
+### Añadido
+
+- `beneficiaries.import_cancel()`: cancela una importación que todavía no se
+  confirmó (`DELETE /beneficiaries/imports/{id}`).
+
+### Cambiado
+
+- `test_operations.py` exige que las cinco familias no traigan operaciones de máquina a
+  máquina sin método, en lugar de admitir una excepción.
+
 ## [0.3.1] — 2026-09-18
 
 Las familias `validations`, `webhooks` y `catalog` pasan a seguir el spec público. Las pruebas
@@ -151,7 +167,8 @@ Primera versión del SDK oficial de Python.
 - Validación por OCR de una imagen de comprobante.
 - Beneficiarios, importación masiva y finanzas.
 
-[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.3.1...HEAD
+[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.4.0
 [0.3.1]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.1
 [0.3.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.0
 [0.2.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.2.0
