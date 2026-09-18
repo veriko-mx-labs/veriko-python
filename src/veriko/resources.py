@@ -19,6 +19,7 @@ from .errors import APIError, ConfigurationError, InvalidRequestError
 from .models import (
     AccountValidation,
     Bank,
+    BankList,
     Beneficiary,
     BeneficiaryImportJob,
     BeneficiaryImportRow,
@@ -28,6 +29,7 @@ from .models import (
     QueuedValidation,
     RetryAttempt,
     RetryPolicy,
+    RetryState,
     UsageSummary,
     Validation,
     ValidationSummary,
@@ -63,6 +65,14 @@ _IMPORT_CONTENT_TYPES = {
 }
 
 
+_IMAGE_ACCEPT = "image/png, image/jpeg, image/webp, application/octet-stream, application/json"
+
+_IMAGE_EXTENSIONS = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+
+# Marca un argumento que no se pasó, para distinguirlo de `None`, que borra un valor.
+_UNSET: Any = object()
+
+
 def _path_segment(value: str) -> str:
     """Un identificador que va en la ruta no puede traer barras ni espacios."""
     cleaned = str(value).strip()
@@ -78,6 +88,61 @@ def _clean(params: Mapping[str, Any]) -> dict[str, Any]:
 
 def _retry_payload(policy: RetryPolicy | Mapping[str, Any]) -> dict[str, Any]:
     return policy.to_payload() if isinstance(policy, RetryPolicy) else dict(policy)
+
+
+def _flag(value: bool | None) -> str | None:
+    """`True` viaja como `1` y `False` como `0`; sin valor, el filtro no viaja."""
+    if value is None:
+        return None
+    return "1" if value else "0"
+
+
+def _filters(filtros: Mapping[str, Any]) -> dict[str, Any]:
+    """Los filtros de una consulta de validaciones, con el nombre y el valor que la API espera.
+
+    `from_` viaja como `from`. `playground` sólo admite `1`, así que `False` no
+    filtra. `with_deleted` distingue `1` (sólo retiradas) de `0` (sólo activas).
+    Varios estados se unen con comas.
+    """
+    query = dict(filtros)
+    if "from_" in query:
+        query["from"] = query.pop("from_")
+    if "playground" in query:
+        query["playground"] = "1" if query["playground"] else None
+    if "with_deleted" in query:
+        query["with_deleted"] = _flag(query["with_deleted"])
+    estados = query.get("status")
+    if isinstance(estados, (list, tuple)):
+        query["status"] = ",".join(str(estado) for estado in estados)
+    return _clean(query)
+
+
+def _subscribed_events(events: Sequence[str] | None) -> list[str]:
+    """Los eventos de un endpoint. Uno como mínimo, y la API admite hasta diez."""
+    if not events:
+        raise InvalidRequestError(
+            "Un endpoint se suscribe al menos a un evento",
+            status=422,
+            code="events_required",
+        )
+    return list(events)
+
+
+def _retry_state(response: Response) -> RetryState:
+    """El estado del ciclo de reintentos que devuelven el cambio de política y la cancelación."""
+    data = response.json().get("data")
+    attributes = data.get("attributes") if isinstance(data, dict) else None
+    estado = attributes.get("retry_state") if isinstance(attributes, dict) else None
+    return RetryState.from_dict(estado if isinstance(estado, dict) else None)
+
+
+def _not_modified(what: str, response: Response) -> APIError:
+    """El `304` de una lectura condicional, señalado como `APIError` con `status=304`."""
+    return APIError(
+        what + " no cambió desde el ETag indicado",
+        status=304,
+        headers=response.headers,
+    )
 
 
 class _Resource:
@@ -288,6 +353,8 @@ class Validations(_Resource):
             "/validations/" + _path_segment(validation_id),
             extra_headers={"If-None-Match": if_none_match} if if_none_match else None,
         )
+        if response.status == 304:
+            raise _not_modified("La validación", response)
         validation = Validation.from_response(response.json())
         etag = response.headers.get("etag")
         return replace(validation, etag=etag) if etag else validation
@@ -297,14 +364,14 @@ class Validations(_Resource):
         *,
         page: int | None = None,
         per_page: int | None = None,
-        status: str | None = None,
+        status: str | Sequence[str] | None = None,
         type: str | None = None,
         from_: str | None = None,
         to: str | None = None,
         search: str | None = None,
         playground: bool | None = None,
         with_deleted: bool | None = None,
-        batch_id: str | None = None,
+        batch_id: int | None = None,
         bank: str | None = None,
         amount_min: float | None = None,
         amount_max: float | None = None,
@@ -313,29 +380,36 @@ class Validations(_Resource):
         """Lista las validaciones de la cuenta, con filtros y paginación.
 
         `GET /v1/validations`. `from_` lleva guion bajo porque `from` es palabra
-        reservada de Python; viaja como `from`.
+        reservada de Python; viaja como `from`. `status` acepta un estado o una
+        lista. `with_deleted=True` devuelve sólo las retiradas y `False` sólo las
+        activas. `playground=True` limita a las del banco de pruebas.
+
+        Un listado trae menos campos que `get()`: no incluye los datos enviados,
+        el resultado de Banxico ni los enlaces al comprobante.
         """
         response = self._transport.request(
             "GET",
             "/validations",
-            query=_clean(
-                {
-                    "page": page,
-                    "per_page": per_page,
-                    "status": status,
-                    "type": type,
-                    "from": from_,
-                    "to": to,
-                    "search": search,
-                    "playground": playground,
-                    "with_deleted": with_deleted,
-                    "batch_id": batch_id,
-                    "bank": bank,
-                    "amount_min": amount_min,
-                    "amount_max": amount_max,
-                    "retry_state": retry_state,
-                }
-            ),
+            query={
+                "page": page,
+                "per_page": per_page,
+                **_filters(
+                    {
+                        "status": status,
+                        "type": type,
+                        "from_": from_,
+                        "to": to,
+                        "search": search,
+                        "playground": playground,
+                        "with_deleted": with_deleted,
+                        "batch_id": batch_id,
+                        "bank": bank,
+                        "amount_min": amount_min,
+                        "amount_max": amount_max,
+                        "retry_state": retry_state,
+                    }
+                ),
+            },
         )
         return Page.from_response(response.json(), ValidationSummary.from_item)
 
@@ -356,14 +430,11 @@ class Validations(_Resource):
     def stats(self, **filtros: Any) -> dict[str, Any]:
         """Totales de las validaciones de la cuenta, con los mismos filtros.
 
-        `GET /v1/validations/stats`.
+        `GET /v1/validations/stats`. Devuelve los contadores (`total`, `valid`,
+        `not_found`, `by_type`, `by_status`...).
         """
-        filtros = dict(filtros)
-        if "from_" in filtros:
-            filtros["from"] = filtros.pop("from_")
-        response = self._transport.request("GET", "/validations/stats", query=_clean(filtros))
-        data = response.json().get("data")
-        return data if isinstance(data, dict) else {}
+        response = self._transport.request("GET", "/validations/stats", query=_filters(filtros))
+        return _data_attributes(response)
 
     def retry_attempts(self, validation_id: str) -> Sequence[RetryAttempt]:
         """Los intentos del ciclo de reintentos de una validación.
@@ -457,9 +528,11 @@ class Validations(_Resource):
         response = self._transport.request(
             "GET",
             "/validations/" + _path_segment(validation_id) + "/image",
-            accept="image/png, image/jpeg, application/json",
+            accept=_IMAGE_ACCEPT,
         )
-        return _document(response, "comprobante-" + validation_id, "image/png")
+        tipo = response.headers.get("content-type", "image/png")
+        extension = _IMAGE_EXTENSIONS.get(tipo.split(";")[0].strip(), "")
+        return _document(response, "comprobante-" + validation_id + extension, tipo)
 
     def export(self, *, format: str = "csv", **filtros: Any) -> Document:
         """Exporta el historial de validaciones en CSV o en XLSX.
@@ -470,7 +543,7 @@ class Validations(_Resource):
             self._transport,
             "/validations/export",
             format,
-            filtros,
+            _filters(filtros),
             "validaciones",
         )
 
@@ -482,32 +555,36 @@ class Validations(_Resource):
         policy: RetryPolicy | Mapping[str, Any],
         *,
         idempotency_key: str | None = None,
-    ) -> Validation:
+    ) -> RetryState:
         """Cambia la política de reintentos de una validación concreta.
 
-        `PUT /v1/validations/{id}/retry-policy`.
+        `PUT /v1/validations/{id}/retry-policy`. El cuerpo va envuelto en
+        `retry_policy`. Devuelve el estado del ciclo de reintentos, no la
+        validación completa.
         """
         response = self._transport.request(
             "PUT",
             "/validations/" + _path_segment(validation_id) + "/retry-policy",
-            json_body=_retry_payload(policy),
+            json_body={"retry_policy": _retry_payload(policy)},
             extra_headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
         )
-        return Validation.from_response(response.json())
+        return _retry_state(response)
 
     def cancel_retries(
         self, validation_id: str, *, idempotency_key: str | None = None
-    ) -> Validation:
+    ) -> RetryState:
         """Detiene el ciclo de reintentos pendientes de una validación.
 
-        `POST /v1/validations/{id}/cancel-retries`.
+        `POST /v1/validations/{id}/cancel-retries`. Devuelve el estado del ciclo,
+        con `terminal_state="cancelled"`. Si el ciclo ya no está activo, la API
+        responde `422` con `retry_not_active`.
         """
         response = self._transport.request(
             "POST",
             "/validations/" + _path_segment(validation_id) + "/cancel-retries",
             extra_headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
         )
-        return Validation.from_response(response.json())
+        return _retry_state(response)
 
     def delete(self, validation_id: str) -> None:
         """Retira una validación del historial.
@@ -520,36 +597,33 @@ class Validations(_Resource):
         """Envía el comprobante al chat de Telegram vinculado a la cuenta.
 
         `POST /v1/validations/{id}/cep/send-telegram`. La API acusa con `202`: el
-        envío ocurre después.
+        envío ocurre después. Devuelve el acuse (`{"queued": True}`).
         """
         response = self._transport.request(
             "POST", "/validations/" + _path_segment(validation_id) + "/cep/send-telegram"
         )
-        data = response.json().get("data")
-        return data if isinstance(data, dict) else {}
+        return _data_attributes(response)
 
 
 class Webhooks(_Resource):
     """Endpoints de webhook y su historial de entregas."""
 
-    def create(self, *, url: str, events: Sequence[str]) -> WebhookEndpoint:
+    def create(
+        self, *, url: str, events: Sequence[str], description: str | None = None
+    ) -> WebhookEndpoint:
         """Registra un endpoint y devuelve su secreto de firma.
 
         `POST /v1/webhooks`. El secreto viaja **una sola vez**, en esta
         respuesta: guárdalo al recibirlo. Si se pierde, se rota con
         `regenerate_secret()`.
 
-        Admite entre 1 y 10 eventos por endpoint.
+        Admite entre 1 y 10 eventos por endpoint. `description` es una etiqueta
+        libre para distinguirlo de los demás.
         """
-        if not events:
-            raise InvalidRequestError(
-                "Un endpoint se suscribe al menos a un evento",
-                status=422,
-                code="events_required",
-            )
-        response = self._transport.request(
-            "POST", "/webhooks", json_body={"url": url, "events": list(events)}
+        body = _clean(
+            {"url": url, "events": _subscribed_events(events), "description": description}
         )
+        response = self._transport.request("POST", "/webhooks", json_body=body)
         return WebhookEndpoint.from_item(response.json().get("data") or {})
 
     def list(self) -> Sequence[WebhookEndpoint]:
@@ -570,16 +644,22 @@ class Webhooks(_Resource):
         url: str | None = None,
         events: Sequence[str] | None = None,
         status: str | None = None,
+        description: str | None = _UNSET,
     ) -> WebhookEndpoint:
-        """Cambia la URL, los eventos suscritos o el estado de un endpoint.
+        """Cambia la URL, los eventos, la etiqueta o el estado de un endpoint.
 
         `PUT /v1/webhooks/{id}`. Un endpoint que el sistema apagó se reactiva
         con `status="active"`; `auto_disabled` no se puede asignar desde la API.
+        `description=None` borra la etiqueta, y `events` no puede ir vacío.
         """
-        body = _clean({"url": url, "events": list(events) if events else None, "status": status})
+        body = _clean({"url": url, "status": status})
+        if events is not None:
+            body["events"] = _subscribed_events(events)
+        if description is not _UNSET:
+            body["description"] = description
         if not body:
             raise InvalidRequestError(
-                "No hay nada que cambiar: pasa url, events o status",
+                "No hay nada que cambiar: pasa url, events, description o status",
                 status=422,
                 code="empty_update",
             )
@@ -633,21 +713,25 @@ class Webhooks(_Resource):
         Con `webhook_id` consulta los de ese endpoint
         (`GET /v1/webhooks/{id}/deliveries`); sin él, los de todos
         (`GET /v1/webhooks/deliveries`), donde además se puede filtrar por estado
-        y por tipo de evento.
+        y por tipo de evento. La ruta por endpoint no admite esos filtros, así que
+        con `webhook_id` y un filtro la petición va al listado global con
+        `endpoint_id`.
         """
-        if webhook_id is None:
+        filtrado = status is not None or event_type is not None
+        if webhook_id is not None and not filtrado:
+            path = "/webhooks/" + _path_segment(webhook_id) + "/deliveries"
+            query = _clean({"page": page, "per_page": per_page})
+        else:
             path = "/webhooks/deliveries"
             query = _clean(
                 {
                     "page": page,
                     "per_page": per_page,
+                    "endpoint_id": None if webhook_id is None else _path_segment(webhook_id),
                     "status": status,
                     "event_type": event_type,
                 }
             )
-        else:
-            path = "/webhooks/" + _path_segment(webhook_id) + "/deliveries"
-            query = _clean({"page": page, "per_page": per_page})
 
         response = self._transport.request("GET", path, query=query)
         return Page.from_response(response.json(), WebhookDelivery.from_item)
@@ -673,72 +757,91 @@ class Webhooks(_Resource):
     ) -> Document:
         """Exporta el historial de entregas en CSV o en XLSX.
 
-        Con `webhook_id`, las de ese endpoint; sin él, las de todos.
+        Con `webhook_id`, las de ese endpoint; sin él, las de todos. Como en
+        `deliveries()`, un filtro (`status`, `event_type`) con `webhook_id` lleva la
+        petición al listado global con `endpoint_id`.
         """
-        if webhook_id is None:
+        filtrado = filtros.get("status") is not None or filtros.get("event_type") is not None
+        if webhook_id is not None and not filtrado:
             return _export(
-                self._transport, "/webhooks/deliveries/export", format, filtros, "entregas"
+                self._transport,
+                "/webhooks/" + _path_segment(webhook_id) + "/deliveries/export",
+                format,
+                {"limit": filtros.get("limit")},
+                "entregas-" + webhook_id,
             )
         return _export(
             self._transport,
-            "/webhooks/" + _path_segment(webhook_id) + "/deliveries/export",
+            "/webhooks/deliveries/export",
             format,
-            filtros,
-            "entregas-" + webhook_id,
+            {
+                **filtros,
+                "endpoint_id": None if webhook_id is None else _path_segment(webhook_id),
+            },
+            "entregas" if webhook_id is None else "entregas-" + webhook_id,
         )
 
 
 class Catalog(_Resource):
     """Datos abiertos: el catálogo de bancos y el estado del servicio."""
 
-    def banks(self, *, if_none_match: str | None = None) -> Sequence[Bank]:
+    def banks(self, *, if_none_match: str | None = None) -> BankList:
         """Lista las instituciones participantes en SPEI con su código.
 
-        `GET /v1/public/banks`.
+        `GET /v1/public/banks`. Con `if_none_match` la API responde `304` cuando el
+        catálogo no cambió, y el SDK lo señala levantando `APIError` con
+        `status=304`. El `ETag` de cada lectura queda en `BankList.etag`.
         """
         response = self._transport.request(
             "GET",
             "/public/banks",
             extra_headers={"If-None-Match": if_none_match} if if_none_match else None,
         )
+        if response.status == 304:
+            raise _not_modified("El catálogo", response)
         datos = response.json().get("data")
-        if not isinstance(datos, list):
-            return []
-        return [Bank.from_item(item) for item in datos if isinstance(item, dict)]
+        bancos = (
+            [Bank.from_item(item) for item in datos if isinstance(item, dict)]
+            if isinstance(datos, list)
+            else []
+        )
+        return BankList(bancos, etag=response.headers.get("etag"))
 
     def bin_lookup(self, bin: str) -> dict[str, Any]:
         """Resuelve el banco emisor de una tarjeta por sus primeros dígitos.
 
-        `GET /v1/public/bin-lookup/{bin}`.
+        `GET /v1/public/bin-lookup/{bin}`. Devuelve `bin`, `bank_name`,
+        `banxico_code`, `card_brand`, `card_type`, `card_level` y `country_iso`.
         """
         response = self._transport.request("GET", "/public/bin-lookup/" + _path_segment(bin))
-        data = response.json().get("data")
-        return data if isinstance(data, dict) else {}
+        return _data_attributes(response)
 
     def banxico_status(self) -> dict[str, Any]:
         """Estado del servicio de consulta de Banxico.
 
         `GET /v1/status/banxico`. Sirve para distinguir un `cep_unavailable`
-        propio de la transferencia de una caída del servicio.
+        propio de la transferencia de una caída del servicio. Devuelve `status`
+        (`operational`, `degraded`, `down` o `unknown`), `status_label`, `message`
+        y `last_verified_at`.
         """
         response = self._transport.request("GET", "/status/banxico")
-        data = response.json().get("data")
-        return data if isinstance(data, dict) else {}
+        return _data_attributes(response)
 
     def banxico_timeseries(
         self, *, metric: str | None = None, window: str | None = None
     ) -> dict[str, Any]:
         """Serie temporal de salud del servicio de Banxico.
 
-        `GET /v1/status/banxico/timeseries`.
+        `GET /v1/status/banxico/timeseries`. `metric` es `probe_latency` o
+        `verdict`, y `window`, una de `1h`, `8h`, `12h`, `24h` o `7d`. Devuelve
+        `unit`, `bucket_size_minutes` y `points` (`ts` y `value`).
         """
         response = self._transport.request(
             "GET",
             "/status/banxico/timeseries",
             query=_clean({"metric": metric, "window": window}),
         )
-        data = response.json().get("data")
-        return data if isinstance(data, dict) else {}
+        return _data_attributes(response)
 
 
 class Beneficiaries(_Resource):

@@ -9,13 +9,14 @@
       "id": "9f8e7d6c-5b4a-3210-fedc-ba9876543210",
       "attributes": {
         "url": "https://miapp.example.com/hooks/pagos",
+        "events": ["validation.completed", "validation.failed"],
+        "description": "Pagos de contado",
         "status": "active",
-        "events": [
-          "validation.completed",
-          "validation_import.completed"
-        ],
         "consecutive_failures": 0,
-        "created_at": "2025-02-01T12:00:00Z"
+        "last_delivery_at": null,
+        "created_at": "2025-02-01T12:00:00Z",
+        "updated_at": "2025-03-01T09:30:00Z",
+        "secret_hint": "...b6c7"
       }
     },
     "meta": {

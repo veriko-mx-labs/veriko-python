@@ -200,6 +200,9 @@ class Transport:
                     continue
                 if isinstance(value, (list, tuple)):
                     pairs.extend((name, str(item)) for item in value)
+                elif isinstance(value, bool):
+                    # `str(True)` sería `True`; la API sólo entiende `1` y `0`.
+                    pairs.append((name, "1" if value else "0"))
                 else:
                     pairs.append((name, str(value)))
             if pairs:

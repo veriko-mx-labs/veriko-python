@@ -167,6 +167,12 @@ for validation in client.validations.iter(from_="2025-03-01", to="2025-03-31"):
 fecha es `from_` con guion bajo, porque `from` es palabra reservada de Python;
 viaja como `from`.
 
+`status` acepta un estado o una lista. `with_deleted=True` devuelve sólo las validaciones retiradas
+y `False` sólo las activas, y `playground=True` limita a las del banco de pruebas.
+
+Un listado trae menos campos que `get()`: no incluye los datos enviados, el resultado de Banxico ni
+los enlaces al comprobante, y por eso `ValidationSummary` no tiene `has_cep`.
+
 El historial se exporta entero con `client.validations.export(format="csv")`, que
 admite también `xlsx`.
 
@@ -203,7 +209,32 @@ estado queda en `auto_disabled` y se reactiva con
 `client.webhooks.update(id, status="active")`.
 
 El historial de intentos está en `client.webhooks.deliveries()`, con o sin
-identificador de endpoint.
+identificador de endpoint. Los filtros `status` y `event_type` sólo existen en el listado global:
+con un endpoint y un filtro, el SDK consulta ese listado con `endpoint_id`.
+
+`create()` y `update()` aceptan `description`, una etiqueta libre que `update(id, description=None)`
+borra.
+
+## Catálogo y estado de Banxico
+
+```python
+bancos = client.catalog.banks()  # instituciones SPEI con su código
+tarjeta = client.catalog.bin_lookup("455632")  # banco emisor de una tarjeta
+estado = client.catalog.banxico_status()
+
+print(estado["status"])  # 'operational'
+```
+
+`banxico_status()` sirve para distinguir un `cep_unavailable` propio de la transferencia de una caída
+del servicio, y `banxico_timeseries()` devuelve la serie de latencia o de veredictos por ventana. Las
+consultas que devuelven un recurso sin modelo propio (`stats()`, `bin_lookup()`, `banxico_status()`,
+`banxico_timeseries()`) entregan sus atributos como diccionario.
+
+## Lecturas condicionales
+
+`client.validations.get()` y `client.catalog.banks()` admiten `if_none_match`. Cada lectura trae su
+`ETag` (`Validation.etag`, `BankList.etag`), y cuando nada cambió la API responde `304`, que el SDK
+levanta como `APIError` con `status=304`.
 
 ## Verificar la firma de un webhook
 
@@ -290,7 +321,11 @@ validation = client.validate_transfer(
 ```
 
 El avance del ciclo se lee en `client.get_validation(id).retry_state`, o se espera al webhook
-`validation.retry.resolved`.
+`validation.retry.resolved`. Los intentos ya hechos están en `client.validations.retry_attempts(id)`.
+
+La política de una validación ya creada se cambia con `client.validations.set_retry_policy(id,
+policy)` y el ciclo se detiene con `client.validations.cancel_retries(id)`. Las dos devuelven el
+estado del ciclo (`RetryState`), no la validación completa.
 
 ## Idempotencia
 
@@ -399,10 +434,18 @@ limites = client.usage.limits()
 
 ## Alcance de esta versión
 
-Las cinco familias completas: `validations`, `webhooks`, `catalog`, `beneficiaries` y `usage`, con
-48 operaciones de la API. Incluyen la validación por imagen, el modo asíncrono con sondeo por
-`ETag`, la paginación, las exportaciones, el ciclo de vida de los endpoints de webhook, la lista de
-cuentas beneficiarias con su importación masiva y las métricas de consumo.
+48 operaciones de la API, repartidas en las cinco familias del cliente: `validations`, `webhooks`,
+`catalog`, `beneficiaries` y `usage`. Incluyen la validación por imagen, el modo asíncrono con
+sondeo por `ETag`, la paginación, las exportaciones, el ciclo de vida de los endpoints de webhook,
+la lista de cuentas beneficiarias con su importación masiva y las métricas de consumo.
+
+El SDK cubre sólo operaciones de máquina a máquina, las que aceptan la clave de API o son públicas.
+Las que únicamente aceptan la cookie de sesión son de la interfaz y no entran en ninguna versión: la
+importación masiva de validaciones, las sesiones de usuario, el playground y el directorio de
+cuentas.
+
+La cancelación de una importación de beneficiarios (`DELETE /beneficiaries/imports/{id}`) todavía no
+tiene método.
 
 Fuera del alcance a propósito: finanzas, métricas propias, catálogo de planes, suscripción y el
 resumen del panel. Son superficie de interfaz, se consumen una vez o desde la propia aplicación, y
@@ -419,7 +462,13 @@ mypy            # los tipos
 ```
 
 Ninguna prueba llama a la API. El arnés levanta un servidor HTTP local que sirve las respuestas
-guardadas en [`tests/recordings/`](tests/recordings).
+guardadas en [`tests/recordings/`](tests/recordings), recortadas de los ejemplos del spec público.
+
+`spec/openapi.yaml` es copia de [docs.veriko.mx/openapi.yaml](https://docs.veriko.mx/openapi.yaml),
+la versión pública. `tests/test_operations.py` contrasta cada operación con ese spec (ruta,
+parámetros, cabeceras y cuerpo, y que sea de máquina a máquina), y `tests/test_models_follow_spec.py`
+comprueba que los campos de cada modelo existan en él. El bundle interno de la aplicación no se usa
+aquí, y `tests/test_spec_public.py` lo vigila.
 
 ## Enlaces
 

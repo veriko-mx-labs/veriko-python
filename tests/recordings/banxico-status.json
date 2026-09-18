@@ -1,13 +1,21 @@
 {
   "status": 200,
   "headers": {
-    "Content-Type": "application/json; charset=utf-8"
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "public, max-age=60",
+    "Vary": "Origin"
   },
   "json": {
     "data": {
-      "status": "operational",
-      "latency_ms": 820,
-      "checked_at": "2025-03-15T14:20:00Z"
+      "type": "banxico_status",
+      "id": "current",
+      "attributes": {
+        "status": "operational",
+        "status_label": "Operativo",
+        "message": "El servicio de verificación está operando normalmente.",
+        "last_verified_at": "2026-04-11T15:30:00Z",
+        "estimated_recovery_at": null
+      }
     },
     "meta": {
       "version": "1.59.1",

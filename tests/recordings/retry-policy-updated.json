@@ -8,16 +8,11 @@
       "type": "validation",
       "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
       "attributes": {
-        "validation_type": "direct",
-        "status": "not_found",
-        "banxico_status": "not_found",
-        "created_at": "2025-03-15T14:22:10Z",
-        "completed_at": "2025-03-15T14:22:11Z",
         "retry_state": {
           "enabled": true,
-          "max_retries": null,
-          "interval_seconds": null,
-          "outcomes": null,
+          "max_retries": 3,
+          "interval_seconds": 600,
+          "outcomes": ["not_found"],
           "attempts_completed": 0,
           "next_attempt_at": "2025-03-15T14:32:11Z",
           "resolved_at": null,
@@ -25,9 +20,6 @@
           "cancelled_at": null,
           "terminal_state": "pending"
         }
-      },
-      "links": {
-        "self": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479"
       }
     },
     "meta": {

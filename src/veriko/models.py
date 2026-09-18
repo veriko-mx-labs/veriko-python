@@ -9,6 +9,7 @@ después queda accesible ahí sin esperar a una versión nueva del SDK.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -71,6 +72,9 @@ class RetryState:
     exhausted_at: str | None = None
     cancelled_at: str | None = None
     terminal_state: str | None = None
+    max_retries: int | None = None
+    interval_seconds: int | None = None
+    outcomes: list[str] | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
@@ -84,6 +88,9 @@ class RetryState:
             exhausted_at=data.get("exhausted_at"),
             cancelled_at=data.get("cancelled_at"),
             terminal_state=data.get("terminal_state"),
+            max_retries=data.get("max_retries"),
+            interval_seconds=data.get("interval_seconds"),
+            outcomes=list(data["outcomes"]) if isinstance(data.get("outcomes"), list) else None,
             raw=data,
         )
 
@@ -223,36 +230,48 @@ class WebhookEvent:
 class ValidationSummary:
     """Una validación en un listado: los campos que la API devuelve en colección.
 
-    Es más estrecha que `Validation`: un listado no trae ni `request_data` ni el
-    resultado de Banxico. `Veriko.validations.get(id)` devuelve la completa.
+    Es más estrecha que `Validation`: un listado no trae los datos enviados, el
+    resultado de Banxico ni los enlaces al comprobante. Por eso no tiene
+    `has_cep`. `Veriko.validations.get(id)` devuelve la completa.
     """
 
     id: str
     status: str
     banxico_status: str | None = None
     validation_type: str | None = None
+    bank_name: str | None = None
+    beneficiary_label: str | None = None
+    amount: float | None = None
+    tracking_key: str | None = None
+    referencia_numerica: str | None = None
+    beneficiary_account: str | None = None
+    is_playground: bool = False
     created_at: str | None = None
-    completed_at: str | None = None
+    deleted_at: str | None = None
+    retry_state: RetryState | None = None
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
-    links: dict[str, Any] = field(default_factory=dict, repr=False)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
-
-    @property
-    def has_cep(self) -> bool:
-        return bool(self.links.get("cep_xml"))
 
     @classmethod
     def from_item(cls, item: dict[str, Any]) -> ValidationSummary:
         attributes: dict[str, Any] = item.get("attributes") or {}
+        retry_state = attributes.get("retry_state")
         return cls(
             id=str(item.get("id") or ""),
             status=str(attributes.get("status") or ""),
             banxico_status=attributes.get("banxico_status"),
             validation_type=attributes.get("validation_type"),
+            bank_name=attributes.get("bank_name"),
+            beneficiary_label=attributes.get("beneficiary_label"),
+            amount=attributes.get("amount"),
+            tracking_key=attributes.get("tracking_key"),
+            referencia_numerica=attributes.get("referencia_numerica"),
+            beneficiary_account=attributes.get("beneficiary_account"),
+            is_playground=bool(attributes.get("is_playground", False)),
             created_at=attributes.get("created_at"),
-            completed_at=attributes.get("completed_at"),
+            deleted_at=attributes.get("deleted_at"),
+            retry_state=RetryState.from_dict(retry_state) if retry_state is not None else None,
             attributes=attributes,
-            links=item.get("links") or {},
             raw=item,
         )
 
@@ -261,18 +280,33 @@ class ValidationSummary:
 class RetryAttempt:
     """Un intento del ciclo de reintentos automáticos de una validación."""
 
-    attempt: int
-    status: str | None = None
-    attempted_at: str | None = None
+    attempt_number: int
+    dispatched_at: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    prev_banxico_status: str | None = None
+    new_banxico_status: str | None = None
+    prev_status: str | None = None
+    new_status: str | None = None
+    processing_time_ms: int | None = None
+    error_code: str | None = None
+    proxy_pool_member: str | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_item(cls, item: dict[str, Any]) -> RetryAttempt:
-        attributes: dict[str, Any] = item.get("attributes") or item
         return cls(
-            attempt=int(attributes.get("attempt") or attributes.get("attempt_number") or 0),
-            status=attributes.get("status") or attributes.get("outcome"),
-            attempted_at=attributes.get("attempted_at") or attributes.get("created_at"),
+            attempt_number=int(item.get("attempt_number") or 0),
+            dispatched_at=item.get("dispatched_at"),
+            started_at=item.get("started_at"),
+            finished_at=item.get("finished_at"),
+            prev_banxico_status=item.get("prev_banxico_status"),
+            new_banxico_status=item.get("new_banxico_status"),
+            prev_status=item.get("prev_status"),
+            new_status=item.get("new_status"),
+            processing_time_ms=item.get("processing_time_ms"),
+            error_code=item.get("error_code"),
+            proxy_pool_member=item.get("proxy_pool_member"),
             raw=item,
         )
 
@@ -290,10 +324,14 @@ class WebhookEndpoint:
     id: str
     url: str
     events: list[str] = field(default_factory=list)
+    description: str | None = None
     status: str | None = None
     secret: str | None = None
+    secret_hint: str | None = None
     consecutive_failures: int = 0
+    last_delivery_at: str | None = None
     created_at: str | None = None
+    updated_at: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -310,10 +348,14 @@ class WebhookEndpoint:
             id=str(item.get("id") or ""),
             url=str(attributes.get("url") or ""),
             events=list(eventos) if isinstance(eventos, list) else [],
+            description=attributes.get("description"),
             status=attributes.get("status"),
             secret=attributes.get("secret"),
+            secret_hint=attributes.get("secret_hint"),
             consecutive_failures=int(attributes.get("consecutive_failures") or 0),
+            last_delivery_at=attributes.get("last_delivery_at"),
             created_at=attributes.get("created_at"),
+            updated_at=attributes.get("updated_at"),
             attributes=attributes,
             raw=item,
         )
@@ -324,10 +366,16 @@ class WebhookDelivery:
     """Un intento de entrega de un webhook, con lo que respondió el receptor."""
 
     id: str
+    endpoint_id: str | None = None
+    endpoint_url: str | None = None
     event_type: str | None = None
+    validation_id: str | None = None
     status: str | None = None
+    attempt: int | None = None
     response_status: int | None = None
+    response_body: str | None = None
     response_time_ms: int | None = None
+    next_retry_at: str | None = None
     error_message: str | None = None
     created_at: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
@@ -338,10 +386,16 @@ class WebhookDelivery:
         attributes: dict[str, Any] = item.get("attributes") or {}
         return cls(
             id=str(item.get("id") or ""),
-            event_type=attributes.get("event_type") or attributes.get("event"),
+            endpoint_id=attributes.get("endpoint_id"),
+            endpoint_url=attributes.get("endpoint_url"),
+            event_type=attributes.get("event_type"),
+            validation_id=attributes.get("validation_id"),
             status=attributes.get("status"),
+            attempt=attributes.get("attempt"),
             response_status=attributes.get("response_status"),
+            response_body=attributes.get("response_body"),
             response_time_ms=attributes.get("response_time_ms"),
+            next_retry_at=attributes.get("next_retry_at"),
             error_message=attributes.get("error_message"),
             created_at=attributes.get("created_at"),
             attributes=attributes,
@@ -382,18 +436,31 @@ class Bank:
 
     code: str | None = None
     name: str | None = None
-    short_name: str | None = None
+    aliases: list[str] = field(default_factory=list)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
     @classmethod
     def from_item(cls, item: dict[str, Any]) -> Bank:
-        attributes: dict[str, Any] = item.get("attributes") or item
+        attributes: dict[str, Any] = item.get("attributes") or {}
+        aliases = attributes.get("aliases")
         return cls(
             code=str(attributes.get("code") or item.get("id") or "") or None,
             name=attributes.get("name"),
-            short_name=attributes.get("short_name") or attributes.get("alias"),
+            aliases=list(aliases) if isinstance(aliases, list) else [],
             raw=item,
         )
+
+
+class BankList(list[Bank]):
+    """El catálogo de bancos, con el `ETag` de la respuesta.
+
+    Es una lista de `Bank`. `etag` se pasa como `if_none_match` en la lectura
+    siguiente, y vale `None` cuando la API no lo manda.
+    """
+
+    def __init__(self, banks: Iterable[Bank] = (), *, etag: str | None = None) -> None:
+        super().__init__(banks)
+        self.etag = etag
 
 
 @dataclass(frozen=True)
@@ -703,6 +770,7 @@ __all__ = [
     "TERMINAL_STATUSES",
     "AccountValidation",
     "Bank",
+    "BankList",
     "Beneficiary",
     "BeneficiaryImportJob",
     "BeneficiaryImportRow",

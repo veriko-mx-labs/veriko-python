@@ -23,7 +23,7 @@ Documentación de la API: https://docs.veriko.mx
 
 from __future__ import annotations
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from ._http import RetryConfig
 from .client import (
@@ -53,6 +53,7 @@ from .models import (
     TERMINAL_STATUSES,
     AccountValidation,
     Bank,
+    BankList,
     Beneficiary,
     BeneficiaryImportJob,
     BeneficiaryImportRow,
@@ -110,6 +111,7 @@ __all__ = [
     "AccountValidation",
     "AuthenticationError",
     "Bank",
+    "BankList",
     "Beneficiaries",
     "Beneficiary",
     "BeneficiaryImportJob",

@@ -5,11 +5,18 @@ from __future__ import annotations
 import base64
 import json
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
 from conftest import RecordingServer
-from veriko import ConfigurationError, InvalidRequestError, RetryPolicy, Veriko
+from veriko import (
+    APIError,
+    ConfigurationError,
+    InvalidRequestError,
+    RetryPolicy,
+    Veriko,
+)
 
 VALIDATION_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 
@@ -143,8 +150,13 @@ def test_listar_devuelve_una_pagina_con_sus_contadores(
     assert pagina.total_pages == 2
     assert pagina.has_next is True
     assert [v.status for v in pagina] == ["valid", "not_found"]
-    assert pagina[0].has_cep is True
-    assert pagina[1].has_cep is False
+    # Un listado no trae enlaces al comprobante: los campos son los del spec.
+    assert pagina[0].tracking_key == "MXBA20250315001234"
+    assert pagina[0].amount == 15000.5
+    assert pagina[0].bank_name == "BBVA MEXICO"
+    assert pagina[0].retry_state is not None
+    assert pagina[0].retry_state.enabled is False
+    assert pagina[1].beneficiary_label is None
     assert "per_page=2" in server.requests[0].path
     assert "status=valid" in server.requests[0].path
 
@@ -184,8 +196,9 @@ def test_estadisticas_de_la_cuenta(client: Veriko, server: RecordingServer) -> N
 
     stats = client.validations.stats(from_="2025-03-01")
 
-    assert stats["total"] == 128
-    assert stats["valid"] == 97
+    assert stats["total"] == 47
+    assert stats["valid"] == 35
+    assert stats["by_type"] == {"direct": 30, "ocr": 17}
     assert "from=2025-03-01" in server.requests[0].path
 
 
@@ -197,37 +210,44 @@ def test_listar_los_intentos_de_reintento(client: Veriko, server: RecordingServe
 
     intentos = client.validations.retry_attempts(VALIDATION_ID)
 
-    assert [i.attempt for i in intentos] == [1, 2]
-    assert intentos[1].status == "valid"
+    assert [i.attempt_number for i in intentos] == [1, 2]
+    assert intentos[1].new_status == "valid"
+    assert intentos[1].dispatched_at == "2025-03-17T08:20:00Z"
+    assert intentos[0].proxy_pool_member == "proxy-01"
 
 
 def test_cambiar_la_politica_de_reintentos(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("retry-policy-updated")
 
-    validation = client.validations.set_retry_policy(
+    estado = client.validations.set_retry_policy(
         VALIDATION_ID,
         RetryPolicy(max_retries=3, interval_seconds=600, outcomes=["not_found"]),
     )
 
     assert server.requests[0].method == "PUT"
+    # El spec envuelve la política en `retry_policy`.
     assert server.requests[0].json() == {
-        "enabled": True,
-        "max_retries": 3,
-        "interval_seconds": 600,
-        "outcomes": ["not_found"],
+        "retry_policy": {
+            "enabled": True,
+            "max_retries": 3,
+            "interval_seconds": 600,
+            "outcomes": ["not_found"],
+        }
     }
-    assert validation.retry_state is not None
-    assert validation.retry_state.terminal_state == "pending"
+    # La respuesta es el estado del ciclo, no la validación completa.
+    assert estado.terminal_state == "pending"
+    assert estado.max_retries == 3
+    assert estado.outcomes == ["not_found"]
 
 
 def test_cancelar_los_reintentos_pendientes(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("retries-cancelled")
 
-    validation = client.validations.cancel_retries(VALIDATION_ID)
+    estado = client.validations.cancel_retries(VALIDATION_ID)
 
-    assert validation.retry_state is not None
-    assert validation.retry_state.terminal_state == "cancelled"
-    assert validation.retry_state.cancelled_at == "2025-03-15T15:00:00Z"
+    assert estado.terminal_state == "cancelled"
+    assert estado.cancelled_at == "2025-03-15T15:00:00Z"
+    assert estado.enabled is False
 
 
 # ── Archivos ────────────────────────────────────────────────────────────────
@@ -285,7 +305,7 @@ def test_enviar_el_comprobante_a_telegram(client: Veriko, server: RecordingServe
 
     acuse = client.validations.send_cep_to_telegram(VALIDATION_ID)
 
-    assert acuse["attributes"]["queued"] is True
+    assert acuse["queued"] is True
     assert server.requests[0].path.endswith("/cep/send-telegram")
 
 
@@ -314,3 +334,130 @@ def test_el_atajo_de_la_raiz_y_la_familia_hacen_lo_mismo(
 
     assert desde_raiz.id == desde_familia.id
     assert json.loads(server.requests[0].body) == json.loads(server.requests[1].body)
+
+
+# ── Lo que el spec pide y la versión 0.3.0 hacía distinto ───────────────────
+
+
+def _consulta(server: RecordingServer, indice: int) -> dict[str, list[str]]:
+    return parse_qs(urlsplit(server.requests[indice].path).query)
+
+
+def test_los_filtros_booleanos_viajan_como_uno_y_cero(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validations-page1", times=2)
+
+    client.validations.list(
+        playground=True, with_deleted=True, status=["valid", "not_found"], batch_id=42
+    )
+    client.validations.list(playground=False, with_deleted=False)
+
+    primera = _consulta(server, 0)
+    segunda = _consulta(server, 1)
+    assert primera["playground"] == ["1"]
+    assert primera["with_deleted"] == ["1"]
+    assert primera["status"] == ["valid,not_found"]
+    assert primera["batch_id"] == ["42"]
+    assert "True" not in server.requests[0].path
+    # `playground` sólo admite `1`: `False` equivale a no filtrar.
+    assert "playground" not in segunda
+    assert segunda["with_deleted"] == ["0"]
+
+
+def test_los_filtros_de_la_exportacion_y_las_estadisticas_usan_los_mismos_valores(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validations-export-csv")
+    server.enqueue_recording("validations-stats")
+
+    client.validations.export(with_deleted=True, from_="2025-01-01", limit=100)
+    client.validations.stats(playground=True, with_deleted=False)
+
+    exportacion = _consulta(server, 0)
+    assert exportacion["with_deleted"] == ["1"]
+    assert exportacion["from"] == ["2025-01-01"]
+    assert exportacion["limit"] == ["100"]
+    estadisticas = _consulta(server, 1)
+    assert estadisticas["playground"] == ["1"]
+    assert estadisticas["with_deleted"] == ["0"]
+
+
+def test_una_lista_vacia_no_tiene_pagina_siguiente(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validations-empty")
+
+    pagina = client.validations.list()
+
+    assert len(pagina) == 0
+    assert pagina.total == 0
+    assert pagina.has_next is False
+
+
+def test_get_deja_el_etag_en_la_validacion(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validation-retrying")
+
+    validation = client.validations.get(VALIDATION_ID)
+
+    assert validation.etag == 'W/"3-not_found"'
+    assert server.requests[0].header("if-none-match") is None
+
+
+def test_una_lectura_condicional_sin_cambios_se_lanza_como_304(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("not-modified")
+
+    with pytest.raises(APIError) as raised:
+        client.validations.get(VALIDATION_ID, if_none_match='W/"3-not_found"')
+
+    assert raised.value.status == 304
+    assert server.requests[0].header("if-none-match") == 'W/"3-not_found"'
+
+
+def test_el_sondeo_atraviesa_un_304(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validation-queued-status")
+    server.enqueue_recording("not-modified")
+    server.enqueue_recording("validate-valid")
+
+    validation = client.validations.wait_for(VALIDATION_ID, poll_interval=0.0, sleep=lambda _: None)
+
+    assert validation.status == "valid"
+    assert len(server.requests) == 3
+    assert server.requests[1].header("if-none-match") == 'W/"0-queued"'
+    assert server.requests[2].header("if-none-match") == 'W/"0-queued"'
+
+
+def test_sondear_desde_la_cola_hasta_el_veredicto(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validate-queued")
+    server.enqueue_recording("validation-queued-status")
+    server.enqueue_recording("validate-valid")
+    esperas: list[float] = []
+
+    queued = client.validations.enqueue(
+        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+    )
+    validation = client.validations.wait_for(queued.id, poll_interval=2.0, sleep=esperas.append)
+
+    assert validation.status == "valid"
+    assert esperas == [2.0]
+
+
+def test_un_not_found_sin_reintentos_es_un_veredicto_firme(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-not-found")
+
+    validation = client.validations.wait_for(VALIDATION_ID, sleep=lambda _: None)
+
+    assert validation.status == "not_found"
+    assert len(server.requests) == 1
+
+
+def test_exportar_el_historial_en_xlsx(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validations-export-xlsx")
+
+    export = client.validations.export(format="xlsx")
+
+    assert "spreadsheetml.sheet" in (server.requests[0].header("accept") or "")
+    assert export.filename == "veriko_validaciones_2025-03-15.xlsx"
+    assert export.content.startswith(b"PK")

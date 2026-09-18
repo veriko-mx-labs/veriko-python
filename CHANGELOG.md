@@ -5,6 +5,53 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+## [0.3.1] — 2026-09-18
+
+Las familias `validations`, `webhooks` y `catalog` pasan a seguir el spec público. Las pruebas
+de 0.2.0 comprobaban el SDK contra respuestas escritas a mano que no coincidían con el spec, así que
+pasaban aunque el código enviara o leyera campos que la API no tiene. Varias formas de lo que
+devuelve el SDK cambian; el paquete todavía no está publicado en PyPI.
+
+### Corregido
+
+- `set_retry_policy()` envía el cuerpo envuelto en `retry_policy`, como exige el spec.
+  Antes lo mandaba sin envolver.
+- `set_retry_policy()` y `cancel_retries()` devuelven el estado del ciclo (`RetryState`) y no una
+  validación vacía: la respuesta del spec trae sólo `retry_state`.
+- `ValidationSummary` deja de tener `has_cep`, `links` y `completed_at`, que un elemento de listado
+  no trae, y gana los campos que sí trae (`bank_name`, `amount`, `tracking_key`, `retry_state`...).
+- `RetryAttempt` lee los campos del spec: `attempt_number`, `dispatched_at`, `new_status`...
+- `Bank` gana `aliases` y pierde `short_name`, que el spec no declara.
+- `list(playground=True)` y `with_deleted=True` viajaban como `True`; ahora `playground` envía `1` y
+  `with_deleted` envía `1` o `0`. El transporte ya no codifica ningún booleano como `True`.
+- `webhooks.deliveries()` y `export_deliveries()` descartaban `status` y `event_type` cuando se
+  pasaba un endpoint. Ahora consultan el listado global con `endpoint_id`.
+- Una lectura condicional que recibe `304` levanta `APIError` con `status=304`, como decía la
+  documentación. Antes `get()` devolvía una validación vacía y `banks()` una lista vacía.
+- `webhooks.update(events=[])` levanta `events_required` en lugar de descartar el cambio.
+- `validations.image()` propone un nombre con extensión cuando la respuesta no trae
+  `Content-Disposition`.
+
+### Cambiado
+
+- `stats()`, `bin_lookup()`, `banxico_status()`, `banxico_timeseries()` y `send_cep_to_telegram()`
+  devuelven los atributos del recurso, como ya hace `client.usage`: `stats["total"]`.
+- `catalog.banks()` devuelve un `BankList`, una lista de `Bank` con el `ETag` en `etag`.
+- `RetryState` gana `max_retries`, `interval_seconds` y `outcomes`.
+- `WebhookEndpoint` gana `description`, `secret_hint`, `last_delivery_at` y `updated_at`;
+  `WebhookDelivery` gana `endpoint_id`, `endpoint_url`, `validation_id`, `attempt`,
+  `response_body` y `next_retry_at`.
+
+### Añadido
+
+- `description` en `webhooks.create()` y `webhooks.update()`.
+- `spec/openapi.yaml`, copia del spec público, y tres pruebas que lo usan:
+  `test_operations.py` contrasta cada operación con el spec y exige que sea de máquina a
+  máquina; `test_models_follow_spec.py` comprueba que los campos de cada modelo existan en él;
+  `test_spec_public.py` vigila que la copia no sea el bundle interno.
+- Las grabaciones de las familias `validations`, `webhooks` y `catalog` se recortan de los
+  ejemplos del spec público.
+
 ## [0.3.0] — 2026-09-18
 
 La superficie pasa de 27 operaciones a 48: se suman las familias
@@ -104,7 +151,8 @@ Primera versión del SDK oficial de Python.
 - Validación por OCR de una imagen de comprobante.
 - Beneficiarios, importación masiva y finanzas.
 
-[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.3.0...HEAD
+[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.1
 [0.3.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.0
 [0.2.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.2.0
 [0.1.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.1.0

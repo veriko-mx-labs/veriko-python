@@ -5,26 +5,29 @@
   },
   "json": {
     "data": {
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
       "type": "validation",
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "attributes": {
         "validation_type": "ocr",
+        "is_playground": false,
         "status": "valid",
         "banxico_status": "valid",
-        "created_at": "2025-03-15T14:22:10Z",
-        "completed_at": "2025-03-15T14:22:11Z",
-        "ocr_confidence": 0.97
-      },
-      "links": {
-        "self": "/v1/validations/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-        "cep_xml": "/v1/validations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/cep?format=xml",
-        "cep_pdf": "/v1/validations/a1b2c3d4-e5f6-7890-abcd-ef1234567890/cep?format=pdf"
+        "processing_time_ms": 2840,
+        "image_path": "comprobantes/c3d4e5f6-a7b8-9012-cdef-123456789012.png",
+        "ocr_result": {
+          "fecha": "2025-04-10",
+          "monto": 12500,
+          "clave_rastreo": "MXBA20250410003456"
+        },
+        "ocr_confidence": 0.96,
+        "created_at": "2025-04-10T11:30:00Z",
+        "completed_at": "2025-04-10T11:30:02Z"
       }
     },
     "meta": {
       "version": "1.59.1",
       "api_version": "v1",
-      "request_id": "aa11bb22cc33",
+      "request_id": "e6f7a8b9c0d1",
       "datetime": {
         "timezone": "UTC",
         "format": "ISO 8601"

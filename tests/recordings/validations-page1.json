@@ -6,33 +6,51 @@
   "json": {
     "data": [
       {
-        "type": "validation",
         "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "type": "validation",
         "attributes": {
-          "validation_type": "direct",
+          "bank_name": "BBVA MEXICO",
+          "beneficiary_label": "Proveedor X",
+          "amount": 15000.5,
+          "tracking_key": "MXBA20250315001234",
+          "referencia_numerica": "1234567",
+          "beneficiary_account": "012180004412345678",
           "status": "valid",
           "banxico_status": "valid",
+          "validation_type": "direct",
+          "is_playground": false,
           "created_at": "2025-03-15T14:22:10Z",
-          "completed_at": "2025-03-15T14:22:11Z"
-        },
-        "links": {
-          "self": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479",
-          "cep_xml": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=xml",
-          "cep_pdf": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=pdf"
+          "deleted_at": null,
+          "retry_state": {
+            "enabled": false,
+            "attempts_completed": 0,
+            "next_attempt_at": null,
+            "terminal_state": null
+          }
         }
       },
       {
-        "type": "validation",
         "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "type": "validation",
         "attributes": {
-          "validation_type": "direct",
+          "bank_name": "SCOTIABANK",
+          "beneficiary_label": null,
+          "amount": 8500,
+          "tracking_key": "MXBA20250316005555",
+          "referencia_numerica": "",
+          "beneficiary_account": "021180040900123456",
           "status": "not_found",
           "banxico_status": "not_found",
-          "created_at": "2025-03-15T14:22:10Z",
-          "completed_at": "2025-03-15T14:22:11Z"
-        },
-        "links": {
-          "self": "/v1/validations/a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          "validation_type": "ocr",
+          "is_playground": false,
+          "created_at": "2025-03-16T09:10:00Z",
+          "deleted_at": null,
+          "retry_state": {
+            "enabled": false,
+            "attempts_completed": 0,
+            "next_attempt_at": null,
+            "terminal_state": null
+          }
         }
       }
     ],

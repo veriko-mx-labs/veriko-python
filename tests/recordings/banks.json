@@ -2,33 +2,41 @@
   "status": 200,
   "headers": {
     "Content-Type": "application/json; charset=utf-8",
-    "ETag": "W/\"banks-2026-09-18\""
+    "ETag": "\"a1b2c3d4e5f6\"",
+    "Cache-Control": "private, max-age=3600"
   },
   "json": {
     "data": [
-      {
-        "type": "bank",
-        "id": "40002",
-        "attributes": {
-          "code": "40002",
-          "name": "BANAMEX",
-          "short_name": "BANAMEX"
-        }
-      },
       {
         "type": "bank",
         "id": "40012",
         "attributes": {
           "code": "40012",
           "name": "BBVA MEXICO",
-          "short_name": "BBVA"
+          "aliases": ["bancomer", "bbva bancomer"]
+        }
+      },
+      {
+        "type": "bank",
+        "id": "40021",
+        "attributes": {
+          "code": "40021",
+          "name": "HSBC"
+        }
+      },
+      {
+        "type": "bank",
+        "id": "40002",
+        "attributes": {
+          "code": "40002",
+          "name": "BANCO NACIONAL DE MEXICO"
         }
       }
     ],
     "meta": {
       "version": "1.59.1",
       "api_version": "v1",
-      "request_id": "ee77ff88aa99",
+      "request_id": "e7f8a9b0c1d2",
       "datetime": {
         "timezone": "UTC",
         "format": "ISO 8601"

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlsplit
+
 import pytest
 
 from conftest import RecordingServer
-from veriko import ConfigurationError, InvalidRequestError, Veriko
+from veriko import APIError, ConfigurationError, InvalidRequestError, Veriko
 
 WEBHOOK_ID = "9f8e7d6c-5b4a-3210-fedc-ba9876543210"
 
@@ -182,9 +184,13 @@ def test_catalogo_de_bancos(client: Veriko, server: RecordingServer) -> None:
 
     bancos = client.catalog.banks()
 
-    assert len(bancos) == 2
-    assert bancos[0].code == "40002"
-    assert bancos[1].name == "BBVA MEXICO"
+    assert len(bancos) == 3
+    assert bancos[0].code == "40012"
+    assert bancos[0].name == "BBVA MEXICO"
+    assert bancos[0].aliases == ["bancomer", "bbva bancomer"]
+    assert bancos[1].aliases == []
+    # El catálogo trae su ETag para la lectura condicional siguiente.
+    assert bancos.etag == '"a1b2c3d4e5f6"'
 
 
 def test_el_catalogo_admite_etag(client: Veriko, server: RecordingServer) -> None:
@@ -202,6 +208,8 @@ def test_banco_emisor_de_una_tarjeta(client: Veriko, server: RecordingServer) ->
 
     assert server.requests[0].path == "/v1/public/bin-lookup/455632"
     assert resultado["bank_name"] == "BBVA MEXICO"
+    assert resultado["banxico_code"] == "40012"
+    assert resultado["card_brand"] == "VISA"
 
 
 def test_estado_del_servicio_de_banxico(client: Veriko, server: RecordingServer) -> None:
@@ -210,14 +218,124 @@ def test_estado_del_servicio_de_banxico(client: Veriko, server: RecordingServer)
     estado = client.catalog.banxico_status()
 
     assert estado["status"] == "operational"
-    assert estado["latency_ms"] == 820
+    assert estado["status_label"] == "Operativo"
+    assert estado["last_verified_at"] == "2026-04-11T15:30:00Z"
 
 
 def test_serie_temporal_del_servicio(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("banxico-timeseries")
 
-    serie = client.catalog.banxico_timeseries(metric="latency", window="24h")
+    serie = client.catalog.banxico_timeseries(metric="probe_latency", window="24h")
 
-    assert "metric=latency" in server.requests[0].path
+    assert "metric=probe_latency" in server.requests[0].path
     assert "window=24h" in server.requests[0].path
+    assert serie["unit"] == "ms"
     assert len(serie["points"]) == 2
+    assert serie["points"][0] == {"ts": "2026-04-11T14:00:00Z", "value": 1523}
+
+
+# ── Lo que el spec pide y la versión 0.3.0 hacía distinto ───────────────────
+
+
+def _consulta(server: RecordingServer, indice: int) -> dict[str, list[str]]:
+    return parse_qs(urlsplit(server.requests[indice].path).query)
+
+
+def test_la_etiqueta_viaja_como_description(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("webhook-created")
+
+    client.webhooks.create(
+        url="https://miapp.example.com/hooks/pagos",
+        events=["validation.completed"],
+        description="Pagos de contado",
+    )
+
+    assert server.requests[0].json()["description"] == "Pagos de contado"
+
+
+def test_borrar_la_etiqueta_con_none(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("webhook-updated")
+
+    client.webhooks.update(WEBHOOK_ID, description=None)
+
+    assert server.requests[0].json() == {"description": None}
+
+
+def test_vaciar_los_eventos_no_llega_a_la_api(client: Veriko, server: RecordingServer) -> None:
+    with pytest.raises(InvalidRequestError) as raised:
+        client.webhooks.update(WEBHOOK_ID, events=[])
+
+    assert raised.value.code == "events_required"
+    assert server.requests == []
+
+
+def test_un_endpoint_con_filtro_consulta_el_listado_global(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("webhook-deliveries")
+
+    client.webhooks.deliveries(WEBHOOK_ID, status="failed")
+
+    # La ruta por endpoint no admite `status`: el filtro se perdería en silencio.
+    assert server.requests[0].path.startswith("/v1/webhooks/deliveries?")
+    consulta = _consulta(server, 0)
+    assert consulta["endpoint_id"] == [WEBHOOK_ID]
+    assert consulta["status"] == ["failed"]
+
+
+def test_recorrer_las_entregas_en_dos_paginas(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("webhook-deliveries-page1")
+    server.enqueue_recording("webhook-deliveries-page2")
+
+    todas = list(client.webhooks.iter_deliveries(WEBHOOK_ID, per_page=2))
+
+    assert [entrega.id for entrega in todas] == ["1041", "1042", "1043"]
+    assert len(server.requests) == 2
+    assert _consulta(server, 1)["page"] == ["2"]
+    assert server.requests[1].path.startswith("/v1/webhooks/" + WEBHOOK_ID + "/deliveries?")
+
+
+def test_las_entregas_traen_los_campos_del_spec(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("webhook-deliveries")
+
+    pagina = client.webhooks.deliveries(WEBHOOK_ID)
+
+    reintento = pagina[1]
+    assert reintento.attempt == 1
+    assert reintento.endpoint_id == WEBHOOK_ID
+    assert reintento.next_retry_at == "2025-03-15T14:30:12Z"
+    assert reintento.validation_id == "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+
+
+def test_exportar_las_entregas_de_todos_con_filtros(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("deliveries-export-csv")
+
+    client.webhooks.export_deliveries(status="failed", limit=50)
+
+    assert server.requests[0].path.startswith("/v1/webhooks/deliveries/export?")
+    consulta = _consulta(server, 0)
+    assert consulta["status"] == ["failed"]
+    assert consulta["limit"] == ["50"]
+    assert "endpoint_id" not in consulta
+
+
+def test_los_endpoints_traen_los_campos_del_spec(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("webhooks-list")
+
+    endpoints = client.webhooks.list()
+
+    assert endpoints[0].description == "Pagos de contado"
+    assert endpoints[0].secret_hint == "...b6c7"
+    assert endpoints[1].last_delivery_at == "2025-03-15T14:25:12Z"
+    assert endpoints[1].updated_at == "2025-02-01T12:00:00Z"
+
+
+def test_un_catalogo_sin_cambios_se_lanza_como_304(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("not-modified")
+
+    with pytest.raises(APIError) as raised:
+        client.catalog.banks(if_none_match='"a1b2c3d4e5f6"')
+
+    assert raised.value.status == 304

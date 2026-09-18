@@ -5,9 +5,17 @@
   },
   "json": {
     "data": {
-      "bin": "455632",
-      "bank_code": "40012",
-      "bank_name": "BBVA MEXICO"
+      "type": "bin_lookup",
+      "id": "455632",
+      "attributes": {
+        "bin": "455632",
+        "bank_name": "BBVA MEXICO",
+        "banxico_code": "40012",
+        "card_brand": "VISA",
+        "card_type": "DEBIT",
+        "card_level": "CLASSIC",
+        "country_iso": "MX"
+      }
     },
     "meta": {
       "version": "1.59.1",
