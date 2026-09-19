@@ -30,12 +30,19 @@ def test_declara_las_rutas_publicas() -> None:
 def test_no_conserva_las_extensiones_internas_del_bundle() -> None:
     texto = SPEC_PATH.read_text(encoding="utf-8")
 
-    for marca in ("x-visibility:", "x-permission:", "x-admin-notes:"):
+    for marca in (
+        "x-visibility:",
+        "x-permission:",
+        "x-admin-notes:",
+        "x-auth:",
+        "x-integration:",
+    ):
         assert marca not in texto, f"el spec conserva {marca}"
 
 
-def test_declara_los_dos_esquemas_de_autenticacion() -> None:
+def test_declara_solo_el_esquema_m2m_de_api_key() -> None:
     esquemas = load_spec()["components"]["securitySchemes"]
 
     assert esquemas["ApiKeyAuth"]["in"] == "header"
-    assert esquemas["CookieAuth"]["in"] == "cookie"
+    assert set(esquemas) == {"ApiKeyAuth"}
+    assert "CookieAuth" not in esquemas

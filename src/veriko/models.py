@@ -536,49 +536,6 @@ class BeneficiaryLookup:
 
 
 @dataclass(frozen=True)
-class AccountValidation:
-    """Resultado de `beneficiaries.validate_account()`: la estructura de una cuenta.
-
-    Un número mal formado no es un error de la petición, sino un resultado que se
-    lee en `checksum_valid` o en `account_type`.
-    """
-
-    input: str | None = None
-    length: int | None = None
-    is_numeric: bool = False
-    account_type: str | None = None
-    is_complete: bool = False
-    checksum_valid: bool = False
-    computed_control_digit: str | None = None
-    auto_completed: str | None = None
-    bank: dict[str, Any] = field(default_factory=dict)
-    card: dict[str, Any] = field(default_factory=dict)
-    attributes: dict[str, Any] = field(default_factory=dict, repr=False)
-    raw: dict[str, Any] = field(default_factory=dict, repr=False)
-
-    @classmethod
-    def from_response(cls, body: dict[str, Any]) -> AccountValidation:
-        data = body.get("data") or {}
-        attributes: dict[str, Any] = data.get("attributes") or {}
-        bank = attributes.get("bank")
-        card = attributes.get("card")
-        return cls(
-            input=attributes.get("input"),
-            length=attributes.get("length"),
-            is_numeric=bool(attributes.get("is_numeric", False)),
-            account_type=attributes.get("account_type"),
-            is_complete=bool(attributes.get("is_complete", False)),
-            checksum_valid=bool(attributes.get("checksum_valid", False)),
-            computed_control_digit=attributes.get("computed_control_digit"),
-            auto_completed=attributes.get("auto_completed"),
-            bank=bank if isinstance(bank, dict) else {},
-            card=card if isinstance(card, dict) else {},
-            attributes=attributes,
-            raw=body,
-        )
-
-
-@dataclass(frozen=True)
 class BeneficiaryImportJob:
     """Un trabajo de importación masiva de beneficiarios y su avance.
 
@@ -768,7 +725,6 @@ __all__ = [
     "IMPORT_TERMINAL_STATUSES",
     "RETRYABLE_OUTCOMES",
     "TERMINAL_STATUSES",
-    "AccountValidation",
     "Bank",
     "BankList",
     "Beneficiary",

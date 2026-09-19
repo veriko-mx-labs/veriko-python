@@ -17,7 +17,6 @@ from typing import Any
 from ._http import MultipartFile, Response, Transport, filename_from_content_disposition
 from .errors import APIError, ConfigurationError, InvalidRequestError
 from .models import (
-    AccountValidation,
     Bank,
     BankList,
     Beneficiary,
@@ -923,21 +922,6 @@ class Beneficiaries(_Resource):
         """
         self._transport.request("DELETE", "/beneficiaries/" + _path_segment(beneficiary_id))
 
-    def validate_account(self, account: str, *, type: str | None = None) -> AccountValidation:
-        """Comprueba la estructura de un número de cuenta.
-
-        `GET /beneficiaries/validate-account`. Verifica el dígito de control de
-        la CLABE o el Luhn de la tarjeta y resuelve el banco. No consume cuota
-        del plan. Un número mal formado no es un error: se lee en
-        `checksum_valid` o en `account_type`.
-        """
-        response = self._transport.request(
-            "GET",
-            "/beneficiaries/validate-account",
-            query=_clean({"account": account, "type": type}),
-        )
-        return AccountValidation.from_response(response.json())
-
     def lookup(self, account: str) -> BeneficiaryLookup:
         """Resuelve una cuenta concreta dentro de la lista propia.
 
@@ -1247,6 +1231,290 @@ class Usage(_Resource):
         )
 
 
+class Account(_Resource):
+    """Perfil y preferencias de la cuenta autenticada."""
+
+    def my_profile(self) -> dict[str, Any]:
+        """`GET /users/me`: devuelve los atributos del perfil."""
+        response = self._transport.request("GET", "/users/me")
+        return _data_attributes(response)
+
+    def profile(self) -> dict[str, Any]:
+        return self.my_profile()
+
+    def get_my_retry_policy(self) -> dict[str, Any]:
+        """`GET /users/me/retry-policy`."""
+        response = self._transport.request("GET", "/users/me/retry-policy")
+        return _data_attributes(response)
+
+    def retry_policy(self) -> dict[str, Any]:
+        return self.get_my_retry_policy()
+
+    def update_my_retry_policy(
+        self,
+        policy: RetryPolicy | Mapping[str, Any],
+        *,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """`PUT /users/me/retry-policy` con el cuerpo completo de la política."""
+        response = self._transport.request(
+            "PUT",
+            "/users/me/retry-policy",
+            json_body={"retry_policy": _retry_payload(policy)},
+            extra_headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
+        )
+        return _data_attributes(response)
+
+
+class Dashboard(_Resource):
+    """Resumen del panel de la cuenta autenticada."""
+
+    def get_summary(self, *, limit: int | None = None) -> dict[str, Any]:
+        response = self._transport.request("GET", "/summary", query=_clean({"limit": limit}))
+        return _data_attributes(response)
+
+    def summary(self, *, limit: int | None = None) -> dict[str, Any]:
+        return self.get_summary(limit=limit)
+
+
+class Plans(_Resource):
+    """Catálogo de planes públicos, sin API key."""
+
+    def list_public(self) -> list[dict[str, Any]]:
+        response = self._transport.request("GET", "/plans/public", authenticated=False)
+        data = response.json().get("data")
+        return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
+
+    def list(self) -> list[dict[str, Any]]:
+        return self.list_public()
+
+    def get_public_plan_comparison(self) -> dict[str, Any]:
+        response = self._transport.request("GET", "/plans/public/comparison", authenticated=False)
+        data = response.json().get("data")
+        return data if isinstance(data, dict) else {}
+
+    def comparison(self) -> dict[str, Any]:
+        return self.get_public_plan_comparison()
+
+
+class Insights(_Resource):
+    """Métricas agregadas de la cuenta autenticada."""
+
+    def get_overview(self) -> dict[str, Any]:
+        response = self._transport.request("GET", "/insights/overview")
+        return _data_attributes(response)
+
+    def overview(self) -> dict[str, Any]:
+        return self.get_overview()
+
+    def get_trends(self, *, range: str | None = None, metric: str | None = None) -> dict[str, Any]:
+        response = self._transport.request(
+            "GET", "/insights/trends", query=_clean({"range": range, "metric": metric})
+        )
+        return _data_attributes(response)
+
+    def trends(self, **kwargs: Any) -> dict[str, Any]:
+        return self.get_trends(**kwargs)
+
+    def get_top_banks(
+        self, *, metric: str | None = None, limit: int | None = None
+    ) -> dict[str, Any]:
+        response = self._transport.request(
+            "GET", "/insights/top-banks", query=_clean({"metric": metric, "limit": limit})
+        )
+        return _data_attributes(response)
+
+    def top_banks(self, **kwargs: Any) -> dict[str, Any]:
+        return self.get_top_banks(**kwargs)
+
+    def get_top_beneficiaries(self, *, limit: int | None = None) -> dict[str, Any]:
+        response = self._transport.request(
+            "GET", "/insights/top-beneficiaries", query=_clean({"limit": limit})
+        )
+        return _data_attributes(response)
+
+    def top_beneficiaries(self, **kwargs: Any) -> dict[str, Any]:
+        return self.get_top_beneficiaries(**kwargs)
+
+
+_FINANCE_CONTENT_TYPES = {
+    "pdf": "application/pdf",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "csv": "text/csv",
+    "html": "text/html",
+    "zip": "application/zip",
+}
+
+
+def _finance_file(
+    transport: Transport,
+    path: str,
+    query: Mapping[str, Any],
+    format: str,
+    fallback: str,
+    *,
+    include_format: bool = True,
+) -> Document:
+    accept = _FINANCE_CONTENT_TYPES.get(format, "application/octet-stream")
+    request_query = {**query, "format": format} if include_format else dict(query)
+    response = transport.request(
+        "GET", path, query=_clean(request_query), accept=accept + ", application/json"
+    )
+    return _document(response, fallback + "." + format, accept)
+
+
+class Finance(_Resource):
+    """Resúmenes y descargas financieras."""
+
+    def get_summary(self, *, month: str, user_id: str | None = None) -> dict[str, Any]:
+        response = self._transport.request(
+            "GET", "/finance/summary", query={"month": month, "user_id": user_id}
+        )
+        return _data_attributes(response)
+
+    def summary(self, **kwargs: Any) -> dict[str, Any]:
+        return self.get_summary(**kwargs)
+
+    def get_statement(
+        self, *, month: str, format: str = "pdf", user_id: str | None = None
+    ) -> Document:
+        return _finance_file(
+            self._transport,
+            "/finance/statement",
+            {"month": month, "user_id": user_id},
+            format,
+            "estado-de-cuenta",
+        )
+
+    def statement(self, **kwargs: Any) -> Document:
+        return self.get_statement(**kwargs)
+
+    def _preview(
+        self,
+        path: str,
+        *,
+        month: str,
+        format: str,
+        user_id: str | None,
+        limit: int | None,
+        fallback: str,
+        decimal: str | None = None,
+    ) -> dict[str, Any] | Document:
+        query = {"month": month, "user_id": user_id, "limit": limit}
+        if decimal is not None:
+            query["decimal"] = decimal
+        if format != "preview":
+            return _finance_file(self._transport, path, query, format, fallback)
+        response = self._transport.request("GET", path, query=_clean({**query, "format": format}))
+        return _data_attributes(response)
+
+    def get_monthly(
+        self,
+        *,
+        month: str,
+        format: str = "csv",
+        user_id: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any] | Document:
+        return self._preview(
+            "/finance/monthly",
+            month=month,
+            format=format,
+            user_id=user_id,
+            limit=limit,
+            fallback="finanzas-mensuales",
+        )
+
+    def monthly(self, **kwargs: Any) -> dict[str, Any] | Document:
+        return self.get_monthly(**kwargs)
+
+    def get_counterparties(
+        self,
+        *,
+        month: str,
+        format: str = "csv",
+        user_id: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any] | Document:
+        return self._preview(
+            "/finance/counterparties",
+            month=month,
+            format=format,
+            user_id=user_id,
+            limit=limit,
+            fallback="contrapartes",
+        )
+
+    def counterparties(self, **kwargs: Any) -> dict[str, Any] | Document:
+        return self.get_counterparties(**kwargs)
+
+    def get_by_bank(
+        self,
+        *,
+        month: str,
+        format: str = "csv",
+        user_id: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any] | Document:
+        return self._preview(
+            "/finance/by-bank",
+            month=month,
+            format=format,
+            user_id=user_id,
+            limit=limit,
+            fallback="finanzas-por-banco",
+        )
+
+    def by_bank(self, **kwargs: Any) -> dict[str, Any] | Document:
+        return self.get_by_bank(**kwargs)
+
+    def get_accounting(
+        self,
+        *,
+        month: str,
+        decimal: str | None = None,
+        format: str = "csv",
+        user_id: str | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any] | Document:
+        return self._preview(
+            "/finance/accounting",
+            month=month,
+            format=format,
+            user_id=user_id,
+            limit=limit,
+            fallback="contabilidad",
+            decimal=decimal,
+        )
+
+    def accounting(self, **kwargs: Any) -> dict[str, Any] | Document:
+        return self.get_accounting(**kwargs)
+
+    def get_ceps(self, *, from_: str, to: str, user_id: str | None = None) -> Document:
+        return _finance_file(
+            self._transport,
+            "/finance/ceps",
+            {"from": from_, "to": to, "user_id": user_id},
+            "zip",
+            "ceps",
+            include_format=False,
+        )
+
+    def ceps(self, **kwargs: Any) -> Document:
+        return self.get_ceps(**kwargs)
+
+
+class Billing(_Resource):
+    """Suscripción activa de la cuenta autenticada."""
+
+    def get_subscription(self) -> dict[str, Any]:
+        response = self._transport.request("GET", "/billing/subscription")
+        return _data_attributes(response)
+
+    def subscription(self) -> dict[str, Any]:
+        return self.get_subscription()
+
+
 # ── Ayudantes compartidos ───────────────────────────────────────────────────
 
 
@@ -1326,8 +1594,14 @@ __all__ = [
     "CEP_FORMATS",
     "EXPORT_FORMATS",
     "TEMPLATE_FORMATS",
+    "Account",
     "Beneficiaries",
+    "Billing",
     "Catalog",
+    "Dashboard",
+    "Finance",
+    "Insights",
+    "Plans",
     "Usage",
     "Validations",
     "Webhooks",

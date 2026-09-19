@@ -91,20 +91,6 @@ def test_archivar_un_beneficiario(client: Veriko, server: RecordingServer) -> No
 # ── Comprobaciones previas ──────────────────────────────────────────────────
 
 
-def test_validar_la_estructura_de_una_cuenta(client: Veriko, server: RecordingServer) -> None:
-    server.enqueue_recording("account-validation")
-
-    resultado = client.beneficiaries.validate_account("012180004412345678")
-
-    assert (
-        server.requests[0].path == "/v1/beneficiaries/validate-account?account=012180004412345678"
-    )
-    assert resultado.account_type == "clabe"
-    assert resultado.checksum_valid is True
-    assert resultado.is_complete is True
-    assert resultado.bank["name"] == "BBVA MEXICO"
-
-
 def test_resolver_una_cuenta_de_la_lista(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("beneficiary-lookup")
 

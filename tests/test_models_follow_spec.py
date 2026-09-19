@@ -15,7 +15,6 @@ import pytest
 
 from spec_support import load_spec, schema_properties
 from veriko.models import (
-    AccountValidation,
     Bank,
     Beneficiary,
     BeneficiaryImportJob,
@@ -45,7 +44,6 @@ MODELOS: list[tuple[type[Any], str, str, set[str]]] = [
     (Bank, "BankResource", "attributes", PROPIOS),
     (Beneficiary, "Beneficiary", "attributes", PROPIOS | {"id"}),
     (BeneficiaryLookup, "BeneficiaryLookupResource", "attributes", PROPIOS),
-    (AccountValidation, "ValidateAccountResource", "attributes", PROPIOS),
     (BeneficiaryImportJob, "BeneficiaryImportJob", "attributes", PROPIOS | {"id"}),
     (BeneficiaryImportRow, "BeneficiaryImportRow", "attributes", PROPIOS | {"id"}),
     (UsageSummary, "UsageSummary", "plano", PROPIOS),

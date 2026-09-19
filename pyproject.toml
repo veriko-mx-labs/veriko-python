@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "veriko"
-version = "0.4.1"
+version = "0.5.0"
 description = "SDK oficial de Veriko: valida transferencias SPEI contra el CEP de Banxico"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -67,4 +67,5 @@ warn_unreachable = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = "-q"

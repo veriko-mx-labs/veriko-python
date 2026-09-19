@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "billing_subscription",
+      "id": "4218",
+      "attributes": {
+        "plan_slug": "pro",
+        "plan_name": "Pro",
+        "billing_model": "hybrid",
+        "source": "stripe",
+        "status": "active",
+        "current_period_start": "2026-04-01T00:00:00Z",
+        "current_period_end": "2026-05-01T00:00:00Z",
+        "currency": "MXN",
+        "billing_interval": "month",
+        "overage_enabled": false,
+        "included_validations": 500,
+        "monthly_validation_limit": 10000,
+        "effective_limit": 500,
+        "is_stripe": true,
+        "stripe_subscription_id": "sub_1OaBcDeFgHiJk2",
+        "grant_reason": null,
+        "cancel_at_period_end": false,
+        "cancel_at": null,
+        "canceled_at": null,
+        "trial_start": null,
+        "trial_end": null
+      }
+    },
+    "meta": {
+      "effective_plan_slug": "pro",
+      "has_subscription": true,
+      "quota": {
+        "plan": "pro",
+        "used": 420,
+        "limit": 500,
+        "remaining": 80,
+        "resets_at": "2026-05-01T00:00:00Z"
+      }
+    }
+  }
+}
