@@ -13435,6 +13435,14 @@ components:
                     - returned
                     - failed
                     - error
+                  x-terminal-values:
+                    - valid
+                    - not_found
+                    - cep_unavailable
+                    - invalid
+                    - returned
+                    - failed
+                    - error
                   description: 'Estado del ciclo de vida — `queued`: Pendiente de procesamiento; `processing`: En proceso; `valid`: El CEP fue encontrado y cuadra; `not_found`: Banxico no encuentra la operación; `cep_unavailable`: Banxico reconoce la transacción pero el CEP no está disponible; `invalid`: Banxico no devolvió un veredicto reconocible; `returned`: la operación se liquidó y después se devolvió; `failed`: La validación se detuvo por un problema en los datos enviados; `error`: La validación se detuvo por un fallo del servicio.'
                   example: valid
                   x-translations:
