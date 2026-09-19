@@ -40,11 +40,11 @@ class Veriko:
 
     Las operaciones se agrupan por familia:
 
-    - `client.validations` — validar, consultar, reintentar y descargar.
-    - `client.webhooks` — endpoints y su historial de entregas.
-    - `client.catalog` — bancos y estado del servicio de Banxico.
-    - `client.beneficiaries` — cuentas guardadas y su importación masiva.
-    - `client.usage` — cuota, límites y registro de actividad.
+    - `client.validations`: Validar, consultar, reintentar y descargar.
+    - `client.webhooks`: Endpoints y su historial de entregas.
+    - `client.catalog`: Bancos y estado del servicio de Banxico.
+    - `client.beneficiaries`: Cuentas guardadas y su importación masiva.
+    - `client.usage`: Cuota, límites y registro de actividad.
 
     Las tres de uso más frecuente están también en la raíz, como atajo:
 

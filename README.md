@@ -256,7 +256,6 @@ from veriko import parse_webhook, SignatureVerificationError
 app = Flask(__name__)
 SECRET = os.environ["VERIKO_WEBHOOK_SECRET"]
 
-
 @app.post("/hooks/veriko")
 def recibir():
     try:
@@ -342,7 +341,7 @@ validation = client.validate_transfer(
 )
 ```
 
-La clave se deriva del intento de negocio —el número de pedido, de lote o de transacción—, no se
+La clave se deriva del intento de negocio (el número de pedido, de lote o de transacción), no se
 genera al azar en cada envío: una clave aleatoria por reintento anula la protección.
 
 Sin `idempotency_key`, el SDK genera una por llamada y la repite en sus propios reintentos. Esa
