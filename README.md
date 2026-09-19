@@ -67,11 +67,12 @@ como atajo: `validate_transfer()`, `get_validation()` y `get_cep()`.
 
 ## Instalación
 
-El paquete todavía no está publicado en PyPI. Mientras tanto se instala desde el repositorio:
-
 ```bash
-pip install "git+https://github.com/veriko-mx-labs/veriko-python.git"
+pip install veriko
 ```
+
+Mientras la versión sea `0.x`, una versión menor puede ajustar la superficie pública del SDK.
+La versión `1.0.0` se reservará para una integración estable en producción.
 
 ## Autenticación
 
@@ -255,6 +256,7 @@ from veriko import parse_webhook, SignatureVerificationError
 
 app = Flask(__name__)
 SECRET = os.environ["VERIKO_WEBHOOK_SECRET"]
+
 
 @app.post("/hooks/veriko")
 def recibir():

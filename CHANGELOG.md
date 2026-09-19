@@ -5,6 +5,14 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+## [0.4.1] — 2026-09-19
+
+Primera versión publicada en PyPI. No cambia la superficie del SDK respecto de
+`0.4.0`.
+
+Los cambios del producto se documentan en el
+[changelog de la API](https://docs.veriko.mx/es/changelog).
+
 ## [0.4.0] — 2026-09-18
 
 La superficie pasa de 48 operaciones a 49: `beneficiaries` gana la cancelación de
@@ -167,7 +175,8 @@ Primera versión del SDK oficial de Python.
 - Validación por OCR de una imagen de comprobante.
 - Beneficiarios, importación masiva y finanzas.
 
-[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.4.0...HEAD
+[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.4.1
 [0.4.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.4.0
 [0.3.1]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.1
 [0.3.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.0
