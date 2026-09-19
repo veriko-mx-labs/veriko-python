@@ -1,12 +1,13 @@
-"""Las 49 operaciones que cubre el SDK, contra el spec público.
+"""Las 66 operaciones M2M que cubre el SDK, contra el spec público filtrado.
 
 Cada caso llama a un método con todos sus argumentos opcionales y comprueba que lo
 que llegó al servidor existe en el spec: el método y la ruta, los parámetros de
 consulta, las cabeceras y los campos del cuerpo. Un cuerpo sin el envoltorio
 `retry_policy`, o un filtro con otro nombre, fallan aquí.
 
-Además cada operación tiene que ser de máquina a máquina: la que sólo acepta la
-cookie de sesión es de la interfaz y no entra en el SDK, en ninguna versión.
+Además cada operación tiene que ser de máquina a máquina: acepta `ApiKeyAuth` o
+es pública con `security: []`. Una operación que sólo acepta la cookie de sesión
+no puede entrar ni en este spec ni en el SDK.
 """
 
 from __future__ import annotations
@@ -285,12 +286,6 @@ CASOS = [
     ),
     Caso("deleteBeneficiary", "no-content", lambda c: c.beneficiaries.delete("12")),
     Caso(
-        "validateAccount",
-        "account-validation",
-        lambda c: c.beneficiaries.validate_account("012180004412345678", type="clabe"),
-        todos_los_parametros=True,
-    ),
-    Caso(
         "lookupBeneficiaryAccount",
         "beneficiary-lookup",
         lambda c: c.beneficiaries.lookup("012180004412345678"),
@@ -386,7 +381,200 @@ CASOS = [
         lambda c: c.usage.export(format="xlsx", from_="2025-01-01", to="2025-03-31", limit=100),
         todos_los_parametros=True,
     ),
+    # ── Cuenta, panel, planes, insights, finanzas y facturación ────────────
+    Caso("myProfile", "account-profile", lambda c: c.account.my_profile()),
+    Caso(
+        "getMyRetryPolicy",
+        "account-retry-policy",
+        lambda c: c.account.get_my_retry_policy(),
+    ),
+    Caso(
+        "updateMyRetryPolicy",
+        "account-retry-policy-updated",
+        lambda c: c.account.update_my_retry_policy(POLITICA, idempotency_key="pedido-5"),
+        todo_el_cuerpo=True,
+    ),
+    Caso(
+        "getDashboardSummary",
+        "dashboard-summary",
+        lambda c: c.dashboard.get_summary(limit=5),
+        todos_los_parametros=True,
+    ),
+    Caso("listPublicPlans", "public-plans", lambda c: c.plans.list_public()),
+    Caso(
+        "getPublicPlanComparison",
+        "public-plan-comparison",
+        lambda c: c.plans.get_public_plan_comparison(),
+    ),
+    Caso("getUserInsightsOverview", "insights-overview", lambda c: c.insights.get_overview()),
+    Caso(
+        "getUserInsightsTrends",
+        "insights-trends",
+        lambda c: c.insights.get_trends(range="30d", metric="latency"),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getUserInsightsTopBanks",
+        "insights-top-banks",
+        lambda c: c.insights.get_top_banks(metric="errors", limit=10),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getUserInsightsTopBeneficiaries",
+        "insights-top-beneficiaries",
+        lambda c: c.insights.get_top_beneficiaries(limit=10),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getFinanceSummary",
+        "finance-summary",
+        lambda c: c.finance.get_summary(month="2026-04", user_id=ID),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getFinanceStatement",
+        "finance-statement",
+        lambda c: c.finance.get_statement(month="2026-04", format="pdf", user_id=ID),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getFinanceMonthly",
+        "finance-monthly",
+        lambda c: c.finance.get_monthly(month="2026-04", format="preview", user_id=ID, limit=100),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getFinanceCounterparties",
+        "finance-counterparties",
+        lambda c: c.finance.get_counterparties(
+            month="2026-04", format="preview", user_id=ID, limit=100
+        ),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getFinanceByBank",
+        "finance-by-bank",
+        lambda c: c.finance.get_by_bank(month="2026-04", format="preview", user_id=ID, limit=100),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getFinanceAccounting",
+        "finance-accounting",
+        lambda c: c.finance.get_accounting(
+            month="2026-04", format="preview", user_id=ID, limit=100, decimal="dot"
+        ),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "getFinanceCeps",
+        "finance-ceps",
+        lambda c: c.finance.get_ceps(from_="2026-04-01", to="2026-04-30", user_id=ID),
+        todos_los_parametros=True,
+    ),
+    Caso(
+        "billingGetSubscription",
+        "billing-subscription",
+        lambda c: c.billing.get_subscription(),
+    ),
 ]
+
+
+IMPLEMENTED_OPERATIONS = {
+    "validateDirect",
+    "validateOcr",
+    "listValidations",
+    "getValidation",
+    "downloadCep",
+    "getValidationImage",
+    "validationStats",
+    "exportValidations",
+    "listValidationRetryAttempts",
+    "updateValidationRetryPolicy",
+    "cancelValidationRetries",
+    "deleteValidation",
+    "sendCepToTelegram",
+    "createWebhook",
+    "listWebhooks",
+    "updateWebhook",
+    "deleteWebhook",
+    "sendWebhookTest",
+    "regenerateWebhookSecret",
+    "listWebhookDeliveries",
+    "listAllDeliveries",
+    "exportWebhookDeliveries",
+    "exportAllDeliveries",
+    "listBanks",
+    "lookupBin",
+    "banxicoPublicStatus",
+    "banxicoPublicTimeseries",
+    "createBeneficiary",
+    "listBeneficiaries",
+    "updateBeneficiary",
+    "deleteBeneficiary",
+    "lookupBeneficiaryAccount",
+    "exportBeneficiaries",
+    "downloadBeneficiaryImportTemplate",
+    "createBeneficiaryImport",
+    "getBeneficiaryImport",
+    "cancelBeneficiaryImport",
+    "getBeneficiaryImportPreview",
+    "patchBeneficiaryImportRow",
+    "deleteBeneficiaryImportRow",
+    "commitBeneficiaryImport",
+    "getUsageSummary",
+    "getUsageHistory",
+    "getUsageBreakdown",
+    "getUsageLimits",
+    "getUsageHeatmap",
+    "getApiUsage",
+    "exportApiUsage",
+    "myProfile",
+    "getMyRetryPolicy",
+    "updateMyRetryPolicy",
+    "getDashboardSummary",
+    "listPublicPlans",
+    "getPublicPlanComparison",
+    "getUserInsightsOverview",
+    "getUserInsightsTrends",
+    "getUserInsightsTopBanks",
+    "getUserInsightsTopBeneficiaries",
+    "getFinanceSummary",
+    "getFinanceStatement",
+    "getFinanceMonthly",
+    "getFinanceCounterparties",
+    "getFinanceByBank",
+    "getFinanceAccounting",
+    "getFinanceCeps",
+    "billingGetSubscription",
+}
+
+# Deuda temporal durante una migración. La versión final debe salir vacía: el
+# test de abajo impide convertirla en una allowlist permanente.
+KNOWN_GAPS: set[str] = set()
+
+
+def m2m_operation_ids() -> set[str]:
+    return {
+        operation["operationId"] for _, _, operation in operations() if accepts_api_key(operation)
+    }
+
+
+def coverage_errors(contract: set[str], implemented: set[str], known_gaps: set[str]) -> list[str]:
+    errors: list[str] = []
+    missing = sorted(contract - implemented - known_gaps)
+    obsolete = sorted(implemented - contract)
+    implemented_gaps = sorted(known_gaps & implemented)
+    stale_gaps = sorted(known_gaps - contract)
+
+    if missing:
+        errors.append("Faltan métodos para M2M: " + ", ".join(missing))
+    if obsolete:
+        errors.append("Hay métodos fuera del contrato M2M: " + ", ".join(obsolete))
+    if implemented_gaps:
+        errors.append("known_gaps ya tiene método: " + ", ".join(implemented_gaps))
+    if stale_gaps:
+        errors.append("known_gaps ya no existe en el contrato: " + ", ".join(stale_gaps))
+    return errors
 
 
 @pytest.mark.parametrize(
@@ -433,31 +621,80 @@ def test_lo_que_el_sdk_envia_existe_en_el_spec(
             assert campos == sorted(propiedades)
 
 
-def test_son_las_49_operaciones_de_esta_version() -> None:
+def test_cubre_exactamente_las_66_operaciones_del_contrato_sin_familias_parciales() -> None:
     cubiertas = {caso.operacion for caso in CASOS}
 
-    assert len(cubiertas) == 49
+    assert len(IMPLEMENTED_OPERATIONS) == 66
+    assert cubiertas == IMPLEMENTED_OPERATIONS
+    assert coverage_errors(m2m_operation_ids(), IMPLEMENTED_OPERATIONS, KNOWN_GAPS) == []
 
 
-def test_las_familias_completas_no_traen_operaciones_sin_metodo() -> None:
-    cubiertas = {caso.operacion for caso in CASOS}
-    familias = {"Validations", "Webhooks", "Public", "Banxico Status", "Beneficiaries", "Usage"}
-    de_maquina = {
-        operacion["operationId"]
-        for _, _, operacion in operations()
-        if familias & set(operacion.get("tags", [])) and accepts_api_key(operacion)
-    }
-
-    assert de_maquina == cubiertas
-
-
-def test_ninguna_operacion_de_sesion_tiene_metodo() -> None:
-    cubiertas = {caso.operacion for caso in CASOS}
+def test_no_deja_una_operacion_de_cookie_en_el_spec_publico_ni_los_metodos() -> None:
     solo_cookie = {
         operacion["operationId"]
         for _, _, operacion in operations()
         if not accepts_api_key(operacion)
     }
 
-    assert solo_cookie
-    assert cubiertas & solo_cookie == set()
+    assert solo_cookie == set(), "El spec público expone sólo-cookie: " + ", ".join(
+        sorted(solo_cookie)
+    )
+    assert solo_cookie & IMPLEMENTED_OPERATIONS == set()
+
+
+def test_exige_eliminar_los_huecos_temporales_antes_de_liberar() -> None:
+    assert not KNOWN_GAPS, "known_gaps debe estar vacío antes de liberar el SDK"
+
+
+def test_falla_cerrado_si_se_agrega_retira_u_oculta_una_operacion_m2m() -> None:
+    contract = m2m_operation_ids()
+    removed = "myProfile"
+    future = "futureM2mOperation"
+
+    assert coverage_errors(contract | {future}, IMPLEMENTED_OPERATIONS, set()) == [
+        "Faltan métodos para M2M: " + future
+    ]
+    assert coverage_errors(contract - {removed}, IMPLEMENTED_OPERATIONS, set()) == [
+        "Hay métodos fuera del contrato M2M: " + removed
+    ]
+    assert coverage_errors(contract, IMPLEMENTED_OPERATIONS, {removed}) == [
+        "known_gaps ya tiene método: " + removed
+    ]
+    assert coverage_errors(contract, IMPLEMENTED_OPERATIONS, {future}) == [
+        "known_gaps ya no existe en el contrato: " + future
+    ]
+
+
+def test_los_planes_publicos_funcionan_sin_api_key_y_no_envian_authorization(
+    server: RecordingServer,
+) -> None:
+    server.enqueue_recording("public-plans")
+    client = Veriko(api_key="", base_url=server.base_url, max_retries=0)
+
+    client.plans.list_public()
+
+    assert server.requests[0].header("authorization") is None
+
+
+def test_los_reportes_financieros_conservan_csv_como_formato_predeterminado(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("deliveries-export-csv", times=4)
+
+    client.finance.get_monthly(month="2026-04")
+    client.finance.get_counterparties(month="2026-04")
+    client.finance.get_by_bank(month="2026-04")
+    client.finance.get_accounting(month="2026-04")
+
+    expected_paths = (
+        "/v1/finance/monthly",
+        "/v1/finance/counterparties",
+        "/v1/finance/by-bank",
+        "/v1/finance/accounting",
+    )
+    assert len(server.requests) == len(expected_paths)
+    for request, expected_path in zip(server.requests, expected_paths):
+        url = urlsplit(request.path)
+        assert url.path == expected_path
+        assert parse_qs(url.query)["month"] == ["2026-04"]
+        assert parse_qs(url.query)["format"] == ["csv"]

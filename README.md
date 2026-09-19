@@ -52,7 +52,7 @@ Con veredicto `valid`, el comprobante queda disponible en XML y en PDF.
 
 ## Las familias de operaciones
 
-El cliente agrupa la API en cinco familias:
+El cliente agrupa las 66 operaciones M2M de la API en once familias:
 
 | familia | qué cubre |
 | --- | --- |
@@ -61,6 +61,12 @@ El cliente agrupa la API en cinco familias:
 | `client.catalog` | Catálogo de bancos SPEI, banco emisor de una tarjeta y estado del servicio de Banxico |
 | `client.beneficiaries` | Cuentas beneficiarias guardadas y la importación masiva, como ciclo completo |
 | `client.usage` | Cuota de validaciones, límites de tasa y registro de actividad de la API |
+| `client.account` | Perfil y política de reintentos predeterminada de la cuenta |
+| `client.dashboard` | Resumen del panel |
+| `client.plans` | Catálogo y comparación de planes públicos, sin clave de API |
+| `client.insights` | Resumen, tendencias, bancos y beneficiarios principales |
+| `client.finance` | Resumen, estado de cuenta, vistas previas y descargas financieras |
+| `client.billing` | Suscripción activa |
 
 Las tres operaciones de uso más frecuente están también en la raíz del cliente,
 como atajo: `validate_transfer()`, `get_validation()` y `get_cep()`.
@@ -82,6 +88,10 @@ La clave de API se obtiene en el panel ([app.veriko.mx](https://app.veriko.mx)) 
 ```bash
 export VERIKO_API_KEY=veriko_tu_clave_aqui
 ```
+
+Sólo `client.plans.list_public()` y `client.plans.get_public_plan_comparison()` se pueden usar sin
+clave y no envían `Authorization`. El resto conserva la autenticación de la API: una petición sin
+clave falla localmente antes de salir a la red.
 
 El argumento `api_key` la recibe directamente cuando la gestiona otro mecanismo:
 
@@ -396,8 +406,7 @@ beneficiary = client.beneficiaries.create(
 beneficiary = client.beneficiaries.lookup("012180004412345678")  # la cuenta ya guardada
 ```
 
-`validate_account()` comprueba la estructura de una cuenta sin gastar cuota del plan. La lista se
-recorre con `client.beneficiaries.list()`, y se exporta con
+La lista se recorre con `client.beneficiaries.list()`, y se exporta con
 `client.beneficiaries.export(format="csv")`.
 
 ### Importación masiva
@@ -434,22 +443,30 @@ limites = client.usage.limits()
 
 `client.usage.export(format="csv")` baja el registro de actividad.
 
-## Alcance de esta versión
+## Superficie M2M
 
-49 operaciones de la API, repartidas en las cinco familias del cliente: `validations`, `webhooks`,
-`catalog`, `beneficiaries` y `usage`. Incluyen la validación por imagen, el modo asíncrono con
-sondeo por `ETag`, la paginación, las exportaciones, el ciclo de vida de los endpoints de webhook,
-la lista de cuentas beneficiarias con su importación masiva y las métricas de consumo.
+El SDK cubre exactamente las 66 operaciones que el spec público clasifica como M2M: `security: []`
+para las públicas, o una alternativa con `ApiKeyAuth` para las autenticadas. No se infiere de
+`x-auth`, etiquetas ni familias. Cualquier operación que sólo admita `CookieAuth` queda fuera.
 
-El SDK cubre sólo operaciones de máquina a máquina, las que aceptan la clave de API o son públicas.
-Las que únicamente aceptan la cookie de sesión son de la interfaz y no entran en ninguna versión: la
-importación masiva de validaciones, las sesiones de usuario, el playground y el directorio de
-cuentas.
+Las 18 incorporadas en esta alineación son el perfil y su política de reintentos, el resumen del
+panel, los dos endpoints públicos de planes, las cuatro vistas de insights, las siete operaciones
+financieras y la suscripción. Por ejemplo:
 
-Fuera del alcance a propósito: finanzas, métricas propias, catálogo de planes, suscripción y el
-resumen del panel. Son superficie de interfaz, se consumen una vez o desde la propia aplicación, y
-cada una arrastra formatos de exportación que no aportan al SDK. Están en la
-[referencia](https://docs.veriko.mx) para quien las necesite con un cliente HTTP.
+```python
+profile = client.account.my_profile()
+trends = client.insights.get_trends(range="30d", metric="latency")
+statement = client.finance.get_statement(month="2026-04", format="pdf")
+statement.write_to(statement.filename)
+```
+
+Los reportes mensual, por contraparte, por banco y contable conservan el default de la API:
+`format="csv"`. Usa `format="preview"` explícitamente cuando necesites la respuesta JSON para
+procesarla en memoria.
+
+La importación masiva de validaciones, las sesiones de usuario y el playground siguen fuera: sólo
+aceptan cookie de sesión. La corrección también retira el antiguo `validate_account()`; ya no forma
+parte del contrato M2M público.
 
 ## Desarrollo
 
@@ -468,6 +485,10 @@ la versión pública. `tests/test_operations.py` contrasta cada operación con e
 parámetros, cabeceras y cuerpo, y que sea de máquina a máquina), y `tests/test_models_follow_spec.py`
 comprueba que los campos de cada modelo existan en él. El bundle interno de la aplicación no se usa
 aquí, y `tests/test_spec_public.py` lo vigila.
+
+El candado de operaciones compara el conjunto M2M completo, ejerce cada ruta contra el servidor
+HTTP local y falla si aparece una operación sin método, un método ajeno al contrato o un
+`known_gaps` que no se eliminó.
 
 ## Enlaces
 

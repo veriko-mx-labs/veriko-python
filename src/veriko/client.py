@@ -8,9 +8,21 @@ from collections.abc import Mapping
 from typing import Any
 
 from ._http import RetryConfig, Transport
-from .errors import ConfigurationError
 from .models import CepDocument, RetryPolicy, Validation
-from .resources import CEP_FORMATS, Beneficiaries, Catalog, Usage, Validations, Webhooks
+from .resources import (
+    CEP_FORMATS,
+    Account,
+    Beneficiaries,
+    Billing,
+    Catalog,
+    Dashboard,
+    Finance,
+    Insights,
+    Plans,
+    Usage,
+    Validations,
+    Webhooks,
+)
 
 DEFAULT_BASE_URL = "https://api.veriko.mx/v1"
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -45,6 +57,12 @@ class Veriko:
     - `client.catalog`: Bancos y estado del servicio de Banxico.
     - `client.beneficiaries`: Cuentas guardadas y su importación masiva.
     - `client.usage`: Cuota, límites y registro de actividad.
+    - `client.account`: Perfil y política de reintentos predeterminada.
+    - `client.dashboard`: Resumen del panel.
+    - `client.plans`: Catálogo y comparación de planes públicos.
+    - `client.insights`: Métricas agregadas de la cuenta.
+    - `client.finance`: Resúmenes y descargas financieras.
+    - `client.billing`: Suscripción activa.
 
     Las tres de uso más frecuente están también en la raíz, como atajo:
 
@@ -84,12 +102,6 @@ class Veriko:
         transport: Transport | None = None,
     ) -> None:
         resolved_key = api_key or os.environ.get(API_KEY_ENV_VAR) or ""
-        if transport is None and not resolved_key:
-            raise ConfigurationError(
-                "Falta la clave de API. Pásala como Veriko(api_key=...) o pon "
-                + API_KEY_ENV_VAR
-                + " en el entorno. Se obtiene en https://app.veriko.mx"
-            )
         resolved_base = base_url or os.environ.get(BASE_URL_ENV_VAR) or DEFAULT_BASE_URL
 
         from . import __version__
@@ -113,6 +125,12 @@ class Veriko:
         self.catalog = Catalog(self._transport)
         self.beneficiaries = Beneficiaries(self._transport)
         self.usage = Usage(self._transport)
+        self.account = Account(self._transport)
+        self.dashboard = Dashboard(self._transport)
+        self.plans = Plans(self._transport)
+        self.insights = Insights(self._transport)
+        self.finance = Finance(self._transport)
+        self.billing = Billing(self._transport)
 
     @property
     def base_url(self) -> str:

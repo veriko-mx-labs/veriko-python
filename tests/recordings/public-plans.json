@@ -1,0 +1,73 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": [
+      {
+        "type": "plan",
+        "id": "free",
+        "attributes": {
+          "slug": "free",
+          "name": "Gratis",
+          "billing_model": "free",
+          "monthly_validation_limit": 50,
+          "included_validations": 50,
+          "trial_days": 0,
+          "is_default": true,
+          "sort_order": 0,
+          "prices": [],
+          "features": [
+            {
+              "text_es": "50 validaciones al mes",
+              "text_en": "50 validations per month",
+              "icon": "check",
+              "sort_order": 10,
+              "is_active": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "plan",
+        "id": "pro",
+        "attributes": {
+          "slug": "pro",
+          "name": "Pro",
+          "billing_model": "hybrid",
+          "monthly_validation_limit": 10000,
+          "included_validations": 500,
+          "trial_days": 14,
+          "is_default": false,
+          "sort_order": 2,
+          "prices": [
+            {
+              "currency": "MXN",
+              "billing_interval": "month",
+              "kind": "base",
+              "unit_amount": 49900,
+              "tax_behavior": "inclusive"
+            },
+            {
+              "currency": "MXN",
+              "billing_interval": "month",
+              "kind": "metered_overage",
+              "unit_amount": 100,
+              "tax_behavior": "inclusive"
+            }
+          ],
+          "features": [
+            {
+              "text_es": "500 validaciones incluidas + overage opcional",
+              "text_en": "500 included validations + optional overage",
+              "icon": "check",
+              "sort_order": 10,
+              "is_active": true
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

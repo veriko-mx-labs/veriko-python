@@ -135,6 +135,7 @@ class Transport:
         method: str,
         path: str,
         *,
+        authenticated: bool = True,
         json_body: Mapping[str, Any] | None = None,
         query: Mapping[str, Any] | None = None,
         extra_headers: Mapping[str, str] | None = None,
@@ -144,10 +145,15 @@ class Transport:
         url = self._build_url(path, query)
         payload: bytes | None = None
         headers = {
-            "Authorization": "Bearer " + self.api_key,
             "Accept": accept,
             "User-Agent": self.user_agent,
         }
+        if authenticated:
+            if not self.api_key:
+                raise errors.ConfigurationError(
+                    "Falta la clave de API. Pásala en api_key o configura VERIKO_API_KEY."
+                )
+            headers["Authorization"] = "Bearer " + self.api_key
         if self.accept_language:
             headers["Accept-Language"] = self.accept_language
         if json_body is not None:

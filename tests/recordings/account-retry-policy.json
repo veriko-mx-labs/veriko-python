@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "retry_policy",
+      "attributes": {
+        "enabled": true,
+        "max_retries": 3,
+        "interval_seconds": 600,
+        "outcomes": [
+          "not_found",
+          "cep_unavailable"
+        ]
+      }
+    },
+    "meta": {
+      "version": "1.51.0",
+      "request_id": "b3c4d5e6f7a8"
+    }
+  }
+}

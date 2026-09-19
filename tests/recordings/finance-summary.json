@@ -1,0 +1,103 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "finance_summary",
+      "attributes": {
+        "period": {
+          "month": "2026-04",
+          "from_utc": "2026-04-01T06:00:00Z",
+          "to_utc": "2026-05-01T06:00:00Z"
+        },
+        "counts": {
+          "total": 287,
+          "valid": 228,
+          "invalid": 4,
+          "not_found": 32,
+          "cep_unavailable": 18,
+          "returned": 4,
+          "error": 3,
+          "pending": 2,
+          "deleted": 6
+        },
+        "amounts": {
+          "total_volume": 1234567.89,
+          "verified_volume": 980123.45,
+          "unverified_volume": 254444.44,
+          "avg_ticket": 4302.32,
+          "median_ticket": 3100,
+          "max_ticket": 250000,
+          "min_ticket": 50,
+          "verified_share_pct": 79.4
+        },
+        "success_rate": 79.4,
+        "avg_processing_ms": 412,
+        "daily_breakdown": [
+          {
+            "date": "2026-04-15",
+            "count": 14,
+            "valid": 11,
+            "verified_volume": 42100,
+            "unverified_volume": 8500
+          }
+        ],
+        "top_counterparties": [
+          {
+            "cuenta": "012345678901234567",
+            "banco": "BBVA México",
+            "count": 24,
+            "valid": 22,
+            "verified_volume": 145000
+          }
+        ],
+        "top_banks_receptor": [
+          {
+            "bank_code": "40012",
+            "bank_name": "BBVA México",
+            "count": 71,
+            "valid": 64,
+            "verified_volume": 412000
+          }
+        ],
+        "top_banks_emisor": [
+          {
+            "bank_code": "40012",
+            "bank_name": "BBVA México",
+            "count": 71,
+            "valid": 64,
+            "verified_volume": 412000
+          }
+        ],
+        "verdict_distribution": {
+          "valid": 228,
+          "not_found": 32,
+          "cep_unavailable": 18,
+          "invalid": 4,
+          "returned": 4,
+          "error": 3
+        },
+        "comparison_prev_month": {
+          "prev_month": "2026-03",
+          "total": 251,
+          "verified_volume": 880000,
+          "total_delta_pct": 14.3,
+          "volume_delta_pct": 11.4
+        },
+        "folio": "A3F12B9C0D4E"
+      }
+    },
+    "meta": {
+      "version": "1.47.0",
+      "api_version": "v1",
+      "request_id": "a1b2c3d4e5f6",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    },
+    "links": {}
+  }
+}

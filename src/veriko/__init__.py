@@ -23,7 +23,7 @@ Documentación de la API: https://docs.veriko.mx
 
 from __future__ import annotations
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from ._http import RetryConfig
 from .client import (
@@ -51,7 +51,6 @@ from .models import (
     IMPORT_TERMINAL_STATUSES,
     RETRYABLE_OUTCOMES,
     TERMINAL_STATUSES,
-    AccountValidation,
     Bank,
     BankList,
     Beneficiary,
@@ -76,8 +75,14 @@ from .pagination import Page
 from .resources import (
     EXPORT_FORMATS,
     TEMPLATE_FORMATS,
+    Account,
     Beneficiaries,
+    Billing,
     Catalog,
+    Dashboard,
+    Finance,
+    Insights,
+    Plans,
     Usage,
     Validations,
     Webhooks,
@@ -108,7 +113,7 @@ __all__ = [
     "TERMINAL_STATUSES",
     "TIMESTAMP_HEADER",
     "APIError",
-    "AccountValidation",
+    "Account",
     "AuthenticationError",
     "Bank",
     "BankList",
@@ -117,16 +122,21 @@ __all__ = [
     "BeneficiaryImportJob",
     "BeneficiaryImportRow",
     "BeneficiaryLookup",
+    "Billing",
     "Catalog",
     "CepDocument",
     "ConfigurationError",
     "ConflictError",
     "ConnectionError",
+    "Dashboard",
     "Document",
+    "Finance",
     "ForbiddenError",
+    "Insights",
     "InvalidRequestError",
     "NotFoundError",
     "Page",
+    "Plans",
     "QueuedValidation",
     "RateLimitError",
     "RetryAttempt",

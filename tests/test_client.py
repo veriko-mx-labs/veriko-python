@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from conftest import RecordingServer
@@ -16,13 +18,35 @@ from veriko import (
 from veriko._http import Transport
 
 
-def test_sin_clave_de_api_falla_al_construir(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_la_version_publica_coincide_con_el_paquete() -> None:
+    pyproject = (Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    project = pyproject.split("[project]", 1)[1].split("\n[", 1)[0]
+
+    assert f'version = "{__version__}"' in project
+
+
+def test_sin_clave_de_api_construye_el_cliente_para_operaciones_publicas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("VERIKO_API_KEY", raising=False)
 
-    with pytest.raises(ConfigurationError) as raised:
-        Veriko()
+    client = Veriko()
 
-    assert "VERIKO_API_KEY" in str(raised.value)
+    assert client.base_url == DEFAULT_BASE_URL
+
+
+def test_sin_clave_de_api_rechaza_una_operacion_autenticada_antes_de_la_red(
+    monkeypatch: pytest.MonkeyPatch, server: RecordingServer
+) -> None:
+    monkeypatch.delenv("VERIKO_API_KEY", raising=False)
+    client = Veriko(api_key="", base_url=server.base_url)
+
+    with pytest.raises(ConfigurationError):
+        client.validate_transfer(
+            fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        )
+
+    assert server.requests == []
 
 
 def test_la_clave_se_lee_del_entorno(monkeypatch: pytest.MonkeyPatch) -> None:

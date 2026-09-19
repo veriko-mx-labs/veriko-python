@@ -5,6 +5,26 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+Sin cambios todavía.
+
+## [0.5.0] — 2026-09-19
+
+### Añadido
+
+- Las 18 operaciones M2M que faltaban: perfil y política de reintentos de cuenta,
+  resumen del panel, planes públicos, insights, finanzas y suscripción. Los planes
+  públicos se solicitan sin cabecera `Authorization`.
+- El candado de superficie compara las 66 operaciones completas del spec público,
+  ejercita rutas contra grabaciones sanitizadas en un servidor HTTP local y prueba
+  mutaciones de alta, baja y `known_gaps`.
+
+### Cambiado
+
+- `validate_account()` deja de formar parte del SDK: su operación ya no es M2M
+  pública. En `0.x` esta retirada es incompatible.
+- Los reportes mensuales, por contraparte, por banco y contables usan `csv` por
+  omisión, igual que el contrato público. `preview` se solicita explícitamente.
+
 ## [0.4.1] — 2026-09-19
 
 Primera versión publicada en PyPI. No cambia la superficie del SDK respecto de
@@ -84,8 +104,7 @@ La superficie pasa de 27 operaciones a 48: se suman las familias
 ### Añadido
 
 - `client.beneficiaries`: registrar, listar, cambiar y archivar cuentas
-  beneficiarias; validación estructural de una cuenta sin gastar cuota
-  (`validate_account`); resolución de una cuenta en la lista propia (`lookup`);
+  beneficiarias; resolución de una cuenta en la lista propia (`lookup`);
   exportación en CSV y XLSX; y la importación masiva como ciclo
   (`import_template`, `import_start`, `import_status`, `import_preview`,
   `import_edit_row`, `import_remove_row`, `import_commit` e `import_wait`).
@@ -93,8 +112,8 @@ La superficie pasa de 27 operaciones a 48: se suman las familias
   desglose por operación (`breakdown`), límites de tasa (`limits`), mapa de
   calor (`heatmap`), métricas de la API (`api_usage`) y su exportación
   (`export`).
-- Los tipos `Beneficiary`, `BeneficiaryLookup`, `AccountValidation`,
-  `BeneficiaryImportJob`, `BeneficiaryImportRow` y `UsageSummary`.
+- Los tipos `Beneficiary`, `BeneficiaryLookup`, `BeneficiaryImportJob`,
+  `BeneficiaryImportRow` y `UsageSummary`.
 - `BeneficiaryImportJob.is_settled`: la condición que espera `import_wait()`
   (`preview_ready` o un estado final).
 - Subida de archivos `multipart/form-data` en el transporte, sin dependencias
@@ -175,7 +194,8 @@ Primera versión del SDK oficial de Python.
 - Validación por OCR de una imagen de comprobante.
 - Beneficiarios, importación masiva y finanzas.
 
-[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.4.1...HEAD
+[No publicado]: https://github.com/veriko-mx-labs/veriko-python/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.5.0
 [0.4.1]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.4.1
 [0.4.0]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.4.0
 [0.3.1]: https://github.com/veriko-mx-labs/veriko-python/releases/tag/v0.3.1
