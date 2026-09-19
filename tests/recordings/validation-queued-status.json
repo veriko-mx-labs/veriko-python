@@ -27,8 +27,7 @@
       "datetime": {
         "timezone": "UTC",
         "format": "ISO 8601"
-      },
-      "next_poll_after_seconds": 2
+      }
     }
   }
 }
