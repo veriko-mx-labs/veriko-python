@@ -25,12 +25,14 @@ def parameter_schema(operation_id: str, name: str) -> dict[str, Any]:
     raise AssertionError(f"{operation_id} no declara el parámetro {name}")
 
 
-def test_los_estados_de_validacion_son_los_nueve_del_spec() -> None:
+def test_los_estados_de_validacion_y_sus_terminales_siguen_el_spec() -> None:
     validation = schema_properties(load_spec()["components"]["schemas"]["Validation"])
     attributes = schema_properties(validation["attributes"])
+    status_schema = attributes["status"]
     sdk_statuses = {"queued", "processing", *TERMINAL_STATUSES}
 
-    assert sdk_statuses == set(attributes["status"]["enum"])
+    assert sdk_statuses == set(status_schema["enum"])
+    assert set(TERMINAL_STATUSES) == set(status_schema["x-terminal-values"])
 
 
 def test_los_resultados_reintentables_son_el_enum_del_spec() -> None:
