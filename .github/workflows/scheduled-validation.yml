@@ -2,7 +2,11 @@ name: Validación programada
 
 on:
   schedule:
-    - cron: '7,22,37,52 * * * *'
+    - cron: '52 * * * *'
+
+concurrency:
+  group: scheduled-validation-main
+  cancel-in-progress: false
 
 permissions:
   contents: write
