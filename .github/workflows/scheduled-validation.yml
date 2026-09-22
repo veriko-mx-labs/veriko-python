@@ -1,0 +1,19 @@
+name: Validación programada
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    uses: veriko-mx-labs/.github/.github/workflows/sync-public-spec.yml@4cb712e8f7f8c56eee5aa07e89661ef306b55641
+    with:
+      regenerate_command: 'true'
+      auto_merge: true
+    secrets:
+      app_id: ${{ secrets.VERIKO_LABS_APP_ID }}
+      app_private_key: ${{ secrets.VERIKO_LABS_PRIVATE_KEY }}
