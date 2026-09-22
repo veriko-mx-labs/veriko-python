@@ -45,7 +45,6 @@ La API consulta el CEP y devuelve un veredicto en el campo `status`:
 | `invalid` | Los datos enviados no forman una consulta válida |
 | `error` | Fallo durante el procesamiento; el motivo viaja en `error_code` |
 
-
 Con veredicto `valid`, el comprobante queda disponible en XML y en PDF.
 
 ## Las familias de operaciones
@@ -265,7 +264,6 @@ from veriko import parse_webhook, SignatureVerificationError
 app = Flask(__name__)
 SECRET = os.environ["VERIKO_WEBHOOK_SECRET"]
 
-
 @app.post("/hooks/veriko")
 def recibir():
     try:
@@ -460,7 +458,6 @@ statement.write_to(statement.filename)
 Los reportes mensual, por contraparte, por banco y contable conservan el valor por omisión de la API:
 `format="csv"`. Usa `format="preview"` explícitamente cuando necesites la respuesta JSON para
 procesarla en memoria.
-
 
 ## Desarrollo
 

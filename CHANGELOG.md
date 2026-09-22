@@ -126,7 +126,6 @@ La superficie pasa de 27 operaciones a 48: se suman las familias
   parámetros repetidos, para el filtro `buckets` de la vista previa.
 - El arnés de pruebas entiende `PATCH`, que usa la corrección de filas.
 
-
 ## [0.2.0] — 2026-09-18
 
 La superficie pasa de 3 operaciones a 27: las familias `validations`, `webhooks`
@@ -159,7 +158,6 @@ y `catalog` completas.
 - `Validation` gana el campo `etag`, que `get()` rellena con la cabecera de la
   respuesta.
 
-
 ## [0.1.0] — 2026-09-18
 
 Primera versión del SDK oficial de Python.
@@ -180,5 +178,4 @@ Primera versión del SDK oficial de Python.
   completo de `errors` y el `request_id`.
 - Tipado completo (`py.typed`), sin dependencias de runtime. Python 3.9 o
   superior.
-
 
