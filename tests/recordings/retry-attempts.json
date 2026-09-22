@@ -1,0 +1,45 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": [
+      {
+        "attempt_number": 1,
+        "dispatched_at": "2025-03-17T08:10:00Z",
+        "started_at": "2025-03-17T08:10:02Z",
+        "finished_at": "2025-03-17T08:10:03Z",
+        "prev_banxico_status": "not_found",
+        "new_banxico_status": "not_found",
+        "prev_status": "not_found",
+        "new_status": "not_found",
+        "processing_time_ms": 1100,
+        "error_code": null,
+        "proxy_pool_member": "proxy-01"
+      },
+      {
+        "attempt_number": 2,
+        "dispatched_at": "2025-03-17T08:20:00Z",
+        "started_at": "2025-03-17T08:20:01Z",
+        "finished_at": "2025-03-17T08:20:02Z",
+        "prev_banxico_status": "not_found",
+        "new_banxico_status": "valid",
+        "prev_status": "not_found",
+        "new_status": "valid",
+        "processing_time_ms": 1250,
+        "error_code": null,
+        "proxy_pool_member": "proxy-03"
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "ff66aa77bb88",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

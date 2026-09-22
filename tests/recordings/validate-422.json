@@ -1,0 +1,35 @@
+{
+  "status": 422,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "422",
+        "code": "required",
+        "detail": "El campo fecha es obligatorio.",
+        "source": {
+          "pointer": "/data/attributes/fecha"
+        }
+      },
+      {
+        "status": "422",
+        "code": "invalid_clabe_checksum",
+        "detail": "El dígito de control no coincide.",
+        "source": {
+          "pointer": "/data/attributes/cuenta_beneficiaria"
+        }
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "a1b2c3d4e5f6",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

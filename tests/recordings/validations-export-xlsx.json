@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": "attachment; filename=\"veriko_validaciones_2025-03-15.xlsx\""
+  },
+  "body_base64": "UEsDBBQAAAAIAA=="
+}

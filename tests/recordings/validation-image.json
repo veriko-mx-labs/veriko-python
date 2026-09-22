@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "image/png",
+    "Content-Disposition": "attachment; filename=\"comprobante-f47ac10b-58cc-4372-a567-0e02b2c3d479.png\""
+  },
+  "body_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+}

@@ -1,0 +1,36 @@
+{
+  "status": 202,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"0-queued\"",
+    "Location": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479"
+  },
+  "json": {
+    "data": {
+      "type": "validation",
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "attributes": {
+        "validation_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "status": "queued",
+        "etag_version": 0,
+        "enqueued_at": "2025-03-15T14:22:10Z",
+        "expires_at": "2025-03-15T15:22:10Z",
+        "retry_state": {
+          "enabled": false,
+          "max_retries": null,
+          "interval_seconds": null,
+          "outcomes": null,
+          "attempts_completed": 0,
+          "next_attempt_at": null,
+          "resolved_at": null,
+          "exhausted_at": null,
+          "cancelled_at": null,
+          "terminal_state": null
+        }
+      }
+    },
+    "meta": {
+      "next_poll_after_seconds": 3
+    }
+  }
+}

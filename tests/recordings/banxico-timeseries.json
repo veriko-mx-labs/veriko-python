@@ -1,0 +1,39 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "public, max-age=60",
+    "Vary": "Origin"
+  },
+  "json": {
+    "data": {
+      "type": "banxico_public_timeseries",
+      "id": "probe_latency_24h",
+      "attributes": {
+        "metric": "probe_latency",
+        "window": "24h",
+        "unit": "ms",
+        "bucket_size_minutes": 60,
+        "points": [
+          {
+            "ts": "2026-04-11T14:00:00Z",
+            "value": 1523
+          },
+          {
+            "ts": "2026-04-11T15:00:00Z",
+            "value": 1487
+          }
+        ]
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "bb00cc11dd22",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

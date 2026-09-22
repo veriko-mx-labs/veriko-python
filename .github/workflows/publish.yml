@@ -1,0 +1,129 @@
+name: Publicar en PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Pruebas (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - run: pip install -e ".[dev]"
+      - run: pytest
+
+  build:
+    name: Verificar y construir
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Verificar la etiqueta
+        shell: bash
+        run: |
+          version="$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "La etiqueta $GITHUB_REF_NAME no coincide con la versión $version." >&2
+            exit 1
+          fi
+          git fetch origin main
+          git merge-base --is-ancestor "$(git rev-list -n 1 "$GITHUB_REF_NAME")" origin/main
+
+      - name: Instalar herramientas
+        run: pip install -e ".[dev]" build twine
+
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - run: python -m compileall -q examples
+
+      - name: Construir y revisar la distribución
+        run: |
+          python -m build
+          twine check dist/*
+          python -m venv /tmp/veriko-package
+          /tmp/veriko-package/bin/pip install dist/*.whl
+          /tmp/veriko-package/bin/python -c "from veriko import Veriko; assert Veriko"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: python-package
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publicar
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/veriko
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: python-package
+          path: dist/
+
+      - name: Publicar en PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          skip-existing: true
+
+  release:
+    name: Publicar las notas
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Extraer la entrada del changelog
+        env:
+          VERSION: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ['VERSION'].removeprefix('v')
+          changelog = Path('CHANGELOG.md').read_text(encoding='utf-8')
+          match = re.search(
+              rf'^## \[{re.escape(version)}\][^\n]*\n(?P<body>.*?)(?=^## \[|\Z)',
+              changelog,
+              flags=re.MULTILINE | re.DOTALL,
+          )
+          if match is None:
+              raise SystemExit(f'No existe una entrada para {version} en CHANGELOG.md')
+          Path('release-notes.md').write_text(match.group('body').strip() + '\n', encoding='utf-8')
+          PY
+
+      - name: Crear la release de GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file release-notes.md
