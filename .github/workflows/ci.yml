@@ -11,7 +11,7 @@ permissions:
 jobs:
   autoria:
     if: github.event_name == 'pull_request'
-    uses: veriko-mx-labs/.github/.github/workflows/autoria.yml@4cb712e8f7f8c56eee5aa07e89661ef306b55641
+    uses: veriko-mx-labs/.github/.github/workflows/autoria.yml@4ec5ae642abb9af75706063e91848e7afbc65128
     secrets:
       config: ${{ secrets.VERIKO_LABS_AUTORIA_CONFIG }}
   lint:
