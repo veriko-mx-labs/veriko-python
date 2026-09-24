@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.59.1
+  version: 1.60.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -480,10 +480,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: 'Falló la validación de la petición. Códigos típicos: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. También se emite cuando se reutiliza `Idempotency-Key` con un cuerpo distinto (`idempotency_key_reused`).'
+          description: 'Falló la validación de la petición. Códigos típicos: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_bank_code` (`emisor`/`receptor` no reconocidos), `intra_bank_no_cep` (emisor y receptor son el mismo banco), `invalid_field_type` (un campo que debe ser texto llegó como arreglo u objeto — p. ej. `emisor`, `receptor` o `referencia_numerica`), `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. También se emite cuando se reutiliza `Idempotency-Key` con un cuerpo distinto (`idempotency_key_reused`).'
           x-translations:
             en:
-              description: 'Request validation failed. Typical codes: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. Also emitted when an `Idempotency-Key` is reused with a different body (`idempotency_key_reused`).'
+              description: 'Request validation failed. Typical codes: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_bank_code` (`emisor`/`receptor` not recognized), `intra_bank_no_cep` (sender and receiver are the same bank), `invalid_field_type` (a field that must be text arrived as an array or object — e.g. `emisor`, `receptor`, or `referencia_numerica`), `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. Also emitted when an `Idempotency-Key` is reused with a different body (`idempotency_key_reused`).'
           content:
             application/json:
               schema:
@@ -873,30 +873,30 @@ paths:
             type: string
             format: date
           example: '2025-01-01'
-          description: Filtro — Fecha inicial inclusiva, aplicada sobre la creación de la validación.
+          description: Filtro — Fecha inicial inclusiva, aplicada sobre la creación de la validación. Enviarlo como lista (`from[]=`) devuelve un estado HTTP `422` con `invalid_filter`.
           x-translations:
             en:
-              description: Inclusive start date, applied to the validation creation date.
+              description: Inclusive start date, applied to the validation creation date. Sending it as a list (`from[]=`) returns HTTP status `422` with `invalid_filter`.
         - name: to
           in: query
           schema:
             type: string
             format: date
           example: '2025-03-31'
-          description: Filtro — Fecha final inclusiva, aplicada sobre la creación de la validación.
+          description: Filtro — Fecha final inclusiva, aplicada sobre la creación de la validación. Enviarlo como lista (`to[]=`) devuelve un estado HTTP `422` con `invalid_filter`.
           x-translations:
             en:
-              description: Inclusive end date, applied to the validation creation date.
+              description: Inclusive end date, applied to the validation creation date. Sending it as a list (`to[]=`) returns HTTP status `422` with `invalid_filter`.
         - name: search
           in: query
           schema:
             type: string
             maxLength: 100
           example: scotiabank
-          description: Filtro — Texto buscado, sin distinguir mayúsculas y minúsculas, en los datos enviados, normalizados y devueltos por Banxico. `%` y `_` se tratan como caracteres literales.
+          description: Filtro — Texto buscado, sin distinguir mayúsculas y minúsculas, en los datos enviados, normalizados y devueltos por Banxico. `%` y `_` se tratan como caracteres literales, y los 100 caracteres se cuentan por carácter (no por byte), así que un acento no se parte a la mitad. Si el texto, sin espacios ni guiones, queda compuesto sólo por dígitos, también se busca esa forma sin separadores contra la cuenta beneficiaria.
           x-translations:
             en:
-              description: Case-insensitive text search over the submitted, normalized, and Banxico response data. `%` and `_` are treated as literal characters.
+              description: Case-insensitive text search over the submitted, normalized, and Banxico response data. `%` and `_` are treated as literal characters, and the 100-character limit is counted per character (not per byte), so an accented letter is never split in half. If the text, once spaces and hyphens are removed, is made up only of digits, that separator-free form is also matched against the beneficiary account.
         - name: playground
           in: query
           schema:
@@ -926,40 +926,40 @@ paths:
             type: integer
             minimum: 1
           example: 42
-          description: Filtro — Identificador del trabajo de importación que generó las validaciones.
+          description: Filtro — Identificador del trabajo de importación que generó las validaciones. Enviarlo como lista (`batch_id[]=`) devuelve un estado HTTP `422` con `invalid_filter` en vez de ignorarse.
           x-translations:
             en:
-              description: Identifier of the import job that generated the validations.
+              description: Identifier of the import job that generated the validations. Sending it as a list (`batch_id[]=`) returns HTTP status `422` with `invalid_filter` instead of being ignored.
         - name: bank
           in: query
           schema:
             type: string
             pattern: ^\d{1,5}$
           example: '012'
-          description: Filtro — Clave SPEI del banco emisor o receptor en la petición original. Los valores que no tengan de 1 a 5 dígitos se ignoran.
+          description: Filtro — Clave SPEI del banco emisor o receptor en la petición original. Los valores que no tengan de 1 a 5 dígitos se ignoran; enviarlo como lista (`bank[]=`) devuelve un estado HTTP `422` con `invalid_filter`.
           x-translations:
             en:
-              description: SPEI code of the sending or receiving bank in the original request. Values outside 1 to 5 digits are ignored.
+              description: SPEI code of the sending or receiving bank in the original request. Values outside 1 to 5 digits are ignored; sending it as a list (`bank[]=`) returns HTTP status `422` with `invalid_filter`.
         - name: amount_min
           in: query
           schema:
             type: number
             format: float
           example: 1000.5
-          description: Filtro — Importe mínimo inclusivo. Se aplica de forma independiente de `amount_max`.
+          description: 'Filtro — Importe mínimo inclusivo, como número. El servidor también tolera enviarlo como texto con separador de miles o símbolo de moneda ("1,000.50", "$500") y lo normaliza con el mismo algoritmo que el resto de la plataforma, pero el contrato es un número: un cliente tipado debe mandarlo así. Un valor no vacío que no se reconozca como número devuelve un estado HTTP `422` con `invalid_filter`, en vez de ignorarse en silencio. Se aplica de forma independiente de `amount_max`.'
           x-translations:
             en:
-              description: Inclusive minimum amount. Applied independently of `amount_max`.
+              description: 'Inclusive minimum amount, as a number. The server also tolerates sending it as text with a thousands separator or a currency symbol ("1,000.50", "$500") and normalizes it with the same algorithm used across the platform, but the contract is a number: a typed client should send it that way. A non-empty value that isn''t recognized as a number returns HTTP status `422` with `invalid_filter`, instead of being silently ignored. Applied independently of `amount_max`.'
         - name: amount_max
           in: query
           schema:
             type: number
             format: float
           example: 50000
-          description: Filtro — Importe máximo inclusivo. Se aplica de forma independiente de `amount_min`.
+          description: Filtro — Importe máximo inclusivo, como número. Mismas reglas de tolerancia de formato y de error que `amount_min`. Se aplica de forma independiente de `amount_min`.
           x-translations:
             en:
-              description: Inclusive maximum amount. Applied independently of `amount_min`.
+              description: Inclusive maximum amount, as a number. Same formatting-tolerance and error rules as `amount_min`. Applied independently of `amount_min`.
         - name: retry_state
           in: query
           schema:
@@ -1083,10 +1083,10 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '422':
-          description: Valor inválido para `retry_state` (código `invalid_filter`).
+          description: 'Un filtro no se pudo aplicar (código `invalid_filter`): valor no admitido en `retry_state`, `playground` o `amount_min`/`amount_max` con formato irreconocible; o tipo incorrecto en `from`, `to`, `search`, `bank` o `batch_id` (por ejemplo, enviados como lista `from[]=`).'
           x-translations:
             en:
-              description: Invalid value for `retry_state` (code `invalid_filter`).
+              description: 'A filter could not be applied (code `invalid_filter`): unsupported value in `retry_state`, `playground`, or `amount_min`/`amount_max` with an unrecognized format; or the wrong type in `from`, `to`, `search`, `bank`, or `batch_id` (for example, sent as a list `from[]=`).'
           content:
             application/json:
               schema:
@@ -3403,10 +3403,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: La cuenta no pasó la validación, o el alta chocó con un tope. Los códigos posibles son `account_number_required`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered` y `plan_cap_exceeded`.
+          description: La cuenta no pasó la validación, o el alta chocó con un tope. Los códigos posibles son `account_number_required`, `account_number_invalid_type`, `label_invalid_type`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered` y `plan_cap_exceeded`. `account_number_invalid_type` y `label_invalid_type` aparecen cuando el campo llega con un tipo distinto de cadena de texto. Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The account failed validation, or the request hit a cap. The possible codes are `account_number_required`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered` and `plan_cap_exceeded`.
+              description: The account failed validation, or the request hit a cap. The possible codes are `account_number_required`, `account_number_invalid_type`, `label_invalid_type`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered` and `plan_cap_exceeded`. `account_number_invalid_type` and `label_invalid_type` fire when the field arrives as a type other than a string. Every field-level error carries `source.pointer`.
               examples:
                 phone_missing_bank_code:
                   value:
@@ -3424,6 +3424,10 @@ paths:
                   value:
                     errors:
                       - detail: The account's plan does not allow more beneficiaries.
+                account_number_invalid_type:
+                  value:
+                    errors:
+                      - detail: The account_number field must be a string.
           content:
             application/json:
               schema:
@@ -3439,6 +3443,8 @@ paths:
                       - status: '422'
                         code: bank_code_required_for_phone
                         detail: Hace falta un `bank_code` para registrar un beneficiario de tipo celular.
+                        source:
+                          pointer: /data/attributes/bank_code
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -3453,6 +3459,8 @@ paths:
                       - status: '422'
                         code: clabe_prefix_not_recognized
                         detail: El prefijo de la CLABE no corresponde a ningún participante del SPEI.
+                        source:
+                          pointer: /data/attributes/account_number
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -3467,6 +3475,8 @@ paths:
                       - status: '422'
                         code: beneficiary_already_registered
                         detail: Ya existe un beneficiario con ese número de cuenta.
+                        source:
+                          pointer: /data/attributes/account_number
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -3485,6 +3495,22 @@ paths:
                       version: 1.58.0
                       api_version: v1
                       request_id: f4a5b6c7d8e9
+                account_number_invalid_type:
+                  summary: account_number con tipo inválido
+                  x-translations:
+                    en:
+                      summary: account_number with an invalid type
+                  value:
+                    errors:
+                      - status: '422'
+                        code: account_number_invalid_type
+                        detail: El campo account_number debe ser una cadena de texto.
+                        source:
+                          pointer: /data/attributes/account_number
+                    meta:
+                      version: 1.59.1
+                      api_version: v1
+                      request_id: a1b2c3d4e5f6
       x-related:
         - GET /v1/beneficiaries
         - GET /v1/public/banks
@@ -3683,15 +3709,19 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized` y `bank_code_required_for_phone`.
+          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `account_number_invalid_type` y `label_invalid_type`. Las dos últimas aparecen cuando `account_number` o `label` llegan con un tipo distinto de cadena de texto (por ejemplo, un número o un arreglo). Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, and `bank_code_required_for_phone`.
+              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `account_number_invalid_type`, and `label_invalid_type`. The last two fire when `account_number` or `label` arrive as a type other than a string (a number or an array, for instance). Every field-level error carries `source.pointer`.
               examples:
                 no_fields:
                   value:
                     errors:
                       - detail: The body carries no editable field.
+                label_invalid_type:
+                  value:
+                    errors:
+                      - detail: The label field must be a string.
           content:
             application/json:
               schema:
@@ -3711,6 +3741,22 @@ paths:
                       version: 1.47.0
                       api_version: v1
                       request_id: d0e1f2a3b4c5
+                label_invalid_type:
+                  summary: label con tipo inválido
+                  x-translations:
+                    en:
+                      summary: label with an invalid type
+                  value:
+                    errors:
+                      - status: '422'
+                        code: label_invalid_type
+                        detail: El campo label debe ser una cadena de texto.
+                        source:
+                          pointer: /data/attributes/label
+                    meta:
+                      version: 1.59.1
+                      api_version: v1
+                      request_id: e1f2a3b4c5d6
       x-translations:
         en:
           summary: Update a beneficiary
@@ -6307,10 +6353,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: La URL o la lista de eventos no superan la validación, o la cuenta de usuario alcanzó su tope de endpoints.
+          description: La URL, la lista de eventos o `description` no superan la validación, o la cuenta de usuario alcanzó su tope de endpoints. `webhook_url_invalid_type` y `webhook_description_invalid_type` aparecen cuando el campo llega con un tipo distinto de cadena de texto; `webhook_description_too_long` cuando `description` excede 255 caracteres (antes se recortaba en silencio). Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The URL or the event list failed validation, or the account has reached its endpoint cap.
+              description: The URL, the event list, or `description` failed validation, or the account has reached its endpoint cap. `webhook_url_invalid_type` and `webhook_description_invalid_type` fire when the field arrives as a type other than a string; `webhook_description_too_long` when `description` exceeds 255 characters (it used to be silently truncated). Every field-level error carries `source.pointer`.
               examples:
                 missing_field:
                   value:
@@ -6348,6 +6394,10 @@ paths:
                   value:
                     errors:
                       - detail: The maximum number of allowed endpoints has been reached. The applied cap is in meta.limit.
+                description_too_long:
+                  value:
+                    errors:
+                      - detail: The description field must not exceed 255 characters.
           content:
             application/json:
               schema:
@@ -6379,6 +6429,8 @@ paths:
                       - status: '422'
                         code: webhook_url_required
                         detail: El campo url es obligatorio.
+                        source:
+                          pointer: /data/attributes/url
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -6393,6 +6445,8 @@ paths:
                       - status: '422'
                         code: webhook_url_too_long
                         detail: La URL no puede exceder 2 048 caracteres.
+                        source:
+                          pointer: /data/attributes/url
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -6407,6 +6461,8 @@ paths:
                       - status: '422'
                         code: webhook_url_invalid_format
                         detail: La URL no tiene un formato válido.
+                        source:
+                          pointer: /data/attributes/url
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -6421,6 +6477,8 @@ paths:
                       - status: '422'
                         code: webhook_url_not_https
                         detail: La URL debe usar HTTPS.
+                        source:
+                          pointer: /data/attributes/url
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -6435,6 +6493,8 @@ paths:
                       - status: '422'
                         code: webhook_events_required
                         detail: El endpoint debe suscribirse a al menos un evento.
+                        source:
+                          pointer: /data/attributes/events
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -6449,6 +6509,8 @@ paths:
                       - status: '422'
                         code: webhook_events_too_many
                         detail: Un endpoint admite como máximo 10 eventos.
+                        source:
+                          pointer: /data/attributes/events
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -6463,6 +6525,8 @@ paths:
                       - status: '422'
                         code: webhook_event_invalid
                         detail: El evento indicado no existe. El evento rechazado viene en meta.event.
+                        source:
+                          pointer: /data/attributes/events
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -6481,6 +6545,22 @@ paths:
                       version: 1.57.0
                       api_version: v1
                       request_id: d5e6f7a2b3c4
+                description_too_long:
+                  summary: description mayor a 255 caracteres
+                  x-translations:
+                    en:
+                      summary: description longer than 255 characters
+                  value:
+                    errors:
+                      - status: '422'
+                        code: webhook_description_too_long
+                        detail: El campo description no debe exceder 255 caracteres.
+                        source:
+                          pointer: /data/attributes/description
+                    meta:
+                      version: 1.59.1
+                      api_version: v1
+                      request_id: e6f7a2b3c4d5
         '429':
           $ref: '#/components/responses/RateLimited'
       x-related:
@@ -6708,10 +6788,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: 'Datos inválidos. Códigos posibles: `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_status_invalid`, `no_valid_fields`.'
+          description: 'Datos inválidos. Códigos posibles: `webhook_url_invalid_type`, `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_description_invalid_type`, `webhook_description_too_long`, `webhook_status_invalid`, `no_valid_fields`. `description` ya no se recorta en silencio a 255 caracteres: excederlos responde `webhook_description_too_long`. Todo error de campo trae `source.pointer`.'
           x-translations:
             en:
-              description: 'Invalid data. Possible codes: `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_status_invalid`, `no_valid_fields`.'
+              description: 'Invalid data. Possible codes: `webhook_url_invalid_type`, `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_description_invalid_type`, `webhook_description_too_long`, `webhook_status_invalid`, `no_valid_fields`. `description` is no longer silently truncated to 255 characters: exceeding it responds `webhook_description_too_long`. Every field-level error carries `source.pointer`.'
           content:
             application/json:
               schema:
@@ -10085,6 +10165,23 @@ components:
             en:
               description: |
                 Resource identifier, unique within its `type`. It always travels as a string, even when it originates from an auto-increment column.
+    TimestampUTC:
+      type: string
+      format: date-time
+      description: |
+        Timestamp ISO 8601 en UTC con sufijo `Z` explícito; por ejemplo,
+        `"2026-05-01T05:14:38Z"`.
+
+        Los campos `*_at`, `*_end`, `*_start` y `*_date` adoptan esta forma.
+        `meta.datetime` describe el mismo contrato en la respuesta.
+      example: '2026-05-01T05:14:38Z'
+      x-translations:
+        en:
+          description: |
+            ISO 8601 timestamp in UTC with an explicit `Z` suffix; for example,
+            `"2026-05-01T05:14:38Z"`. The `*_at`, `*_end`, `*_start`, and `*_date`
+            fields follow this format. `meta.datetime` describes the same contract in
+            the response.
     UserMeBundle:
       type: object
       description: 'Conjunto consolidado del usuario autenticado que devuelve `GET /v1/users/me`: perfil, metadatos de la clave de API, suscripción activa, estado de la autenticación de 2 factores (2FA), permisos del rol y resumen de notificaciones en una sola llamada.'
@@ -10362,23 +10459,6 @@ components:
               - legal_accepted_unavailable
           example:
             - subscription_unavailable
-    TimestampUTC:
-      type: string
-      format: date-time
-      description: |
-        Timestamp ISO 8601 en UTC con sufijo `Z` explícito; por ejemplo,
-        `"2026-05-01T05:14:38Z"`.
-
-        Los campos `*_at`, `*_end`, `*_start` y `*_date` adoptan esta forma.
-        `meta.datetime` describe el mismo contrato en la respuesta.
-      example: '2026-05-01T05:14:38Z'
-      x-translations:
-        en:
-          description: |
-            ISO 8601 timestamp in UTC with an explicit `Z` suffix; for example,
-            `"2026-05-01T05:14:38Z"`. The `*_at`, `*_end`, `*_start`, and `*_date`
-            fields follow this format. `meta.datetime` describes the same contract in
-            the response.
     RetryPolicy:
       type: object
       description: 'Política de reintentos de una validación: activación, límite, intervalo y resultados elegibles.'
@@ -10469,23 +10549,24 @@ components:
           type: number
           format: double
           exclusiveMinimum: 0
-          description: Importe de la transferencia (en pesos mexicanos — MXN), mayor que cero y con hasta dos decimales.
+          description: Importe de la transferencia (en pesos mexicanos — MXN), mayor que cero y con hasta dos decimales. No se acepta en notación científica (por ejemplo `1e-5`) cuando se envía como texto.
           example: 15000.5
           x-translations:
             en:
-              description: Transfer amount in Mexican pesos (MXN), greater than zero and with up to two decimal places.
+              description: Transfer amount in Mexican pesos (MXN), greater than zero and with up to two decimal places. Scientific notation (e.g. `1e-5`) is rejected when sent as text.
           x-invalid-examples:
             - 0
             - -100
+            - '1e-5'
         clave_rastreo:
           type: string
           minLength: 1
           maxLength: 30
-          description: Clave de rastreo de la transferencia (entre 1 a 30 caracteres). Acepta letras, números, guiones, diagonales y espacios. Requerida si `referencia_numerica` no es enviada; ambas pueden incluirse simultáneamente para mayor precisión de búsqueda.
+          description: Clave de rastreo de la transferencia (entre 1 a 30 caracteres). Acepta letras, números, guiones, diagonales y espacios. Se recorta y se le quitan caracteres invisibles de ancho cero antes de validarse, para que la misma clave copiada y pegada compare igual en toda la plataforma. Requerida si `referencia_numerica` no es enviada; ambas pueden incluirse simultáneamente para mayor precisión de búsqueda.
           example: MXBA20250315001234
           x-translations:
             en:
-              description: Transfer tracking key, between 1 and 30 characters. Accepts letters, numbers, hyphens, slashes, and spaces. Required when `referencia_numerica` is not sent; both can be included for a more precise search.
+              description: Transfer tracking key, between 1 and 30 characters. Accepts letters, numbers, hyphens, slashes, and spaces. It is trimmed and stripped of zero-width invisible characters before validation, so the same copy-pasted key compares equal everywhere in the platform. Required when `referencia_numerica` is not sent; both can be included for a more precise search.
           x-invalid-examples:
             - ''
             - MXBA202503150012345678901234567890
@@ -10521,11 +10602,11 @@ components:
         cuenta_beneficiaria:
           type: string
           pattern: ^(\d{10}|\d{16}|\d{18})$
-          description: Cuenta bancaria receptora de la transferencia. Puede ser CLABE (18 dígitos), tarjeta (16 dígitos) o celular DiMo (10 dígitos), y el tipo se identifica por la longitud. Para celular DiMo, si el banco receptor no puede resolverse por el campo `receptor`, por los beneficiarios registrados ni por el directorio de cuentas, la respuesta es un estado HTTP `422` (con `bank_code_unresolvable_for_phone` en el cuerpo).
+          description: Cuenta bancaria receptora de la transferencia. Puede ser CLABE (18 dígitos), tarjeta (16 dígitos) o celular DiMo (10 dígitos), y el tipo se identifica por la longitud de sus dígitos. Los espacios y guiones que separan grupos ("0121 8000 4412 345678") se ignoran automáticamente antes de contar la longitud. Para celular DiMo, si el banco receptor no puede resolverse por el campo `receptor`, por los beneficiarios registrados ni por el directorio de cuentas, la respuesta es un estado HTTP `422` (con `bank_code_unresolvable_for_phone` en el cuerpo).
           example: '012180004412345678'
           x-translations:
             en:
-              description: Receiving bank account for the transfer. It can be a CLABE (18 digits), a card (16 digits) or a DiMo phone (10 digits), and the type is identified by its length. For a DiMo phone, if the receiving bank cannot be resolved through the `receptor` field, through the registered beneficiaries or through the account directory, the response is an HTTP status `422` (with `bank_code_unresolvable_for_phone` in the body).
+              description: Receiving bank account for the transfer. It can be a CLABE (18 digits), a card (16 digits) or a DiMo phone (10 digits), and the type is identified by the length of its digits. Spaces and hyphens separating groups ("0121 8000 4412 345678") are stripped automatically before the length is counted. For a DiMo phone, if the receiving bank cannot be resolved through the `receptor` field, through the registered beneficiaries or through the account directory, the response is an HTTP status `422` (with `bank_code_unresolvable_for_phone` in the body).
           x-invalid-examples:
             - '12345678'
             - '1234567890123456789012'
@@ -13972,10 +14053,11 @@ components:
           type:
             - string
             - 'null'
-          description: Etiqueta libre para distinguir el endpoint webhook de los demás. `null` la omite; el servicio recorta el texto a 255 caracteres.
+          maxLength: 255
+          description: Etiqueta libre para distinguir el endpoint webhook de los demás. `null` la omite; más de 255 caracteres responde `422 webhook_description_too_long`.
           x-translations:
             en:
-              description: Free-form label to tell this endpoint apart from the others. `null` omits it; the service truncates the text to 255 characters.
+              description: Free-form label to tell this endpoint apart from the others. `null` omits it; more than 255 characters responds `422 webhook_description_too_long`.
           example: Alta de pagos en el ERP
     UpdateWebhookRequest:
       type: object
@@ -14016,10 +14098,11 @@ components:
           type:
             - string
             - 'null'
-          description: Nueva etiqueta libre para distinguir el endpoint webhook de los demás. `null` la elimina; el servicio recorta el texto a 255 caracteres.
+          maxLength: 255
+          description: Nueva etiqueta libre para distinguir el endpoint webhook de los demás. `null` la elimina; más de 255 caracteres responde `422 webhook_description_too_long`.
           x-translations:
             en:
-              description: New free-form label to tell this endpoint apart from the others. `null` clears it; the service truncates the text to 255 characters.
+              description: New free-form label to tell this endpoint apart from the others. `null` clears it; more than 255 characters responds `422 webhook_description_too_long`.
           example: Alta de pagos en el ERP
         status:
           type: string
@@ -16323,7 +16406,20 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            allOf:
+              - $ref: '#/components/schemas/ErrorResponse'
+              - type: object
+                properties:
+                  meta:
+                    type: object
+                    properties:
+                      retry_after:
+                        type: integer
+                        description: Segundos a esperar antes de reintentar — mismo valor que la cabecera `Retry-After`, ahora también en el cuerpo JSON (PR beneficiario/CLABE, 2026-09-24) para clientes que no leen cabeceras HTTP.
+                        x-translations:
+                          en:
+                            description: Seconds to wait before retrying — same value as the `Retry-After` header, now also in the JSON body (PR beneficiario/CLABE, 2026-09-24) for clients that do not read HTTP headers.
+                        example: 45
           example:
             errors:
               - status: '429'
@@ -16332,6 +16428,7 @@ components:
             meta:
               version: 1.51.0
               request_id: f7a8b9c0d1e2
+              retry_after: 45
     ValidationQueuedAccepted:
       description: Validación asíncrona aceptada. Se debe sondear `GET /v1/validations/{id}` hasta uno de los estados terminales (`valid`, `not_found`, `cep_unavailable`, `invalid`, `returned`, `failed`, `error`). `meta.next_poll_after_seconds` indica el intervalo recomendado para el primer sondeo.
       x-translations:
