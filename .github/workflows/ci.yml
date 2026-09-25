@@ -10,8 +10,8 @@ permissions:
 
 jobs:
   autoria:
-    if: github.event_name == 'pull_request'
-    uses: veriko-mx-labs/.github/.github/workflows/autoria.yml@4ec5ae642abb9af75706063e91848e7afbc65128
+    if: github.event_name != 'workflow_dispatch'
+    uses: veriko-mx-labs/.github/.github/workflows/autoria.yml@d2fa5326dce29d508af3ce20f7b80d47b279e511
     secrets:
       config: ${{ secrets.VERIKO_LABS_AUTORIA_CONFIG }}
   lint:
