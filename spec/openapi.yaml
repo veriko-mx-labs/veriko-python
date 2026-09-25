@@ -1024,6 +1024,7 @@ paths:
                         type: validation
                         attributes:
                           bank_name: BBVA MEXICO
+                          bank_code: '40012'
                           beneficiary_label: Proveedor X
                           amount: 15000.5
                           tracking_key: MXBA20250315001234
@@ -1044,6 +1045,7 @@ paths:
                         type: validation
                         attributes:
                           bank_name: SCOTIABANK
+                          bank_code: '40044'
                           beneficiary_label: null
                           amount: 8500
                           tracking_key: MXBA20250316005555
@@ -11391,6 +11393,14 @@ components:
               x-translations:
                 en:
                   description: Counterparty bank name. It first uses the stored `receptor_name` or `emisor_name`; if absent, it tries to resolve the receiver or sender code. If resolution also fails, it returns that code or `Banco no identificado`.
+            bank_code:
+              type:
+                - string
+                - 'null'
+              description: 'Clave Banxico canónica (3-5 dígitos) del banco de la contraparte, resuelta por la autoridad del dominio. `null` cuando el banco no pudo resolverse. Es aditiva respecto de `bank_name`: sirve para resolver recursos/avatares por clave, nunca por el nombre visible.'
+              x-translations:
+                en:
+                  description: 'Canonical Banxico key (3-5 digits) of the counterparty bank, resolved by the domain authority. `null` when the bank could not be resolved. Additive to `bank_name`: it is used to resolve resources/avatars by key, never by the visible name.'
             beneficiary_label:
               type:
                 - string
