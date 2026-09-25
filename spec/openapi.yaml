@@ -6353,10 +6353,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: La URL, la lista de eventos o `description` no superan la validación, o la cuenta de usuario alcanzó su tope de endpoints. `webhook_url_invalid_type` y `webhook_description_invalid_type` aparecen cuando el campo llega con un tipo distinto de cadena de texto; `webhook_description_too_long` cuando `description` excede 255 caracteres (antes se recortaba en silencio). Todo error de campo trae `source.pointer`.
+          description: La URL, la lista de eventos o `description` no superan la validación, o la cuenta de usuario alcanzó su tope de endpoints. `webhook_url_invalid_type` y `webhook_description_invalid_type` aparecen cuando el campo llega con un tipo distinto de cadena de texto; `webhook_description_too_long` cuando `description` excede 255 caracteres. Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The URL, the event list, or `description` failed validation, or the account has reached its endpoint cap. `webhook_url_invalid_type` and `webhook_description_invalid_type` fire when the field arrives as a type other than a string; `webhook_description_too_long` when `description` exceeds 255 characters (it used to be silently truncated). Every field-level error carries `source.pointer`.
+              description: The URL, the event list, or `description` failed validation, or the account has reached its endpoint cap. `webhook_url_invalid_type` and `webhook_description_invalid_type` fire when the field arrives as a type other than a string; `webhook_description_too_long` when `description` exceeds 255 characters. Every field-level error carries `source.pointer`.
               examples:
                 missing_field:
                   value:
@@ -6788,10 +6788,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: 'Datos inválidos. Códigos posibles: `webhook_url_invalid_type`, `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_description_invalid_type`, `webhook_description_too_long`, `webhook_status_invalid`, `no_valid_fields`. `description` ya no se recorta en silencio a 255 caracteres: excederlos responde `webhook_description_too_long`. Todo error de campo trae `source.pointer`.'
+          description: 'Datos inválidos. Códigos posibles: `webhook_url_invalid_type`, `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_description_invalid_type`, `webhook_description_too_long`, `webhook_status_invalid`, `no_valid_fields`. Una `description` de más de 255 caracteres responde `webhook_description_too_long`. Todo error de campo trae `source.pointer`.'
           x-translations:
             en:
-              description: 'Invalid data. Possible codes: `webhook_url_invalid_type`, `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_description_invalid_type`, `webhook_description_too_long`, `webhook_status_invalid`, `no_valid_fields`. `description` is no longer silently truncated to 255 characters: exceeding it responds `webhook_description_too_long`. Every field-level error carries `source.pointer`.'
+              description: 'Invalid data. Possible codes: `webhook_url_invalid_type`, `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_description_invalid_type`, `webhook_description_too_long`, `webhook_status_invalid`, `no_valid_fields`. A `description` longer than 255 characters responds `webhook_description_too_long`. Every field-level error carries `source.pointer`.'
           content:
             application/json:
               schema:
@@ -16415,10 +16415,10 @@ components:
                     properties:
                       retry_after:
                         type: integer
-                        description: Segundos a esperar antes de reintentar — mismo valor que la cabecera `Retry-After`, ahora también en el cuerpo JSON (PR beneficiario/CLABE, 2026-09-24) para clientes que no leen cabeceras HTTP.
+                        description: Segundos a esperar antes de reintentar. Es el mismo valor que la cabecera `Retry-After`, para clientes que no leen cabeceras HTTP.
                         x-translations:
                           en:
-                            description: Seconds to wait before retrying — same value as the `Retry-After` header, now also in the JSON body (PR beneficiario/CLABE, 2026-09-24) for clients that do not read HTTP headers.
+                            description: Seconds to wait before retrying. It is the same value as the `Retry-After` header, for clients that do not read HTTP headers.
                         example: 45
           example:
             errors:
