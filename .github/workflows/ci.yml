@@ -11,7 +11,7 @@ permissions:
 jobs:
   autoria:
     if: github.event_name != 'workflow_dispatch'
-    uses: veriko-mx-labs/.github/.github/workflows/autoria.yml@d2fa5326dce29d508af3ce20f7b80d47b279e511
+    uses: veriko-mx-labs/.github/.github/workflows/autoria.yml@eaaa2dca88eec1abbb98d75c8638290a28e0bbbb
     secrets:
       config: ${{ secrets.VERIKO_LABS_AUTORIA_CONFIG }}
   lint:

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   sync:
-    uses: veriko-mx-labs/.github/.github/workflows/sync-public-spec.yml@d2fa5326dce29d508af3ce20f7b80d47b279e511
+    uses: veriko-mx-labs/.github/.github/workflows/sync-public-spec.yml@eaaa2dca88eec1abbb98d75c8638290a28e0bbbb
     with:
       regenerate_command: 'true'
       auto_merge: true
