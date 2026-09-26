@@ -4148,6 +4148,7 @@ paths:
       summary: Iniciar importación masiva de beneficiarios
       description: |-
         Sube un archivo (CSV, XLS, XLSX, TXT o PDF) de hasta 20 MB y abre con él un trabajo de importación.
+        Las hojas XLSX/XLS admiten hasta 10 000 filas y 64 columnas. Las fórmulas XLSX se leen como texto, sin ejecutarlas. Los PDF admiten hasta 50 páginas y limitan a 8 MiB la descompresión de cada flujo.
 
         El modo de lectura decide cuánto trabajo hace el archivo y cuánto el servidor:
 
@@ -4245,7 +4246,9 @@ paths:
           summary: Start a bulk beneficiary import
           description: |-
             Uploads a file — CSV, XLS, XLSX, TXT, or PDF, up to 20 MB — and opens an
-            import job with it. The reading mode decides how much work the file does
+            import job with it. XLSX/XLS sheets allow up to 10,000 rows and 64 columns.
+            XLSX formulas are read as text without evaluation. PDFs allow up to 50
+            pages and cap decoded streams at 8 MiB. The reading mode decides how much work the file does
             and how much the server does:
 
             - `template`: the file follows the canonical headers, obtained from
@@ -11006,15 +11009,144 @@ components:
                     - 'null'
                   additionalProperties: true
                   description: |-
-                    Datos devueltos por Banxico.
+                    Datos devueltos por Banxico. Las propiedades tipadas abajo son las 20 que declara el esquema oficial del complemento SPEI.
 
                     `_ocr_correction` conserva los campos corregidos, su lectura original (`requested`), el valor consultado (`used`) y la confirmación (`confirmed_by`). `status_query` indica una hipótesis confirmada por la consulta de estado; `cep` indica que también se obtuvo el comprobante. La consulta de estado por sí sola no verifica una transferencia.
                   x-translations:
                     en:
                       description: |-
-                        Data returned by the Banxico CEP.
+                        Data returned by the Banxico CEP. The typed properties below are the 20 declared by the official SPEI complement schema.
 
                         `_ocr_correction` records corrected fields, their original reading (`requested`), the queried value (`used`) and confirmation (`confirmed_by`). `status_query` indicates a hypothesis confirmed by the payment status query; `cep` indicates that the receipt was also obtained. A status query alone does not verify a transfer.
+                  properties:
+                    operationDate:
+                      type: string
+                      description: Fecha de la operación tal como la reporta el CEP de Banxico (`DD-MM-AAAA`).
+                      example: 15-03-2025
+                      x-translations:
+                        en:
+                          description: Operation date as reported by the Banxico CEP (`DD-MM-YYYY`).
+                    processingTime:
+                      type: string
+                      description: Hora de la operación tal como la reporta el CEP de Banxico (`HH:MM:SS`).
+                      example: '14:22:10'
+                      x-translations:
+                        en:
+                          description: Operation time as reported by the Banxico CEP (`HH:MM:SS`).
+                    speiKey:
+                      type: string
+                      description: Clave de la operación dentro del sistema SPEI (`ClaveSPEI` del CEP). Distinta de la clave de rastreo.
+                      x-translations:
+                        en:
+                          description: Operation key within the SPEI system (the CEP's `ClaveSPEI`). Distinct from the tracking key.
+                    trackingKey:
+                      type: string
+                      description: Clave de rastreo de la operación SPEI — la misma que se envía en la petición de validación.
+                      example: MBAN01002503151422ABCDEF
+                      x-translations:
+                        en:
+                          description: SPEI tracking key of the operation — the same one sent in the validation request.
+                    digitalSignature:
+                      type: string
+                      description: Sello digital del CEP (`sello`) — la firma que Banxico calcula sobre la operación.
+                      x-translations:
+                        en:
+                          description: Digital seal of the CEP (`sello`) — the signature Banxico computes over the operation.
+                    certificateNumber:
+                      type: string
+                      description: Número del certificado digital que Banxico usó para sellar el CEP.
+                      x-translations:
+                        en:
+                          description: Serial number of the digital certificate Banxico used to seal the CEP.
+                    cadenaCda:
+                      type: string
+                      description: 'Cadena original de la operación (`cadenaCDA`): los 47 campos que la institución envió a Banxico, separados por `|`, incluidas ambas fechas (operación y captura) y el tipo de pago. Permite auditar el CEP sin volver a pedirlo.'
+                      x-translations:
+                        en:
+                          description: 'Original data string of the operation (`cadenaCDA`): the 47 fields the institution sent to Banxico, pipe-separated, including both dates (operation and capture) and the payment type. Lets the CEP be audited without requesting it again.'
+                    senderBank:
+                      type: string
+                      description: Banco emisor de la operación, tal como lo identifica el CEP.
+                      example: BBVA
+                      x-translations:
+                        en:
+                          description: Sending bank of the operation, as identified by the CEP.
+                    senderName:
+                      type: string
+                      description: Nombre del ordenante de la operación, tal como lo reporta el CEP.
+                      x-translations:
+                        en:
+                          description: Name of the operation's sender, as reported by the CEP.
+                    senderAccountType:
+                      type: string
+                      description: Tipo de cuenta del ordenante (por ejemplo, CLABE o tarjeta), tal como lo reporta el CEP.
+                      x-translations:
+                        en:
+                          description: Sender's account type (e.g. CLABE or card), as reported by the CEP.
+                    senderAccount:
+                      type: string
+                      description: Cuenta del ordenante, tal como la reporta el CEP, sin enmascarar en este recurso (consulta privada, propia del dueño de la validación).
+                      x-translations:
+                        en:
+                          description: Sender's account number, as reported by the CEP — unmasked in this resource (a private lookup, owned by the validation's account).
+                    senderRfc:
+                      type: string
+                      description: RFC del ordenante, tal como lo reporta el CEP.
+                      x-translations:
+                        en:
+                          description: Sender's RFC (Mexican tax ID), as reported by the CEP.
+                    receiverBank:
+                      type: string
+                      description: Banco receptor de la operación, tal como lo identifica el CEP.
+                      example: STP
+                      x-translations:
+                        en:
+                          description: Receiving bank of the operation, as identified by the CEP.
+                    beneficiaryName:
+                      type: string
+                      description: Nombre del beneficiario de la operación, tal como lo reporta el CEP.
+                      x-translations:
+                        en:
+                          description: Name of the operation's beneficiary, as reported by the CEP.
+                    beneficiaryAccountType:
+                      type: string
+                      description: Tipo de cuenta del beneficiario (por ejemplo, CLABE o tarjeta), tal como lo reporta el CEP.
+                      x-translations:
+                        en:
+                          description: Beneficiary's account type (e.g. CLABE or card), as reported by the CEP.
+                    beneficiaryAccount:
+                      type: string
+                      description: Cuenta del beneficiario, tal como la reporta el CEP, sin enmascarar en este recurso (consulta privada, propia del dueño de la validación). Los webhooks salientes sí la enmascaran a los últimos 4 dígitos en `banxico_confirmed.beneficiaryAccount` (ver la guía de webhooks).
+                      x-translations:
+                        en:
+                          description: Beneficiary's account number, as reported by the CEP. Unmasked in this resource (a private lookup, owned by the validation's account). Outgoing webhooks DO mask it to the last 4 digits in `banxico_confirmed.beneficiaryAccount` (see the webhooks guide).
+                    beneficiaryRfc:
+                      type: string
+                      description: RFC del beneficiario, tal como lo reporta el CEP.
+                      x-translations:
+                        en:
+                          description: Beneficiary's RFC (Mexican tax ID), as reported by the CEP.
+                    amount:
+                      type: number
+                      format: float
+                      description: Monto de la operación que Banxico confirmó por el CEP, en pesos.
+                      example: 1500
+                      x-translations:
+                        en:
+                          description: Operation amount Banxico confirmed via the CEP, in pesos.
+                    iva:
+                      type: number
+                      format: float
+                      description: IVA de la operación reportado por el CEP, en pesos.
+                      x-translations:
+                        en:
+                          description: VAT (IVA) of the operation reported by the CEP, in pesos.
+                    paymentConcept:
+                      type: string
+                      description: Concepto de pago de la operación, tal como lo reporta el CEP.
+                      x-translations:
+                        en:
+                          description: Payment concept of the operation, as reported by the CEP.
                 error_message:
                   type:
                     - string
