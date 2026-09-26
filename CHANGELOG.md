@@ -5,7 +5,11 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
-Sin cambios todavía.
+### Añadido
+
+- `WebhookEvent.banxico_confirmed`: el monto, la fecha, la clave de rastreo, ambos bancos y la
+  cuenta del beneficiario enmascarada, tal como los confirmó Banxico, cuando la entrega lo trae.
+  `None` en el resto de los casos.
 
 ## [0.5.1] — 2026-09-22
 

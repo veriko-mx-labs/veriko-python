@@ -133,6 +133,31 @@ def test_parse_webhook_lee_el_ciclo_de_reintentos() -> None:
     assert evento.validation.retry_state.terminal_state == "resolved"
 
 
+def test_parse_webhook_sin_banxico_confirmed_deja_el_campo_en_none() -> None:
+    payload = cuerpo("webhook-validation-completed")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.banxico_confirmed is None
+
+
+def test_parse_webhook_lee_banxico_confirmed() -> None:
+    payload = cuerpo("webhook-validation-completed-banxico-confirmed")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.banxico_confirmed is not None
+    assert evento.banxico_confirmed.amount == 1000.50
+    assert evento.banxico_confirmed.operationDate == "21-07-2026"
+    assert evento.banxico_confirmed.processingTime == "13:45:02"
+    assert evento.banxico_confirmed.trackingKey == "MBAN01002607211345ABCDEF"
+    assert evento.banxico_confirmed.senderBank == "BBVA"
+    assert evento.banxico_confirmed.receiverBank == "AZTECA"
+    assert evento.banxico_confirmed.beneficiaryAccount == "••••5678"
+    assert evento.validation is not None
+    assert evento.validation.id == "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+
+
 def test_parse_webhook_no_interpreta_un_cuerpo_con_firma_invalida() -> None:
     payload = cuerpo("webhook-validation-completed")
 

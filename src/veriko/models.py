@@ -213,6 +213,43 @@ class CepDocument:
 
 
 @dataclass(frozen=True)
+class BanxicoConfirmed:
+    """Lo que Banxico confirmó de la operación, en una entrega de webhook.
+
+    Sólo viaja cuando Banxico confirmó el pago: `banxico_status` es `valid`, o
+    `returned` con el comprobante ya descargado. Compararlo contra el pedido
+    antes de darlo por pagado evita el caso donde una imagen de comprobante
+    muestra un monto distinto del que Banxico confirmó.
+
+    `beneficiaryAccount` llega enmascarada, con sólo los últimos 4 dígitos.
+
+    https://docs.veriko.mx/es/concepts/webhooks-architecture
+    """
+
+    amount: float | None = None
+    operationDate: str | None = None
+    processingTime: str | None = None
+    trackingKey: str | None = None
+    senderBank: str | None = None
+    receiverBank: str | None = None
+    beneficiaryAccount: str | None = None
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> BanxicoConfirmed:
+        return cls(
+            amount=data.get("amount"),
+            operationDate=data.get("operationDate"),
+            processingTime=data.get("processingTime"),
+            trackingKey=data.get("trackingKey"),
+            senderBank=data.get("senderBank"),
+            receiverBank=data.get("receiverBank"),
+            beneficiaryAccount=data.get("beneficiaryAccount"),
+            raw=data,
+        )
+
+
+@dataclass(frozen=True)
 class WebhookEvent:
     """Una entrega de webhook ya verificada.
 
@@ -222,6 +259,7 @@ class WebhookEvent:
     event: str
     timestamp: str | None
     validation: Validation | None
+    banxico_confirmed: BanxicoConfirmed | None = None
     data: dict[str, Any] = field(default_factory=dict)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -727,6 +765,7 @@ __all__ = [
     "TERMINAL_STATUSES",
     "Bank",
     "BankList",
+    "BanxicoConfirmed",
     "Beneficiary",
     "BeneficiaryImportJob",
     "BeneficiaryImportRow",

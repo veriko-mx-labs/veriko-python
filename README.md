@@ -297,6 +297,14 @@ El receptor completo está en [`examples/flask_webhook.py`](examples/flask_webho
 
 El `Delivery-Id` es el valor que permite descartar entregas repetidas.
 
+### El monto que Banxico confirmó
+
+Cuando Banxico confirmó el pago (`banxico_status` es `valid`, o `returned` con el comprobante ya
+descargado), la entrega trae `evento.banxico_confirmed`: el monto, la fecha, la clave de rastreo,
+ambos bancos y la cuenta del beneficiario (enmascarada a los últimos 4 dígitos), tal como los
+confirmó Banxico. En el resto de los casos vale `None`. Compáralo contra el pedido antes de darlo
+por pagado: el monto de una imagen de comprobante puede no ser el mismo.
+
 ## Reintentos
 
 Hay dos mecanismos distintos con el mismo nombre.

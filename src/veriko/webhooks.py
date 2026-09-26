@@ -23,7 +23,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from .errors import SignatureVerificationError
-from .models import Validation, WebhookEvent
+from .models import BanxicoConfirmed, Validation, WebhookEvent
 
 # Cabecera de la firma.
 SIGNATURE_HEADER = "X-Webhook-Signature"
@@ -113,10 +113,18 @@ def parse_webhook(
     if isinstance(data, dict) and data.get("type") == "validation":
         validation = Validation.from_response(document)
 
+    banxico_confirmed: BanxicoConfirmed | None = None
+    if isinstance(data, dict):
+        attributes = data.get("attributes")
+        confirmado = attributes.get("banxico_confirmed") if isinstance(attributes, dict) else None
+        if isinstance(confirmado, dict):
+            banxico_confirmed = BanxicoConfirmed.from_dict(confirmado)
+
     return WebhookEvent(
         event=str(document.get("event") or ""),
         timestamp=document.get("timestamp"),
         validation=validation,
+        banxico_confirmed=banxico_confirmed,
         data=data if isinstance(data, dict) else {},
         raw=document,
     )

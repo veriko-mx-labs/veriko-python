@@ -91,7 +91,11 @@ OPERATION_RECORDINGS = {
 }
 
 # Son cuerpos entrantes para probar la firma y el parser, no respuestas de una operación.
-NON_RESPONSE_RECORDINGS = {"webhook-retry-resolved", "webhook-validation-completed"}
+NON_RESPONSE_RECORDINGS = {
+    "webhook-retry-resolved",
+    "webhook-validation-completed",
+    "webhook-validation-completed-banxico-confirmed",
+}
 
 
 def operation_by_id(operation_id: str) -> dict[str, Any]:

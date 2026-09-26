@@ -30,6 +30,10 @@ SECRET = os.environ["VERIKO_WEBHOOK_SECRET"]
 # esto vive en Redis o en una tabla, no en memoria.
 entregas_vistas = set()
 
+# El monto de cada pedido, tal como lo espera esta app. En producción sale de
+# la base de datos de pedidos, no de un diccionario en memoria.
+pedidos = {"f47ac10b-58cc-4372-a567-0e02b2c3d479": 15000.50}
+
 
 @app.post("/hooks/veriko")
 def recibir():
@@ -54,6 +58,18 @@ def recibir():
         print(f"[{evento.event}] {validation.id} → {validation.status}")
         if validation.has_cep:
             print("  comprobante disponible en", validation.links.get("cep_pdf"))
+
+        confirmado = evento.banxico_confirmed
+        if confirmado is not None:
+            # Banxico confirmó el pago: este monto, no el de una imagen de
+            # comprobante, es el que hay que comparar contra el pedido antes de
+            # liberar la mercancía. `confirmado.beneficiaryAccount` sirve igual
+            # para comparar la cuenta cuando el pedido la registra.
+            monto_esperado = pedidos.get(validation.id)
+            if confirmado.amount == monto_esperado:
+                print("  monto confirmado por Banxico:", confirmado.amount)
+            else:
+                print("  monto confirmado no coincide con el pedido:", confirmado.amount)
 
     elif evento.event == "validation.retry.resolved" and evento.validation is not None:
         estado = evento.validation.retry_state
