@@ -5,6 +5,10 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+Sin cambios todavía.
+
+## [0.5.2] — 2026-09-26
+
 ### Añadido
 
 - `WebhookEvent.banxico_confirmed`: el monto, la fecha, la clave de rastreo, ambos bancos y la
