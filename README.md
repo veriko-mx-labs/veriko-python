@@ -127,7 +127,7 @@ Los argumentos conservan el nombre que viaja en el JSON de la API.
 
 Cada llamada consume cuota del plan, y se descuenta al aceptar la petición.
 
-### Desde la imagen del comprobante
+### Desde el comprobante
 
 ```python
 validation = client.validations.validate_ocr(
@@ -136,8 +136,8 @@ validation = client.validations.validate_ocr(
 )
 ```
 
-El SDK lee el archivo y lo codifica en base64. `image_url` sirve para una imagen
-ya publicada en HTTPS. Formatos: JPEG, PNG o WebP.
+El SDK lee el archivo y lo codifica en base64. `image_url` sirve para un
+comprobante ya publicado en HTTPS. Formatos: JPEG, PNG, WebP o PDF de 1 a 3 páginas.
 
 ### Sin esperar al veredicto
 

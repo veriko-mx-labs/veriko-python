@@ -264,6 +264,16 @@ def test_descargar_la_imagen_del_comprobante(client: Veriko, server: RecordingSe
     assert len(imagen) == len(imagen.content)
 
 
+def test_descargar_el_comprobante_en_pdf(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validation-image-pdf")
+
+    comprobante = client.validations.image(VALIDATION_ID)
+
+    assert comprobante.content.startswith(b"%PDF-")
+    assert comprobante.content_type == "application/pdf"
+    assert comprobante.filename == "comprobante-" + VALIDATION_ID + ".pdf"
+
+
 def test_exportar_el_historial_en_csv(
     client: Veriko, server: RecordingServer, tmp_path: Path
 ) -> None:

@@ -64,9 +64,16 @@ _IMPORT_CONTENT_TYPES = {
 }
 
 
-_IMAGE_ACCEPT = "image/png, image/jpeg, image/webp, application/octet-stream, application/json"
+_IMAGE_ACCEPT = (
+    "image/png, image/jpeg, image/webp, application/pdf, application/octet-stream, application/json"
+)
 
-_IMAGE_EXTENSIONS = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+_IMAGE_EXTENSIONS = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    "application/pdf": ".pdf",
+}
 
 # Marca un argumento que no se pasó, para distinguirlo de `None`, que borra un valor.
 _UNSET: Any = object()
@@ -198,12 +205,13 @@ class Validations(_Resource):
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
         idempotency_key: str | None = None,
     ) -> Validation:
-        """Valida una transferencia a partir de la imagen del comprobante.
+        """Valida una transferencia a partir del comprobante, en imagen o en PDF.
 
-        `POST /v1/validate-ocr`. La imagen se lee del disco cuando `image` es una
-        ruta, y se codifica en base64 aquí. Formatos: JPEG, PNG o WebP.
+        `POST /v1/validate-ocr`. El archivo se lee del disco cuando `image` es una
+        ruta, y se codifica en base64 aquí. Formatos: JPEG, PNG, WebP o PDF de 1 a 3
+        páginas.
 
-        `image_url` sirve para una imagen ya publicada en HTTPS. Si se envían las
+        `image_url` sirve para un comprobante ya publicado en HTTPS. Si se envían las
         dos, la API sólo considera `image`.
         """
         body = self._ocr_body(
@@ -262,7 +270,7 @@ class Validations(_Resource):
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
         **_ignorados: Any,
     ) -> dict[str, Any]:
-        """El cuerpo de una validación por imagen, con su comprobación previa."""
+        """El cuerpo de una validación por OCR, con su comprobación previa."""
         if image is None and not image_url:
             raise InvalidRequestError(
                 "Hace falta la imagen del comprobante: pasa `image` o `image_url`",
@@ -292,7 +300,7 @@ class Validations(_Resource):
         return self._queue("/validate", self._direct_body(**campos), campos.get("idempotency_key"))
 
     def enqueue_ocr(self, **campos: Any) -> QueuedValidation:
-        """Encola una validación por imagen y devuelve el acuse.
+        """Encola una validación por OCR y devuelve el acuse.
 
         `POST /v1/validate-ocr?async=1`. Acepta los mismos argumentos que
         `validate_ocr()`.
@@ -520,7 +528,7 @@ class Validations(_Resource):
         )
 
     def image(self, validation_id: str) -> Document:
-        """Descarga la imagen del comprobante de una validación por OCR.
+        """Descarga el comprobante de una validación por OCR: una imagen o un PDF.
 
         `GET /v1/validations/{id}/image`.
         """
@@ -1519,7 +1527,7 @@ class Billing(_Resource):
 
 
 def _encode_image(image: bytes | str | Path) -> str:
-    """Devuelve la imagen en base64, leyéndola del disco cuando es una ruta."""
+    """Devuelve el comprobante en base64, leyéndolo del disco cuando es una ruta."""
     if isinstance(image, bytes):
         crudo = image
     else:
