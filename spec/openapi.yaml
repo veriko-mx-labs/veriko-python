@@ -188,6 +188,7 @@ paths:
                           last_4: f9c2
                         subscription:
                           plan_slug: pro
+                          plan_name: Pro
                           status: active
                           current_period_end: '2026-06-15T00:00:00Z'
                           cancel_at: null
@@ -10364,6 +10365,15 @@ components:
                 en:
                   description: Unique, human-readable plan identifier.
               example: pro
+            plan_name:
+              type:
+                - string
+                - 'null'
+              description: Nombre visible del plan activo, tal como lo muestra el catálogo de planes. Es `null` cuando no se pudo leer el catálogo.
+              x-translations:
+                en:
+                  description: Display name of the active plan, as the plan catalog shows it. It is `null` when the catalog could not be read.
+              example: Pro
             status:
               type: string
               enum:
@@ -15029,6 +15039,23 @@ components:
           $ref: '#/components/schemas/TimestampUTC'
         next_reset_at:
           $ref: '#/components/schemas/TimestampUTC'
+        quota_kind:
+          type: string
+          enum:
+            - cycle
+            - trial
+          description: 'Origen de esta cuota: `cycle` (ciclo de suscripción de siempre) o `trial` (asignación de prueba inicial de una cuenta sin reclamar el plan). Aditivo.'
+          example: cycle
+          x-translations:
+            en:
+              description: 'Where this quota comes from: `cycle` (the usual subscription cycle) or `trial` (an unclaimed account''s initial trial allowance). Additive.'
+        renews:
+          type: boolean
+          description: '`true` cuando esta cuota se repone al iniciar el siguiente ciclo. `false` para `quota_kind=trial`.'
+          example: true
+          x-translations:
+            en:
+              description: '`true` when this quota replenishes at the next cycle. `false` for `quota_kind=trial`.'
       required:
         - plan_slug
         - limit
@@ -16491,6 +16518,23 @@ components:
               description: Validations available in the current cycle (`max(0, limit - used)`).
         resets_at:
           $ref: '#/components/schemas/TimestampUTC'
+        quota_kind:
+          type: string
+          enum:
+            - cycle
+            - trial
+          description: 'Origen de esta cuota: `cycle` (ciclo de suscripción de siempre) o `trial` (asignación de prueba inicial de una cuenta sin reclamar el plan). Aditivo — un cliente que no lo lea sigue funcionando igual.'
+          example: cycle
+          x-translations:
+            en:
+              description: 'Where this quota comes from: `cycle` (the usual subscription cycle) or `trial` (an unclaimed account''s initial trial allowance). Additive — a client that ignores it keeps working the same way.'
+        renews:
+          type: boolean
+          description: '`true` cuando esta cuota se repone al iniciar el siguiente ciclo. `false` para `quota_kind=trial`: `resets_at` es el fin del periodo técnico, no una promesa de más unidades.'
+          example: true
+          x-translations:
+            en:
+              description: '`true` when this quota replenishes at the next cycle. `false` for `quota_kind=trial`: `resets_at` is the technical period''s end, not a promise of more units.'
     BillingSubscriptionResponse:
       type: object
       description: Suscripción activa y resumen de cuota devueltos por `GET /v1/billing/subscription`.
