@@ -5,6 +5,10 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+Sin cambios todavía.
+
+## [0.5.4] — 2026-09-28
+
 ### Añadido
 
 - `UsageSummary.quota_kind` (`cycle` o `trial`) y `UsageSummary.renews`: una cuenta que aún no
