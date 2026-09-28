@@ -708,6 +708,11 @@ class UsageSummary:
 
     `tone` resume el consumo: `ok` por debajo del 70 %, `warn` entre el 70 % y el
     89 %, y `danger` a partir del 90 % o con la cuota agotada.
+
+    `quota_kind` dice de dónde sale la cuota: `cycle` para el ciclo de la
+    suscripción y `trial` para las validaciones de prueba de una cuenta que aún no
+    activa el plan gratuito. Con `trial`, `renews` es `False`: la cuota no se
+    repone y `resets_at` marca el fin del periodo técnico, no más unidades.
     """
 
     plan_slug: str | None = None
@@ -719,6 +724,8 @@ class UsageSummary:
     tone: str | None = None
     resets_at: str | None = None
     next_reset_at: str | None = None
+    quota_kind: str | None = None
+    renews: bool | None = None
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -736,6 +743,8 @@ class UsageSummary:
             tone=attributes.get("tone"),
             resets_at=attributes.get("resets_at"),
             next_reset_at=attributes.get("next_reset_at"),
+            quota_kind=attributes.get("quota_kind"),
+            renews=attributes.get("renews"),
             attributes=attributes,
             raw=body,
         )

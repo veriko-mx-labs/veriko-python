@@ -5,7 +5,11 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
-Sin cambios todavía.
+### Añadido
+
+- `UsageSummary.quota_kind` (`cycle` o `trial`) y `UsageSummary.renews`: una cuenta que aún no
+  activa el plan gratuito consume validaciones de prueba, que no se reponen. `None` si la respuesta
+  no los trae.
 
 ## [0.5.3] — 2026-09-27
 

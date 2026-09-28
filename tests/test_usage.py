@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from conftest import RecordingServer
-from veriko import ConfigurationError, Veriko
+from veriko import ConfigurationError, UsageSummary, Veriko
 
 
 def test_la_cuota_del_plan_en_curso(client: Veriko, server: RecordingServer) -> None:
@@ -20,6 +20,37 @@ def test_la_cuota_del_plan_en_curso(client: Veriko, server: RecordingServer) -> 
     assert summary.remaining == 580
     assert summary.used_percent == 42
     assert summary.tone == "ok"
+
+
+def test_la_cuota_de_prueba_no_se_repone() -> None:
+    summary = UsageSummary.from_response(
+        {
+            "data": {
+                "type": "usage_summary",
+                "attributes": {
+                    "plan_slug": "guest",
+                    "limit": 5,
+                    "used": 3,
+                    "remaining": 2,
+                    "quota_kind": "trial",
+                    "renews": False,
+                },
+            }
+        }
+    )
+
+    assert summary.quota_kind == "trial"
+    assert summary.renews is False
+    assert summary.remaining == 2
+
+
+def test_sin_quota_kind_los_campos_quedan_en_none(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("usage-summary")
+
+    summary = client.usage.summary()
+
+    assert summary.quota_kind is None
+    assert summary.renews is None
 
 
 def test_el_historial_mensual(client: Veriko, server: RecordingServer) -> None:
