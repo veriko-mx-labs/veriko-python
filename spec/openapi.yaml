@@ -258,6 +258,8 @@ paths:
         - Banco receptor.
         - Cuenta beneficiaria.
 
+        La cuenta beneficiaria (`cuenta_beneficiaria`) es obligatoria en esta operación. Si falta, la petición se rechaza con `422 preflight_failed` y el error de campo `cuenta_required`: el servicio no la busca entre los beneficiarios guardados.
+
         El veredicto final (estado terminal) de una validación puede ser alguno de estos:
 
         - `valid`: El CEP de la transacción fue encontrado y validado.
@@ -372,10 +374,10 @@ paths:
               }'
       responses:
         '200':
-          description: 'Veredicto final de la validación. El campo `status` puede ser: `valid`, `not_found`, `cep_unavailable`, `returned` o `error`. Cuando `has_cep: true` el certificado CEP está disponible vía `GET /v1/validations/{id}/cep`.'
+          description: 'Veredicto final de la validación. El campo `status` puede ser: `valid`, `not_found`, `cep_unavailable`, `returned` o `error`. Cuando la respuesta trae `links.cep_pdf` y `links.cep_xml`, el certificado CEP está disponible en `GET /v1/validations/{id}/cep`.'
           x-translations:
             en:
-              description: 'Final validation verdict. The `status` field can be `valid`, `not_found`, `cep_unavailable`, `returned`, or `error`. When `has_cep: true`, the CEP certificate is available through `GET /v1/validations/{id}/cep`.'
+              description: Final validation verdict. The `status` field can be `valid`, `not_found`, `cep_unavailable`, `returned`, or `error`. When the response carries `links.cep_pdf` and `links.cep_xml`, the CEP certificate is available through `GET /v1/validations/{id}/cep`.
           headers:
             Idempotent-Replayed:
               schema:
@@ -481,10 +483,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: 'Falló la validación de la petición. Códigos típicos: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_bank_code` (`emisor`/`receptor` no reconocidos), `intra_bank_no_cep` (emisor y receptor son el mismo banco), `invalid_field_type` (un campo que debe ser texto llegó como arreglo u objeto — p. ej. `emisor`, `receptor` o `referencia_numerica`), `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. También se emite cuando se reutiliza `Idempotency-Key` con un cuerpo distinto (`idempotency_key_reused`). Cuando los datos se contradicen entre sí, la petición se rechaza antes de consultar a Banxico con `preflight_failed` y el detalle por campo en `errors` (`clabe_receptor_mismatch` y `tarjeta_receptor_mismatch`: la cuenta pertenece a otro banco que el `receptor`; `cuenta_invalid_luhn`; `clave_fecha_incoherente`; `clave_longitud_invalida`). Ningún rechazo `preflight_failed` de esta ruta consume cuota, sea por datos que se contradicen o por un campo mal formado.'
+          description: 'Falló la validación de la petición. Códigos típicos: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_bank_code` (`emisor`/`receptor` no reconocidos), `intra_bank_no_cep` (emisor y receptor son el mismo banco), `invalid_field_type` (un campo que debe ser texto llegó como arreglo u objeto — p. ej. `emisor`, `receptor` o `referencia_numerica`), `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. También se emite cuando se reutiliza `Idempotency-Key` con un cuerpo distinto (`idempotency_key_reused`). Cuando los datos se contradicen entre sí, la petición se rechaza antes de consultar a Banxico con `preflight_failed` y el detalle por campo en `errors` (`clabe_receptor_mismatch` y `tarjeta_receptor_mismatch`: la cuenta pertenece a otro banco que el `receptor`; `cuenta_invalid_luhn`; `clave_fecha_incoherente`; `clave_longitud_invalida`). También se rechaza con `preflight_failed` cuando falta `cuenta_beneficiaria` (`cuenta_required`). Ningún rechazo `preflight_failed` de esta ruta consume cuota, sea por datos que se contradicen, por un campo mal formado o por una cuenta ausente.'
           x-translations:
             en:
-              description: 'Request validation failed. Typical codes: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_bank_code` (`emisor`/`receptor` not recognized), `intra_bank_no_cep` (sender and receiver are the same bank), `invalid_field_type` (a field that must be text arrived as an array or object — e.g. `emisor`, `receptor`, or `referencia_numerica`), `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. Also emitted when an `Idempotency-Key` is reused with a different body (`idempotency_key_reused`). When the submitted data contradicts itself, the request is rejected before Banxico is queried with `preflight_failed` and per-field detail in `errors` (`clabe_receptor_mismatch` and `tarjeta_receptor_mismatch`: the account belongs to a bank other than `receptor`; `cuenta_invalid_luhn`; `clave_fecha_incoherente`; `clave_longitud_invalida`). No `preflight_failed` rejection on this route consumes quota, whether the data contradicts itself or a field is malformed.'
+              description: 'Request validation failed. Typical codes: `clave_or_ref_required`, `required` (fecha/monto), `invalid_date`, `invalid_amount`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `invalid_bank_code` (`emisor`/`receptor` not recognized), `intra_bank_no_cep` (sender and receiver are the same bank), `invalid_field_type` (a field that must be text arrived as an array or object — e.g. `emisor`, `receptor`, or `referencia_numerica`), `invalid_receptor_participante`, `retry_policy_invalid`, `retry_pending_cap_exceeded`. Also emitted when an `Idempotency-Key` is reused with a different body (`idempotency_key_reused`). When the submitted data contradicts itself, the request is rejected before Banxico is queried with `preflight_failed` and per-field detail in `errors` (`clabe_receptor_mismatch` and `tarjeta_receptor_mismatch`: the account belongs to a bank other than `receptor`; `cuenta_invalid_luhn`; `clave_fecha_incoherente`; `clave_longitud_invalida`). It is also rejected with `preflight_failed` when `cuenta_beneficiaria` is missing (`cuenta_required`). No `preflight_failed` rejection on this route consumes quota, whether the data contradicts itself, a field is malformed or the account is absent.'
           content:
             application/json:
               schema:
@@ -520,6 +522,8 @@ paths:
             - Sending bank.
             - Receiving bank.
             - Beneficiary account.
+
+            The beneficiary account (`cuenta_beneficiaria`) is required on this operation. When it is missing, the request is rejected with `422 preflight_failed` and the field error `cuenta_required`: the service does not look it up among the saved beneficiaries.
 
             The final verdict (terminal state) can be one of the following:
 
@@ -589,7 +593,7 @@ paths:
 
         {% callout type="info" %}
         El campo `cuenta_beneficiaria` permite enviar explícitamente la cuenta receptora de la transferencia, enviarlo es especialmente útil cuando la imagen no lleva este dato o lo lleva incompleto.\
-        Puedes guardar esa cuenta como beneficiario (en `POST /v1/beneficiaries`) para no enviarla en cada validación, el sistema detectará en automático los dígitos visibles en cada imagen.
+        Un beneficiario guardado (con `POST /v1/beneficiaries`) no sustituye a este campo: solo sirve para completar los dígitos de la cuenta que la imagen sí muestra. Si la imagen no trae dígitos suficientes, la validación se rechaza con `cuenta_unresolvable`, porque las cuentas guardadas no se prueban una por una.
 
         {% /callout %}
 
@@ -786,7 +790,7 @@ paths:
 
             {% callout type="info" %}
             The `cuenta_beneficiaria` field sends the receiving account of the transfer explicitly, which is especially useful when the image does not carry that data or carries it incomplete.\
-            That account can be saved as a beneficiary (with `POST /v1/beneficiaries`) so it does not have to be sent on every validation: the system then detects the visible digits in each image automatically.
+            A saved beneficiary (with `POST /v1/beneficiaries`) does not replace this field: it only completes the digits of the account that the image does show. When the image carries too few digits, the validation is rejected with `cuenta_unresolvable`, because the saved accounts are not tried one by one.
 
             {% /callout %}
 
@@ -838,7 +842,7 @@ paths:
 
         - `status`: Acepta un estado, o varios separados por comas.
         - `with_deleted`: Distingue entre los registros activos y los retirados.
-        - **Los demás** acotan por: modalidad, fecha, contenido, banco, importe, origen y ciclo de reintentos.
+        - **Los demás** acotan por: modalidad, fecha, contenido, banco, importe, origen, referencia propia (`client_ref`) y ciclo de reintentos.
 
         La forma de la respuesta está descrita en {% concept slug="pagination" %}la paginación{% /concept %}.
 
@@ -922,6 +926,17 @@ paths:
           x-translations:
             en:
               description: Case-insensitive text search over the submitted, normalized, and Banxico response data. `%` and `_` are treated as literal characters, and the 100-character limit is counted per character (not per byte), so an accented letter is never split in half. If the text, once spaces and hyphens are removed, is made up only of digits, that separator-free form is also matched against the beneficiary account.
+        - name: client_ref
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          example: orden-4812
+          description: Coincidencia exacta con la `client_ref` enviada al validar. Distingue mayúsculas, acentos y espacios internos. Un valor vacío o que no cumple las reglas de `client_ref` devuelve un estado HTTP `422` (con `invalid_filter` en el cuerpo).
+          x-translations:
+            en:
+              description: Exact match with the `client_ref` sent when validating. It distinguishes case, accents, and inner spaces. An empty value, or one that does not meet the `client_ref` rules, returns an HTTP status `422` (with `invalid_filter` in the body).
         - name: playground
           in: query
           schema:
@@ -1134,7 +1149,7 @@ paths:
 
             - `status` accepts one status, or several separated by commas.
             - `with_deleted` distinguishes active records from withdrawn ones.
-            - The rest narrow by mode, date, content, bank, amount, origin and retry cycle.
+            - The rest narrow by mode, date, content, bank, amount, origin, reference of your own (`client_ref`) and retry cycle.
 
             The shape of the response is described in {% concept slug="pagination" %}pagination{% /concept %}.
 
@@ -1206,6 +1221,17 @@ paths:
           x-translations:
             en:
               description: Case-insensitive text search over the submitted, normalized, and Banxico response data. `%` and `_` are treated as literal characters.
+        - name: client_ref
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          example: orden-4812
+          description: Coincidencia exacta con la `client_ref` enviada al validar. Distingue mayúsculas, acentos y espacios internos. Un valor vacío o que no cumple las reglas de `client_ref` devuelve un estado HTTP `422` (con `invalid_filter` en el cuerpo).
+          x-translations:
+            en:
+              description: Exact match with the `client_ref` sent when validating. It distinguishes case, accents, and inner spaces. An empty value, or one that does not meet the `client_ref` rules, returns an HTTP status `422` (with `invalid_filter` in the body).
         - name: playground
           in: query
           schema:
@@ -1517,6 +1543,17 @@ paths:
           x-translations:
             en:
               description: Case-insensitive text search over the submitted, normalized, and Banxico response data. `%` and `_` are treated as literal characters.
+        - name: client_ref
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          example: orden-4812
+          description: Coincidencia exacta con la `client_ref` enviada al validar. Distingue mayúsculas, acentos y espacios internos. Un valor vacío o que no cumple las reglas de `client_ref` devuelve un estado HTTP `422` (con `invalid_filter` en el cuerpo).
+          x-translations:
+            en:
+              description: Exact match with the `client_ref` sent when validating. It distinguishes case, accents, and inner spaces. An empty value, or one that does not meet the `client_ref` rules, returns an HTTP status `422` (with `invalid_filter` in the body).
         - name: playground
           in: query
           schema:
@@ -6249,6 +6286,7 @@ paths:
         **Firma secreta:**\
         El `secret` de firma se devuelve **únicamente en esta respuesta** y no puede recuperarse después. Un secreto perdido se sustituye con `POST /v1/webhooks/{id}/regenerate-secret`, que devuelve el nuevo e invalida el anterior de inmediato — el endpoint no hay que volver a registrarlo.\
         Ese secreto verifica cada entrega: el HMAC-SHA256 del cuerpo recibido debe coincidir con la cabecera `X-Webhook-Signature: sha256=<hex>`.\
+        Cada entrega lleva además `X-Webhook-Signature-Timestamped: t=<segundos>,v1=<hex>`, donde `v1` es el HMAC-SHA256 de `<t>.<cuerpo>`. Esa firma incluye la hora del intento, y la ventana de tolerancia recomendada es de 5 minutos contra `t`, no contra el `timestamp` del cuerpo: los reintentos llegan hasta unas 8,6 horas después del evento.\
         \
         La firma, y más detalles se describen en {% concept slug="webhooks-architecture" %}la arquitectura de webhooks{% /concept %}.
 
@@ -6651,6 +6689,7 @@ paths:
             be registered again.\
             That secret verifies every delivery: the HMAC-SHA256 of the received body
             must match the `X-Webhook-Signature: sha256=<hex>` header.\
+            Every delivery also carries `X-Webhook-Signature-Timestamped: t=<seconds>,v1=<hex>`, where `v1` is the HMAC-SHA256 of `<t>.<body>`. That signature includes the attempt time, and the recommended tolerance window is 5 minutes against `t`, not against the `timestamp` of the body: retries arrive up to about 8.6 hours after the event.\
             \
             Signing, and further detail, are described in {% concept slug="webhooks-architecture" %}the webhooks architecture{% /concept %}.
 
@@ -10577,17 +10616,18 @@ components:
       required:
         - fecha
         - monto
+        - cuenta_beneficiaria
       anyOf:
         - required:
             - clave_rastreo
         - required:
             - referencia_numerica
       description: |
-        Cuerpo de `POST /v1/validate` para una validación manual SPEI; exige `clave_rastreo` o `referencia_numerica`.
+        Cuerpo de `POST /v1/validate` para una validación manual SPEI; exige `cuenta_beneficiaria` y `clave_rastreo` o `referencia_numerica`.
       x-translations:
         en:
           description: |
-            Body for `POST /v1/validate` for a manual SPEI validation; requires `clave_rastreo` or `referencia_numerica`.
+            Body for `POST /v1/validate` for a manual SPEI validation; requires `cuenta_beneficiaria` and `clave_rastreo` or `referencia_numerica`.
       properties:
         fecha:
           type: string
@@ -10661,11 +10701,11 @@ components:
         cuenta_beneficiaria:
           type: string
           pattern: ^(\d{10}|\d{16}|\d{18})$
-          description: Cuenta bancaria receptora de la transferencia. Puede ser CLABE (18 dígitos), tarjeta (16 dígitos) o celular DiMo (10 dígitos), y el tipo se identifica por la longitud de sus dígitos. Los espacios y guiones que separan grupos ("0121 8000 4412 345678") se ignoran automáticamente antes de contar la longitud. Para celular DiMo, si el banco receptor no puede resolverse por el campo `receptor`, por los beneficiarios registrados ni por el directorio de cuentas, la respuesta es un estado HTTP `422` (con `bank_code_unresolvable_for_phone` en el cuerpo).
+          description: 'Cuenta bancaria receptora de la transferencia. Es obligatoria: si falta, la respuesta es un estado HTTP `422` (con `preflight_failed` y el error de campo `cuenta_required`). Puede ser CLABE (18 dígitos), tarjeta (16 dígitos) o celular DiMo (10 dígitos), y el tipo se identifica por la longitud de sus dígitos. Los espacios y guiones que separan grupos ("0121 8000 4412 345678") se ignoran automáticamente antes de contar la longitud. Para celular DiMo, si el banco receptor no puede resolverse por el campo `receptor`, por los beneficiarios registrados ni por el directorio de cuentas, la respuesta es un estado HTTP `422` (con `bank_code_unresolvable_for_phone` en el cuerpo).'
           example: '012180004412345678'
           x-translations:
             en:
-              description: Receiving bank account for the transfer. It can be a CLABE (18 digits), a card (16 digits) or a DiMo phone (10 digits), and the type is identified by the length of its digits. Spaces and hyphens separating groups ("0121 8000 4412 345678") are stripped automatically before the length is counted. For a DiMo phone, if the receiving bank cannot be resolved through the `receptor` field, through the registered beneficiaries or through the account directory, the response is an HTTP status `422` (with `bank_code_unresolvable_for_phone` in the body).
+              description: 'Receiving bank account for the transfer. It is required: when it is missing, the response is an HTTP status `422` (with `preflight_failed` and the field error `cuenta_required`). It can be a CLABE (18 digits), a card (16 digits) or a DiMo phone (10 digits), and the type is identified by the length of its digits. Spaces and hyphens separating groups ("0121 8000 4412 345678") are stripped automatically before the length is counted. For a DiMo phone, if the receiving bank cannot be resolved through the `receptor` field, through the registered beneficiaries or through the account directory, the response is an HTTP status `422` (with `bank_code_unresolvable_for_phone` in the body).'
           x-invalid-examples:
             - '12345678'
             - '1234567890123456789012'
@@ -10692,6 +10732,21 @@ components:
           x-translations:
             en:
               description: '**Automatic retry** policy for this validation. If omitted, the general policy configured for the user is applied. Retries do NOT consume validation quota.'
+        client_ref:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[^\x00-\x1f\x7f]+$
+          description: Referencia propia que se devuelve tal cual en la validación, en los webhooks de validación y como filtro exacto de `GET /v1/validations`. Texto de 1 a 64 caracteres, sin saltos de línea ni emoji; se recorta antes de guardarse. Un valor que no cumple se rechaza con un estado HTTP `422` (con `invalid_client_ref` en el cuerpo). No debe contener datos personales.
+          example: orden-4812
+          x-translations:
+            en:
+              description: Reference of your own that is returned as sent in the validation, in the validation webhooks, and as an exact filter of `GET /v1/validations`. Text of 1 to 64 characters, without line breaks or emoji; it is trimmed before being stored. A value that does not comply is rejected with an HTTP status `422` (with `invalid_client_ref` in the body). It must not contain personal data.
+          x-invalid-examples:
+            - ''
+            - |-
+              orden
+              4812
     ValidationErrorCode:
       type: string
       description: |
@@ -10943,6 +10998,15 @@ components:
                   x-translations:
                     en:
                       description: Copy of the original request fields.
+                client_ref:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  description: Referencia propia que se envió en la petición (`client_ref`), devuelta tal cual. Solo aparece cuando la petición la incluyó. Sirve para relacionar la validación con un pedido propio, y `GET /v1/validations` la acepta como filtro exacto. No debe contener datos personales.
+                  example: orden-4812
+                  x-translations:
+                    en:
+                      description: Reference of your own sent in the request (`client_ref`), returned as sent. It only appears when the request included it. It lets you tie the validation to an order of your own, and `GET /v1/validations` accepts it as an exact filter. It must not contain personal data.
                 created_at:
                   type: string
                   format: date-time
@@ -11057,14 +11121,78 @@ components:
                   x-translations:
                     en:
                       description: Normalization warnings present. They can explain an unexpected `not_found` result.
+                duplicate_of:
+                  type: object
+                  required:
+                    - id
+                    - created_at
+                  description: |-
+                    Validación previa que ya había confirmado esta misma transferencia en la misma cuenta. Solo aparece cuando existe una validación `valid`, no retirada, con la misma clave de rastreo; nunca apunta a una validación de otra cuenta.
+
+                    Es la forma estructurada del aviso que también se añade a `normalization_warnings`. No cambia el veredicto: la validación se consulta y se cobra igual.
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                      description: Identificador de la validación previa.
+                      example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                      x-translations:
+                        en:
+                          description: Identifier of the earlier validation.
+                    created_at:
+                      type: string
+                      format: date-time
+                      description: Fecha y hora, en ISO 8601 UTC, de creación de la validación previa.
+                      example: '2026-10-01T15:04:05Z'
+                      x-translations:
+                        en:
+                          description: Creation date and time of the earlier validation, in ISO 8601 UTC.
+                  x-translations:
+                    en:
+                      description: |-
+                        Earlier validation that had already confirmed this same transfer in the same account. It only appears when a `valid`, non-withdrawn validation with the same tracking key exists; it never points to a validation of another account.
+
+                        It is the structured form of the warning that is also added to `normalization_warnings`. It does not change the verdict: the validation is queried and charged all the same.
+                account_conflict:
+                  type: object
+                  required:
+                    - sent_last4
+                    - read_last4
+                  description: |-
+                    Conflicto entre la cuenta enviada y la que muestra la imagen. Solo aparece en validaciones de tipo `ocr`, cuando se envió `cuenta_beneficiaria` y la imagen muestra otra cuenta completa de la misma longitud, válida y con confianza suficiente.
+
+                    Prevalece la cuenta enviada, que es la que se consulta en Banxico: el campo no cambia el veredicto. Si el pago fue a la cuenta de la imagen, lo esperable es un `not_found`. Solo trae los últimos 4 dígitos de cada cuenta, y el conflicto también se añade a `normalization_warnings`.
+                  properties:
+                    sent_last4:
+                      type: string
+                      pattern: ^\d{1,4}$
+                      description: Últimos 4 dígitos de la cuenta enviada en `cuenta_beneficiaria`.
+                      example: '5678'
+                      x-translations:
+                        en:
+                          description: Last 4 digits of the account sent in `cuenta_beneficiaria`.
+                    read_last4:
+                      type: string
+                      pattern: ^\d{1,4}$
+                      description: Últimos 4 dígitos de la cuenta completa que muestra la imagen.
+                      example: '9012'
+                      x-translations:
+                        en:
+                          description: Last 4 digits of the full account shown in the image.
+                  x-translations:
+                    en:
+                      description: |-
+                        Conflict between the account sent and the one shown in the image. It only appears on `ocr` validations, when `cuenta_beneficiaria` was sent and the image shows another full account of the same length, valid and with enough confidence.
+
+                        The account sent prevails and is the one queried at Banxico: the field does not change the verdict. If the payment went to the account in the image, a `not_found` is the expected outcome. It carries only the last 4 digits of each account, and the conflict is also added to `normalization_warnings`.
                 is_masked:
                   type:
                     - boolean
                     - 'null'
-                  description: Indica si el número de tarjeta está enmascarado en el comprobante cargado (solo si `validation_type` es del tipo `ocr`).
+                  description: Indica si la cuenta beneficiaria viene enmascarada en el comprobante cargado, sea una CLABE, una tarjeta o un celular. Solo se incluye cuando vale `true` y solo si `validation_type` es del tipo `ocr`.
                   x-translations:
                     en:
-                      description: Whether the card number is masked in the receipt, only when `validation_type` is `ocr`.
+                      description: Whether the beneficiary account is masked in the receipt, be it a CLABE, a card or a phone number. It is included only when it is `true`, and only when `validation_type` is `ocr`.
                 banxico_result:
                   type:
                     - object
@@ -11383,6 +11511,15 @@ components:
                         en:
                           description: |
                             Automatic retry cycle state at queue time. Always present; if neither a body `retry_policy` nor a user default policy was provided, `enabled=false` and policy fields are `null`.
+                    client_ref:
+                      type: string
+                      minLength: 1
+                      maxLength: 64
+                      description: Referencia propia enviada en la petición (`client_ref`), devuelta tal cual. Solo aparece cuando la petición la incluyó.
+                      example: orden-4812
+                      x-translations:
+                        en:
+                          description: Reference of your own sent in the request (`client_ref`), returned as sent. It only appears when the request included it.
         meta:
           type: object
           description: Metadatos de control del flujo de polling.
@@ -11441,11 +11578,11 @@ components:
         cuenta_beneficiaria:
           type: string
           pattern: ^(\d{10}|\d{16}|\d{18})$
-          description: Cuenta receptora de la transferencia (útil cuando falta o está incompleta en la imagen). Requerida para celular DiMo; opcional si la cuenta está guardada como beneficiario. Acepta CLABE (18 dígitos), tarjeta (16 dígitos) o celular DiMo (10 dígitos).
+          description: Cuenta receptora de la transferencia (útil cuando falta o está incompleta en la imagen). Requerida para celular DiMo; opcional si la imagen muestra la cuenta completa o sus últimos dígitos, que se completan con los beneficiarios guardados (estos no sustituyen a este campo). Acepta CLABE (18 dígitos), tarjeta (16 dígitos) o celular DiMo (10 dígitos).
           example: '012180004412345678'
           x-translations:
             en:
-              description: Receiving account for the transfer (useful when it is missing or incomplete in the image). Required for DiMo phone; optional if the account is saved as a beneficiary. Accepts CLABE (18 digits), card (16 digits) or DiMo phone (10 digits).
+              description: Receiving account for the transfer (useful when it is missing or incomplete in the image). Required for DiMo phone; optional if the image shows the full account or its last digits, which are completed with the saved beneficiaries (they do not replace this field). Accepts CLABE (18 digits), card (16 digits) or DiMo phone (10 digits).
         retry_policy:
           allOf:
             - $ref: '#/components/schemas/RetryPolicy'
@@ -11454,6 +11591,21 @@ components:
             en:
               description: |
                 Automatic retry policy for this validation. If omitted, the policy configured at `PUT /v1/users/me/retry-policy` is used. Retries do not consume validation quota.
+        client_ref:
+          type: string
+          minLength: 1
+          maxLength: 64
+          pattern: ^[^\x00-\x1f\x7f]+$
+          description: Referencia propia que se devuelve tal cual en la validación, en los webhooks de validación y como filtro exacto de `GET /v1/validations`. Texto de 1 a 64 caracteres, sin saltos de línea ni emoji; se recorta antes de guardarse. Un valor que no cumple se rechaza con un estado HTTP `422` (con `invalid_client_ref` en el cuerpo). No debe contener datos personales.
+          example: orden-4812
+          x-translations:
+            en:
+              description: Reference of your own that is returned as sent in the validation, in the validation webhooks, and as an exact filter of `GET /v1/validations`. Text of 1 to 64 characters, without line breaks or emoji; it is trimmed before being stored. A value that does not comply is rejected with an HTTP status `422` (with `invalid_client_ref` in the body). It must not contain personal data.
+          x-invalid-examples:
+            - ''
+            - |-
+              orden
+              4812
     RetryStateCompact:
       type: object
       description: |
@@ -11696,6 +11848,15 @@ components:
                   description: History withdrawal date in ISO 8601 UTC.
             retry_state:
               $ref: '#/components/schemas/RetryStateCompact'
+            client_ref:
+              type: string
+              minLength: 1
+              maxLength: 64
+              description: Referencia propia enviada al validar (`client_ref`), devuelta tal cual. Solo aparece cuando la petición la incluyó.
+              example: orden-4812
+              x-translations:
+                en:
+                  description: Reference of your own sent when validating (`client_ref`), returned as sent. It only appears when the request included it.
     ValidationStats:
       type: object
       description: |
@@ -14184,11 +14345,11 @@ components:
                   type: string
                   pattern: ^[a-f0-9]{64}$
                   description: |
-                    Clave compartida para verificar firmas. **Solo presente** en la respuesta de creación y de rotación del endpoint; se omite en cualquier otra respuesta. Se usa para validar la cabecera `X-Webhook-Signature` de cada entrega.
+                    Clave compartida para verificar firmas. **Solo presente** en la respuesta de creación y de rotación del endpoint; se omite en cualquier otra respuesta. Se usa para validar las cabeceras `X-Webhook-Signature` y `X-Webhook-Signature-Timestamped` de cada entrega.
                   x-translations:
                     en:
                       description: |
-                        Shared secret for signature verification. **Only present** in the create and rotate-secret responses; omitted from every other response. It is used to validate the `X-Webhook-Signature` header on each delivery.
+                        Shared secret for signature verification. **Only present** in the create and rotate-secret responses; omitted from every other response. It is used to validate the `X-Webhook-Signature` and `X-Webhook-Signature-Timestamped` headers on each delivery.
                   example: a0b1c2d3e4f5061728394a5b6c7d8e9f00112233445566778899aabbccddeeff
                 secret_hint:
                   type: string
