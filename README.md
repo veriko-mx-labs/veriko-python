@@ -98,9 +98,10 @@ client = Veriko(api_key="veriko_tu_clave_aqui")
 
 ## Validar una transferencia
 
-La operación exige la fecha de envío, el importe y **la clave de rastreo o la referencia
-numérica**. Enviar las dos precisa la búsqueda. El banco emisor, el receptor y la cuenta
-beneficiaria son opcionales y mejoran la identificación.
+La operación exige la fecha de envío, el importe, la cuenta beneficiaria y **la clave de rastreo
+o la referencia numérica**. Enviar las dos precisa la búsqueda. El banco emisor y el receptor son
+opcionales y mejoran la identificación. La API rechaza con `422` (`preflight_failed`) una petición
+sin `cuenta_beneficiaria`: no la busca entre los beneficiarios guardados.
 
 ```python
 from veriko import Veriko
@@ -160,6 +161,37 @@ validación con reintentos en marcha llega a `not_found` y sigue cambiando
 después. Esa distinción es `Validation.is_settled`.
 
 La alternativa a sondear es suscribirse al webhook `validation.completed`.
+
+### Referencia propia
+
+`client_ref` es una referencia propia de 1 a 64 caracteres, sin saltos de línea ni emoji. Sirve
+para relacionar la validación con un pedido propio. No debe contener datos personales.
+
+```python
+validation = client.validate_transfer(
+    fecha="2025-03-15",
+    monto=15000.50,
+    clave_rastreo="MXBA20250315001234",
+    cuenta_beneficiaria="012180004412345678",
+    client_ref="orden-4812",
+)
+print(validation.client_ref)  # orden-4812
+
+pagina = client.validations.list(client_ref="orden-4812")
+```
+
+`validate_ocr()`, `enqueue()` y `enqueue_ocr()` también la aceptan. Vuelve en
+`Validation.client_ref`, en `ValidationSummary.client_ref` y en los webhooks de validación, y
+`list()`, `stats()` y `export()` la usan como filtro de coincidencia exacta. La API rechaza con
+`422` (`invalid_client_ref`) una referencia que no cumple las reglas.
+
+### Duplicado y conflicto de cuenta
+
+`Validation.duplicate_of` trae el `id` y el `created_at` de una validación previa `valid`, de la
+misma cuenta y con la misma clave de rastreo. `Validation.account_conflict` trae los últimos 4
+dígitos de la cuenta enviada (`sent_last4`) y de la que muestra la imagen (`read_last4`) en una
+validación por OCR. Ninguno cambia el veredicto, y los dos valen `None` cuando la API no los
+informa.
 
 ### Listar y recorrer el historial
 

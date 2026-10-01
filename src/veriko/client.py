@@ -143,20 +143,23 @@ class Veriko:
         *,
         fecha: str,
         monto: float | int | str,
+        cuenta_beneficiaria: str,
         clave_rastreo: str | None = None,
         referencia_numerica: str | None = None,
-        cuenta_beneficiaria: str | None = None,
         emisor: str | None = None,
         receptor: str | None = None,
         receptor_participante: int | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
+        client_ref: str | None = None,
         idempotency_key: str | None = None,
     ) -> Validation:
         """Atajo de `client.validations.validate()`.
 
         Valida una transferencia SPEI contra el CEP de Banxico. Hace falta
-        `clave_rastreo` o `referencia_numerica`; las dos juntas precisan la
-        búsqueda. La fecha es la de **envío**, en `YYYY-MM-DD`.
+        `cuenta_beneficiaria`, y `clave_rastreo` o `referencia_numerica`; las dos
+        últimas juntas precisan la búsqueda. La fecha es la de **envío**, en
+        `YYYY-MM-DD`. `client_ref` es una referencia propia que vuelve en la
+        validación y en los webhooks.
 
         Cada llamada consume cuota del plan, y se descuenta al aceptar la
         petición.
@@ -164,13 +167,14 @@ class Veriko:
         return self.validations.validate(
             fecha=fecha,
             monto=monto,
+            cuenta_beneficiaria=cuenta_beneficiaria,
             clave_rastreo=clave_rastreo,
             referencia_numerica=referencia_numerica,
-            cuenta_beneficiaria=cuenta_beneficiaria,
             emisor=emisor,
             receptor=receptor,
             receptor_participante=receptor_participante,
             retry_policy=retry_policy,
+            client_ref=client_ref,
             idempotency_key=idempotency_key,
         )
 

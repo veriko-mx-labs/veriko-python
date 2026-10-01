@@ -43,7 +43,10 @@ def test_sin_clave_de_api_rechaza_una_operacion_autenticada_antes_de_la_red(
 
     with pytest.raises(ConfigurationError):
         client.validate_transfer(
-            fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+            fecha="2025-03-15",
+            monto=15000.50,
+            cuenta_beneficiaria="012180004412345678",
+            clave_rastreo="MXBA20250315001234",
         )
 
     assert server.requests == []
@@ -69,7 +72,12 @@ def test_la_peticion_se_identifica_con_el_user_agent_del_sdk(
     client = Veriko(api_key="veriko_x", base_url=server.base_url)
     server.enqueue_recording("validate-valid")
 
-    client.validate_transfer(fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234")
+    client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+    )
 
     agente = server.requests[0].header("user-agent")
     assert agente is not None
@@ -82,7 +90,12 @@ def test_el_idioma_de_los_mensajes_se_negocia_por_cabecera(
     client = Veriko(api_key="veriko_x", base_url=server.base_url, accept_language="en")
     server.enqueue_recording("validate-valid")
 
-    client.validate_transfer(fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234")
+    client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+    )
 
     assert server.requests[0].header("accept-language") == "en"
 
@@ -103,7 +116,10 @@ def test_sin_servidor_al_otro_lado_se_lanza_un_error_de_conexion(
 
     with pytest.raises(ConnectionError) as raised:
         client.validate_transfer(
-            fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+            fecha="2025-03-15",
+            monto=15000.50,
+            cuenta_beneficiaria="012180004412345678",
+            clave_rastreo="MXBA20250315001234",
         )
 
     assert raised.value.attempts == 2

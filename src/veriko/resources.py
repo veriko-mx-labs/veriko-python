@@ -168,13 +168,14 @@ class Validations(_Resource):
         *,
         fecha: str,
         monto: float | int | str,
+        cuenta_beneficiaria: str,
         clave_rastreo: str | None = None,
         referencia_numerica: str | None = None,
-        cuenta_beneficiaria: str | None = None,
         emisor: str | None = None,
         receptor: str | None = None,
         receptor_participante: int | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
+        client_ref: str | None = None,
         idempotency_key: str | None = None,
     ) -> Validation:
         """Valida una transferencia SPEI contra el CEP de Banxico.
@@ -182,17 +183,23 @@ class Validations(_Resource):
         `POST /v1/validate`. Devuelve el veredicto en `Validation.status`. Para
         volumen está `enqueue()`, que acepta la petición y deja el veredicto
         para después.
+
+        `cuenta_beneficiaria` es obligatoria: la API no la busca entre los
+        beneficiarios guardados. `client_ref` es una referencia propia, de 1 a 64
+        caracteres, que vuelve en `Validation.client_ref` y en los webhooks, y que
+        `list()` acepta como filtro exacto.
         """
         body = self._direct_body(
             fecha=fecha,
             monto=monto,
+            cuenta_beneficiaria=cuenta_beneficiaria,
             clave_rastreo=clave_rastreo,
             referencia_numerica=referencia_numerica,
-            cuenta_beneficiaria=cuenta_beneficiaria,
             emisor=emisor,
             receptor=receptor,
             receptor_participante=receptor_participante,
             retry_policy=retry_policy,
+            client_ref=client_ref,
         )
         return self._sync("/validate", body, idempotency_key)
 
@@ -203,6 +210,7 @@ class Validations(_Resource):
         image_url: str | None = None,
         cuenta_beneficiaria: str | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
+        client_ref: str | None = None,
         idempotency_key: str | None = None,
     ) -> Validation:
         """Valida una transferencia a partir del comprobante, en imagen o en PDF.
@@ -213,12 +221,16 @@ class Validations(_Resource):
 
         `image_url` sirve para un comprobante ya publicado en HTTPS. Si se envían las
         dos, la API sólo considera `image`.
+
+        `client_ref` es una referencia propia, de 1 a 64 caracteres, que vuelve en
+        `Validation.client_ref` y en los webhooks.
         """
         body = self._ocr_body(
             image=image,
             image_url=image_url,
             cuenta_beneficiaria=cuenta_beneficiaria,
             retry_policy=retry_policy,
+            client_ref=client_ref,
         )
         return self._sync("/validate-ocr", body, idempotency_key)
 
@@ -227,13 +239,14 @@ class Validations(_Resource):
         *,
         fecha: str,
         monto: float | int | str,
+        cuenta_beneficiaria: str,
         clave_rastreo: str | None = None,
         referencia_numerica: str | None = None,
-        cuenta_beneficiaria: str | None = None,
         emisor: str | None = None,
         receptor: str | None = None,
         receptor_participante: int | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
+        client_ref: str | None = None,
         **_ignorados: Any,
     ) -> dict[str, Any]:
         """El cuerpo de una validación por campos, con su comprobación previa."""
@@ -244,16 +257,27 @@ class Validations(_Resource):
                 status=422,
                 code="clave_or_ref_required",
             )
-        body: dict[str, Any] = {"fecha": fecha, "monto": monto}
+        if not cuenta_beneficiaria:
+            raise InvalidRequestError(
+                "Hace falta cuenta_beneficiaria: la API no la busca entre los "
+                "beneficiarios guardados",
+                status=422,
+                code="cuenta_required",
+            )
+        body: dict[str, Any] = {
+            "fecha": fecha,
+            "monto": monto,
+            "cuenta_beneficiaria": cuenta_beneficiaria,
+        }
         body.update(
             _clean(
                 {
                     "clave_rastreo": clave_rastreo,
                     "referencia_numerica": referencia_numerica,
-                    "cuenta_beneficiaria": cuenta_beneficiaria,
                     "emisor": emisor,
                     "receptor": receptor,
                     "receptor_participante": receptor_participante,
+                    "client_ref": client_ref,
                 }
             )
         )
@@ -268,6 +292,7 @@ class Validations(_Resource):
         image_url: str | None = None,
         cuenta_beneficiaria: str | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
+        client_ref: str | None = None,
         **_ignorados: Any,
     ) -> dict[str, Any]:
         """El cuerpo de una validación por OCR, con su comprobación previa."""
@@ -284,6 +309,8 @@ class Validations(_Resource):
             body["image_url"] = image_url
         if cuenta_beneficiaria:
             body["cuenta_beneficiaria"] = cuenta_beneficiaria
+        if client_ref is not None:
+            body["client_ref"] = client_ref
         if retry_policy is not None:
             body["retry_policy"] = _retry_payload(retry_policy)
         return body
@@ -382,6 +409,7 @@ class Validations(_Resource):
         bank: str | None = None,
         amount_min: float | None = None,
         amount_max: float | None = None,
+        client_ref: str | None = None,
         retry_state: str | None = None,
     ) -> Page[ValidationSummary]:
         """Lista las validaciones de la cuenta, con filtros y paginación.
@@ -389,7 +417,8 @@ class Validations(_Resource):
         `GET /v1/validations`. `from_` lleva guion bajo porque `from` es palabra
         reservada de Python; viaja como `from`. `status` acepta un estado o una
         lista. `with_deleted=True` devuelve sólo las retiradas y `False` sólo las
-        activas. `playground=True` limita a las del banco de pruebas.
+        activas. `playground=True` limita a las del banco de pruebas. `client_ref`
+        filtra por coincidencia exacta con la referencia enviada al validar.
 
         Un listado trae menos campos que `get()`: no incluye los datos enviados,
         el resultado de Banxico ni los enlaces al comprobante.
@@ -413,6 +442,7 @@ class Validations(_Resource):
                         "bank": bank,
                         "amount_min": amount_min,
                         "amount_max": amount_max,
+                        "client_ref": client_ref,
                         "retry_state": retry_state,
                     }
                 ),

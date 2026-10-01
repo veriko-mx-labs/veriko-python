@@ -96,8 +96,49 @@ class RetryState:
 
 
 @dataclass(frozen=True)
+class DuplicateOf:
+    """La validación previa que ya había confirmado esta misma transferencia.
+
+    Sólo aparece cuando existe una validación `valid`, no retirada, de la misma
+    cuenta y con la misma clave de rastreo. No cambia el veredicto: la
+    validación se consulta y se cobra igual.
+    """
+
+    id: str
+    created_at: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> DuplicateOf:
+        return cls(id=str(data.get("id") or ""), created_at=data.get("created_at"))
+
+
+@dataclass(frozen=True)
+class AccountConflict:
+    """El choque entre la cuenta enviada y la que muestra la imagen del comprobante.
+
+    Sólo aparece en validaciones por OCR. Prevalece la cuenta enviada, que es la
+    que se consulta en Banxico, y el veredicto no cambia. Cada valor trae los
+    últimos 4 dígitos de su cuenta.
+    """
+
+    sent_last4: str
+    read_last4: str
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AccountConflict:
+        return cls(
+            sent_last4=str(data.get("sent_last4") or ""),
+            read_last4=str(data.get("read_last4") or ""),
+        )
+
+
+@dataclass(frozen=True)
 class Validation:
     """Una validación SPEI: el veredicto y todo lo que lo acompaña.
+
+    `client_ref` devuelve la referencia propia que se envió al validar, cuando se
+    envió. `duplicate_of` y `account_conflict` son `None` salvo que la API los
+    informe.
 
     https://docs.veriko.mx/es/concepts/validation-flow
     """
@@ -114,6 +155,9 @@ class Validation:
     error_message: str | None = None
     request_data: dict[str, Any] = field(default_factory=dict)
     retry_state: RetryState | None = None
+    client_ref: str | None = None
+    duplicate_of: DuplicateOf | None = None
+    account_conflict: AccountConflict | None = None
     links: dict[str, Any] = field(default_factory=dict)
     etag: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
@@ -156,6 +200,8 @@ class Validation:
         data = body.get("data") or {}
         attributes: dict[str, Any] = data.get("attributes") or {}
         retry_state = attributes.get("retry_state")
+        duplicate_of = attributes.get("duplicate_of")
+        account_conflict = attributes.get("account_conflict")
         return cls(
             id=str(data.get("id") or ""),
             status=str(attributes.get("status") or ""),
@@ -169,6 +215,15 @@ class Validation:
             error_message=attributes.get("error_message"),
             request_data=attributes.get("request_data") or {},
             retry_state=RetryState.from_dict(retry_state) if retry_state is not None else None,
+            client_ref=attributes.get("client_ref"),
+            duplicate_of=(
+                DuplicateOf.from_dict(duplicate_of) if isinstance(duplicate_of, dict) else None
+            ),
+            account_conflict=(
+                AccountConflict.from_dict(account_conflict)
+                if isinstance(account_conflict, dict)
+                else None
+            ),
             links=data.get("links") or {},
             attributes=attributes,
             meta=body.get("meta") or {},
@@ -287,6 +342,7 @@ class ValidationSummary:
     created_at: str | None = None
     deleted_at: str | None = None
     retry_state: RetryState | None = None
+    client_ref: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -309,6 +365,7 @@ class ValidationSummary:
             created_at=attributes.get("created_at"),
             deleted_at=attributes.get("deleted_at"),
             retry_state=RetryState.from_dict(retry_state) if retry_state is not None else None,
+            client_ref=attributes.get("client_ref"),
             attributes=attributes,
             raw=item,
         )

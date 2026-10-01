@@ -30,18 +30,23 @@ if not prueba.delivered:
 print("Prueba entregada en", prueba.response_time_ms, "ms")
 
 # 3. Las transferencias por validar. La clave de idempotencia sale del número de
-#    pedido, no de un aleatorio: así un reenvío no duplica el cargo.
+#    pedido, no de un aleatorio: así un reenvío no duplica el cargo. `client_ref`
+#    relaciona la validación con un pedido propio.
 transferencias = [
     {
         "fecha": "2025-03-15",
         "monto": 15000.50,
         "clave_rastreo": "MXBA20250315001234",
+        "cuenta_beneficiaria": "012180004412345678",
+        "client_ref": "pedido-4f3a2b1c",
         "idempotency_key": "pedido-4f3a2b1c",
     },
     {
         "fecha": "2025-03-15",
         "monto": 2300.00,
         "clave_rastreo": "MXBA20250315005678",
+        "cuenta_beneficiaria": "012180004412345678",
+        "client_ref": "pedido-7c2d9e0a",
         "idempotency_key": "pedido-7c2d9e0a",
     },
 ]

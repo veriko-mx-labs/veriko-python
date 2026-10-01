@@ -36,7 +36,10 @@ def test_veredicto_not_found_no_trae_comprobante(client: Veriko, server: Recordi
     server.enqueue_recording("validate-not-found")
 
     validation = client.validate_transfer(
-        fecha="2025-03-16", monto=15000.50, clave_rastreo="MXBA20250316000001"
+        fecha="2025-03-16",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250316000001",
     )
 
     assert validation.status == "not_found"
@@ -52,7 +55,10 @@ def test_veredicto_returned_sigue_entregando_el_comprobante(
     server.enqueue_recording("validate-returned")
 
     validation = client.validate_transfer(
-        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
     )
 
     assert validation.status == "returned"
@@ -95,6 +101,7 @@ def test_la_politica_de_reintentos_viaja_en_el_cuerpo(
     client.validate_transfer(
         fecha="2025-03-16",
         monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
         clave_rastreo="MXBA20250316000001",
         retry_policy=RetryPolicy(
             max_retries=3, interval_seconds=600, outcomes=["not_found", "cep_unavailable"]
@@ -115,7 +122,9 @@ def test_sin_identificador_de_transferencia_no_se_llama_a_la_api(
     client = make_client(server, sleeps)
 
     with pytest.raises(InvalidRequestError) as raised:
-        client.validate_transfer(fecha="2025-03-15", monto=100.0)
+        client.validate_transfer(
+            fecha="2025-03-15", monto=100.0, cuenta_beneficiaria="012180004412345678"
+        )
 
     assert raised.value.code == "clave_or_ref_required"
     assert server.requests == []
@@ -127,6 +136,7 @@ def test_el_cuerpo_viaja_en_utf8_sin_escapes(client: Veriko, server: RecordingSe
     client.validate_transfer(
         fecha="2025-03-15",
         monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
         clave_rastreo="MXBA20250315001234",
         emisor="BANCO DEL BAJÍO",
     )
@@ -146,3 +156,81 @@ def test_leer_una_validacion_por_su_id(client: Veriko, server: RecordingServer) 
     assert validation.retry_state.enabled is True
     assert validation.retry_state.attempts_completed == 2
     assert validation.retry_state.next_attempt_at == "2025-03-15T14:42:11Z"
+
+
+def test_sin_cuenta_beneficiaria_no_se_llama_a_la_api(
+    server: RecordingServer, sleeps: list[float]
+) -> None:
+    client = make_client(server, sleeps)
+
+    with pytest.raises(InvalidRequestError) as raised:
+        client.validate_transfer(
+            fecha="2025-03-15",
+            monto=100.0,
+            clave_rastreo="MXBA20250315001234",
+            cuenta_beneficiaria="",
+        )
+
+    assert raised.value.code == "cuenta_required"
+    assert server.requests == []
+
+
+def test_la_cuenta_beneficiaria_es_obligatoria_en_la_firma(client: Veriko) -> None:
+    with pytest.raises(TypeError, match="cuenta_beneficiaria"):
+        client.validate_transfer(  # type: ignore[call-arg]
+            fecha="2025-03-15", monto=100.0, clave_rastreo="MXBA20250315001234"
+        )
+
+    with pytest.raises(TypeError, match="cuenta_beneficiaria"):
+        client.validations.enqueue(fecha="2025-03-15", monto=100.0, clave_rastreo="MXBA1")
+
+
+def test_client_ref_viaja_en_el_cuerpo_y_vuelve_en_la_validacion(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-valid-client-ref")
+
+    validation = client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+        client_ref="orden-4812",
+    )
+
+    assert server.requests[0].json()["client_ref"] == "orden-4812"
+    assert validation.client_ref == "orden-4812"
+
+
+def test_sin_client_ref_no_viaja_y_el_campo_queda_en_none(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-valid")
+
+    validation = client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+    )
+
+    assert "client_ref" not in server.requests[0].json()
+    assert validation.client_ref is None
+    assert validation.duplicate_of is None
+    assert validation.account_conflict is None
+
+
+def test_un_client_ref_vacio_llega_a_la_api_para_que_lo_rechace(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-valid")
+
+    client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+        client_ref="",
+    )
+
+    assert server.requests[0].json()["client_ref"] == ""

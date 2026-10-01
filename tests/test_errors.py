@@ -15,7 +15,12 @@ from veriko import (
 
 
 def _validate(client: Veriko) -> None:
-    client.validate_transfer(fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234")
+    client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+    )
 
 
 def test_422_expone_todas_las_entradas_no_solo_la_primera(

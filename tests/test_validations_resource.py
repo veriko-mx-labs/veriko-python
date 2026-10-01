@@ -11,10 +11,13 @@ import pytest
 
 from conftest import RecordingServer
 from veriko import (
+    AccountConflict,
     APIError,
     ConfigurationError,
+    DuplicateOf,
     InvalidRequestError,
     RetryPolicy,
+    ValidationSummary,
     Veriko,
 )
 
@@ -85,7 +88,10 @@ def test_encolar_devuelve_el_acuse_sin_veredicto(client: Veriko, server: Recordi
     server.enqueue_recording("validate-queued")
 
     queued = client.validations.enqueue(
-        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
     )
 
     assert server.requests[0].path == "/v1/validate?async=1"
@@ -336,10 +342,16 @@ def test_el_atajo_de_la_raiz_y_la_familia_hacen_lo_mismo(
     server.enqueue_recording("validate-valid", times=2)
 
     desde_raiz = client.validate_transfer(
-        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
     )
     desde_familia = client.validations.validate(
-        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
     )
 
     assert desde_raiz.id == desde_familia.id
@@ -444,7 +456,10 @@ def test_sondear_desde_la_cola_hasta_el_veredicto(client: Veriko, server: Record
     esperas: list[float] = []
 
     queued = client.validations.enqueue(
-        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
     )
     validation = client.validations.wait_for(queued.id, poll_interval=2.0, sleep=esperas.append)
 
@@ -471,3 +486,74 @@ def test_exportar_el_historial_en_xlsx(client: Veriko, server: RecordingServer) 
     assert "spreadsheetml.sheet" in (server.requests[0].header("accept") or "")
     assert export.filename == "veriko_validaciones_2025-03-15.xlsx"
     assert export.content.startswith(b"PK")
+
+
+# ── Referencia propia, duplicado y conflicto de cuenta ──────────────────────
+
+
+def test_validar_una_imagen_lleva_client_ref(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validate-ocr-conflict")
+
+    validation = client.validations.validate_ocr(image=b"png", client_ref="orden-4812")
+
+    assert server.requests[0].json()["client_ref"] == "orden-4812"
+    assert validation.client_ref == "orden-4812"
+
+
+def test_encolar_lleva_client_ref_en_los_dos_caminos(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-queued", times=2)
+
+    client.validations.enqueue(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+        client_ref="orden-4812",
+    )
+    client.validations.enqueue_ocr(image=b"png", client_ref="orden-4812")
+
+    assert server.requests[0].path == "/v1/validate?async=1"
+    assert server.requests[0].json()["client_ref"] == "orden-4812"
+    assert server.requests[1].path == "/v1/validate-ocr?async=1"
+    assert server.requests[1].json()["client_ref"] == "orden-4812"
+
+
+def test_la_validacion_expone_el_duplicado_y_el_conflicto_de_cuenta(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-ocr-conflict")
+
+    validation = client.validations.validate_ocr(image=b"png", cuenta_beneficiaria="5678")
+
+    assert validation.duplicate_of == DuplicateOf(
+        id="3fa85f64-5717-4562-b3fc-2c963f66afa6", created_at="2025-04-09T09:15:00Z"
+    )
+    assert validation.account_conflict == AccountConflict(sent_last4="5678", read_last4="9012")
+    # El conflicto no cambia el veredicto.
+    assert validation.status == "not_found"
+
+
+def test_client_ref_filtra_el_listado_la_exportacion_y_las_estadisticas(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validations-page1")
+    server.enqueue_recording("validations-export-csv")
+    server.enqueue_recording("validations-stats")
+
+    client.validations.list(client_ref="orden 4812")
+    client.validations.export(client_ref="orden 4812")
+    client.validations.stats(client_ref="orden 4812")
+
+    for indice in range(3):
+        assert _consulta(server, indice)["client_ref"] == ["orden 4812"]
+
+
+def test_un_listado_trae_el_client_ref_de_cada_validacion() -> None:
+    resumen = ValidationSummary.from_item(
+        {"id": VALIDATION_ID, "attributes": {"status": "valid", "client_ref": "orden-4812"}}
+    )
+
+    assert resumen.client_ref == "orden-4812"
+    assert ValidationSummary.from_item({"id": VALIDATION_ID, "attributes": {}}).client_ref is None

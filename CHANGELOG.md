@@ -5,7 +5,21 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
-Sin cambios todavía.
+### Añadido
+
+- `client_ref` en `validate_transfer()`, `validations.validate()`, `validations.validate_ocr()`,
+  `validations.enqueue()` y `validations.enqueue_ocr()`: una referencia propia de 1 a 64 caracteres
+  que vuelve en `Validation.client_ref` y en `ValidationSummary.client_ref`.
+- El filtro `client_ref`, de coincidencia exacta, en `validations.list()`, `validations.iter()`,
+  `validations.stats()` y `validations.export()`.
+- `Validation.duplicate_of` y `Validation.account_conflict`, con los tipos `DuplicateOf` y
+  `AccountConflict`. Valen `None` si la respuesta no los trae.
+
+### Cambiado
+
+- `cuenta_beneficiaria` es obligatoria en `validate_transfer()`, `validations.validate()` y
+  `validations.enqueue()`. Sin ella, el SDK lanza `InvalidRequestError` con `cuenta_required` y no
+  llama a la API.
 
 ## [0.5.5] — 2026-09-29
 

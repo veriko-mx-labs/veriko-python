@@ -10,7 +10,12 @@ from veriko._http import parse_retry_after
 
 
 def _validate(client: Veriko) -> None:
-    client.validate_transfer(fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234")
+    client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+    )
 
 
 # ── Qué se reintenta ────────────────────────────────────────────────────────
@@ -23,7 +28,10 @@ def test_un_503_se_reintenta_y_la_segunda_respuesta_gana(
     server.enqueue_recording("validate-valid")
 
     validation = client.validate_transfer(
-        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
     )
 
     assert validation.status == "valid"
@@ -38,7 +46,10 @@ def test_un_429_se_reintenta_esperando_lo_que_dice_retry_after(
     server.enqueue_recording("validate-valid")
 
     validation = client.validate_transfer(
-        fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234"
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
     )
 
     assert validation.status == "valid"
@@ -95,6 +106,7 @@ def test_la_clave_de_idempotencia_del_integrador_viaja_tal_cual(
     client.validate_transfer(
         fecha="2025-03-15",
         monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
         clave_rastreo="MXBA20250315001234",
         idempotency_key="pedido-4f3a2b1c",
     )
@@ -109,7 +121,12 @@ def test_sin_clave_el_sdk_pone_una_y_la_repite_en_los_reintentos(
     server.enqueue_recording("validate-503")
     server.enqueue_recording("validate-valid")
 
-    client.validate_transfer(fecha="2025-03-15", monto=15000.50, clave_rastreo="MXBA20250315001234")
+    client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+    )
 
     claves = [request.header("idempotency-key") for request in server.requests]
     assert len(claves) == 2
