@@ -15,11 +15,17 @@ import pytest
 
 from spec_support import load_spec, schema_properties
 from veriko.models import (
+    AccountConflict,
     Bank,
     Beneficiary,
     BeneficiaryImportJob,
     BeneficiaryImportRow,
     BeneficiaryLookup,
+    CandidateMatch,
+    DuplicateOf,
+    PurgePreparation,
+    PurgeResult,
+    RecheckResult,
     RetryAttempt,
     RetryState,
     UsageSummary,
@@ -66,3 +72,51 @@ def test_los_campos_tipados_existen_en_el_spec(
 
     inventados = sorted(campos - set(propiedades))
     assert not inventados, f"{modelo.__name__} lee campos que el spec no declara: {inventados}"
+
+
+def _atributos(esquema: str) -> dict[str, Any]:
+    """Los atributos de un recurso `data.attributes` de una respuesta del spec."""
+    esquemas = load_spec()["components"]["schemas"]
+    data = schema_properties(esquemas[esquema])["data"]
+    atributos: dict[str, Any] = schema_properties(schema_properties(data)["attributes"])
+    return atributos
+
+
+def _atributo_de_validacion(nombre: str) -> dict[str, Any]:
+    esquemas = load_spec()["components"]["schemas"]
+    atributos = schema_properties(schema_properties(esquemas["Validation"])["attributes"])
+    return schema_properties(atributos[nombre])
+
+
+ANIDADOS: list[tuple[type[Any], Any, set[str]]] = [
+    (DuplicateOf, lambda: _atributo_de_validacion("duplicate_of"), set()),
+    (AccountConflict, lambda: _atributo_de_validacion("account_conflict"), set()),
+    (CandidateMatch, lambda: _atributo_de_validacion("candidate_match"), set()),
+    (
+        RecheckResult,
+        lambda: schema_properties(load_spec()["components"]["schemas"]["ValidationRecheckMeta"]),
+        PROPIOS | {"validation"},
+    ),
+    (
+        PurgePreparation,
+        lambda: _atributos("ValidationPurgePrepareResponse"),
+        PROPIOS | {"id"},
+    ),
+    (PurgeResult, lambda: _atributos("ValidationPurgeExecuteResponse"), PROPIOS | {"id"}),
+]
+
+
+@pytest.mark.parametrize(
+    ("modelo", "propiedades", "propios"),
+    ANIDADOS,
+    ids=[modelo.__name__ for modelo, *_ in ANIDADOS],
+)
+def test_los_tipos_anidados_existen_en_el_spec(
+    modelo: type[Any], propiedades: Any, propios: set[str]
+) -> None:
+    declaradas = set(propiedades())
+    campos = {campo.name for campo in dataclasses.fields(modelo)} - propios
+
+    inventados = sorted(campos - declaradas)
+    assert not inventados, f"{modelo.__name__} lee campos que el spec no declara: {inventados}"
+    assert campos == declaradas

@@ -141,6 +141,7 @@ class Transport:
         extra_headers: Mapping[str, str] | None = None,
         accept: str = "application/json",
         multipart: Mapping[str, str | MultipartFile] | None = None,
+        retry: bool = True,
     ) -> Response:
         url = self._build_url(path, query)
         payload: bytes | None = None
@@ -167,7 +168,7 @@ class Transport:
                 if value is not None:
                     headers[name] = value
 
-        attempts = self.retry.max_retries + 1
+        attempts = self.retry.max_retries + 1 if retry else 1
         last_connection_error: BaseException | None = None
 
         for attempt in range(attempts):

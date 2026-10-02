@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ._http import RetryConfig, Transport
@@ -143,7 +143,8 @@ class Veriko:
         *,
         fecha: str,
         monto: float | int | str,
-        cuenta_beneficiaria: str,
+        cuenta_beneficiaria: str | None = None,
+        cuentas_candidatas: Sequence[str] | None = None,
         clave_rastreo: str | None = None,
         referencia_numerica: str | None = None,
         emisor: str | None = None,
@@ -156,10 +157,11 @@ class Veriko:
         """Atajo de `client.validations.validate()`.
 
         Valida una transferencia SPEI contra el CEP de Banxico. Hace falta
-        `cuenta_beneficiaria`, y `clave_rastreo` o `referencia_numerica`; las dos
-        últimas juntas precisan la búsqueda. La fecha es la de **envío**, en
-        `YYYY-MM-DD`. `client_ref` es una referencia propia que vuelve en la
-        validación y en los webhooks.
+        `cuenta_beneficiaria`, o `cuentas_candidatas` cuando no se sabe cuál fue la
+        cuenta (una de las dos, no las dos), y `clave_rastreo` o
+        `referencia_numerica`; las dos últimas juntas precisan la búsqueda. La
+        fecha es la de **envío**, en `YYYY-MM-DD`. `client_ref` es una referencia
+        propia que vuelve en la validación y en los webhooks.
 
         Cada llamada consume cuota del plan, y se descuenta al aceptar la
         petición.
@@ -168,6 +170,7 @@ class Veriko:
             fecha=fecha,
             monto=monto,
             cuenta_beneficiaria=cuenta_beneficiaria,
+            cuentas_candidatas=cuentas_candidatas,
             clave_rastreo=clave_rastreo,
             referencia_numerica=referencia_numerica,
             emisor=emisor,

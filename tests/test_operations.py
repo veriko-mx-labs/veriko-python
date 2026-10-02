@@ -1,4 +1,4 @@
-"""Las 66 operaciones M2M que cubre el SDK, contra el spec público.
+"""Las 69 operaciones M2M que cubre el SDK, contra el spec público.
 
 Cada caso llama a un método con todos sus argumentos opcionales y comprueba que lo
 que llegó al servidor existe en el spec: el método y la ruta, los parámetros de
@@ -36,6 +36,10 @@ WEBHOOK = "9f8e7d6c-5b4a-3210-fedc-ba9876543210"
 IMPORT = "8a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
 FILA = "17"
 
+TOKEN_DE_BORRADO = "eyJhZG1pbl9pZCI6Ii4uLiJ9.q1w2e3r4t5y6u7i8o9p0"
+
+CANDIDATAS = ["012180004412345678", "002010077777777771"]
+
 FILTROS: dict[str, Any] = {
     "status": ["valid", "not_found"],
     "type": "ocr",
@@ -68,6 +72,8 @@ class Caso:
     # El caso pasa todos los parámetros de consulta / campos del cuerpo del spec.
     todos_los_parametros: bool = False
     todo_el_cuerpo: bool = False
+    # Campos del cuerpo que el caso omite porque excluyen a otro que sí pasa.
+    sin_campos: frozenset[str] = frozenset()
 
 
 CASOS = [
@@ -89,6 +95,26 @@ CASOS = [
             idempotency_key="pedido-1",
         ),
         todo_el_cuerpo=True,
+        sin_campos=frozenset({"cuentas_candidatas"}),
+    ),
+    Caso(
+        "validateDirect",
+        "validate-candidates",
+        lambda c: c.validations.validate(
+            fecha="2025-03-15",
+            monto=15000.5,
+            clave_rastreo="MXBA20250315001234",
+            referencia_numerica="1234567",
+            emisor="BANCO NACIONAL DE MEXICO",
+            receptor="BBVA MEXICO",
+            cuentas_candidatas=CANDIDATAS,
+            receptor_participante=1,
+            retry_policy=POLITICA,
+            client_ref="orden-4812",
+            idempotency_key="pedido-1",
+        ),
+        todo_el_cuerpo=True,
+        sin_campos=frozenset({"cuenta_beneficiaria"}),
     ),
     Caso(
         "validateDirect",
@@ -108,6 +134,7 @@ CASOS = [
         ),
         todos_los_parametros=True,
         todo_el_cuerpo=True,
+        sin_campos=frozenset({"cuentas_candidatas"}),
     ),
     Caso(
         "validateOcr",
@@ -118,9 +145,26 @@ CASOS = [
             cuenta_beneficiaria="012180004412345678",
             retry_policy=POLITICA,
             client_ref="orden-4812",
+            retain_image=False,
             idempotency_key="pedido-2",
         ),
         todo_el_cuerpo=True,
+        sin_campos=frozenset({"cuentas_candidatas"}),
+    ),
+    Caso(
+        "validateOcr",
+        "validate-ocr",
+        lambda c: c.validations.validate_ocr(
+            image=b"imagen",
+            image_url="https://ejemplo.mx/comprobante.png",
+            cuentas_candidatas=CANDIDATAS,
+            retry_policy=POLITICA,
+            client_ref="orden-4812",
+            retain_image=True,
+            idempotency_key="pedido-2",
+        ),
+        todo_el_cuerpo=True,
+        sin_campos=frozenset({"cuenta_beneficiaria"}),
     ),
     Caso(
         "validateOcr",
@@ -131,10 +175,12 @@ CASOS = [
             cuenta_beneficiaria="012180004412345678",
             retry_policy=POLITICA,
             client_ref="orden-4812",
+            retain_image=False,
             idempotency_key="pedido-2",
         ),
         todos_los_parametros=True,
         todo_el_cuerpo=True,
+        sin_campos=frozenset({"cuentas_candidatas"}),
     ),
     Caso(
         "listValidations",
@@ -183,6 +229,18 @@ CASOS = [
     Caso("deleteValidation", "no-content", lambda c: c.validations.delete(ID)),
     Caso(
         "sendCepToTelegram", "telegram-accepted", lambda c: c.validations.send_cep_to_telegram(ID)
+    ),
+    Caso("recheckValidation", "validation-recheck-returned", lambda c: c.validations.recheck(ID)),
+    Caso(
+        "prepareValidationPurge",
+        "validation-purge-prepare",
+        lambda c: c.validations.prepare_purge(ID),
+    ),
+    Caso(
+        "executeValidationPurge",
+        "validation-purge-executed",
+        lambda c: c.validations.execute_purge(ID, confirmation_token=TOKEN_DE_BORRADO),
+        todo_el_cuerpo=True,
     ),
     # ── Webhooks ────────────────────────────────────────────────────────────
     Caso(
@@ -498,6 +556,9 @@ IMPLEMENTED_OPERATIONS = {
     "cancelValidationRetries",
     "deleteValidation",
     "sendCepToTelegram",
+    "recheckValidation",
+    "prepareValidationPurge",
+    "executeValidationPurge",
     "createWebhook",
     "listWebhooks",
     "updateWebhook",
@@ -622,13 +683,13 @@ def test_lo_que_el_sdk_envia_existe_en_el_spec(
         for campo in campos:
             assert campo in propiedades, f"{plantilla}: el spec no declara el campo {campo}"
         if caso.todo_el_cuerpo:
-            assert campos == sorted(propiedades)
+            assert campos == sorted(set(propiedades) - caso.sin_campos)
 
 
-def test_cubre_exactamente_las_66_operaciones_del_contrato_sin_familias_parciales() -> None:
+def test_cubre_exactamente_las_69_operaciones_del_contrato_sin_familias_parciales() -> None:
     cubiertas = {caso.operacion for caso in CASOS}
 
-    assert len(IMPLEMENTED_OPERATIONS) == 66
+    assert len(IMPLEMENTED_OPERATIONS) == 69
     assert cubiertas == IMPLEMENTED_OPERATIONS
     assert coverage_errors(m2m_operation_ids(), IMPLEMENTED_OPERATIONS, KNOWN_GAPS) == []
 

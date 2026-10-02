@@ -9,14 +9,19 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from conftest import RecordingServer
+from conftest import RecordingServer, make_client
 from veriko import (
     AccountConflict,
     APIError,
     ConfigurationError,
     DuplicateOf,
     InvalidRequestError,
+    PurgePreparation,
+    PurgeResult,
+    RateLimitError,
+    RecheckResult,
     RetryPolicy,
+    ServerError,
     ValidationSummary,
     Veriko,
 )
@@ -557,3 +562,255 @@ def test_un_listado_trae_el_client_ref_de_cada_validacion() -> None:
 
     assert resumen.client_ref == "orden-4812"
     assert ValidationSummary.from_item({"id": VALIDATION_ID, "attributes": {}}).client_ref is None
+
+
+# ── Varias cuentas candidatas ───────────────────────────────────────────────
+
+
+def test_encolar_con_candidatas_las_lleva_en_los_dos_caminos(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-queued", times=2)
+    candidatas = ["012180004412345678", "002010077777777771"]
+
+    client.validations.enqueue(
+        fecha="2025-03-15",
+        monto=15000.50,
+        clave_rastreo="MXBA20250315001234",
+        cuentas_candidatas=candidatas,
+    )
+    client.validations.enqueue_ocr(image=b"png", cuentas_candidatas=candidatas)
+
+    assert server.requests[0].path == "/v1/validate?async=1"
+    assert server.requests[0].json()["cuentas_candidatas"] == candidatas
+    assert "cuenta_beneficiaria" not in server.requests[0].json()
+    assert server.requests[1].path == "/v1/validate-ocr?async=1"
+    assert server.requests[1].json()["cuentas_candidatas"] == candidatas
+
+
+def test_validar_una_imagen_con_candidatas_no_envia_la_cuenta(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-ocr")
+
+    client.validations.validate_ocr(
+        image_url="https://ejemplo.mx/comprobante.png",
+        cuentas_candidatas=("012180004412345678", "002010077777777771"),
+    )
+
+    assert server.requests[0].json() == {
+        "image_url": "https://ejemplo.mx/comprobante.png",
+        "cuentas_candidatas": ["012180004412345678", "002010077777777771"],
+    }
+
+
+# ── Conservar el comprobante o no ───────────────────────────────────────────
+
+
+def test_retain_image_false_viaja_y_la_validacion_dice_que_no_conserva_el_archivo(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-ocr-not-retained")
+
+    validation = client.validations.validate_ocr(image=b"png", retain_image=False)
+
+    assert server.requests[0].json()["retain_image"] is False
+    assert validation.image_retained is False
+    assert "image_path" not in validation.attributes
+
+
+def test_sin_retain_image_no_viaja_y_la_validacion_no_informa_nada(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-ocr")
+
+    validation = client.validations.validate_ocr(image=b"png")
+
+    assert "retain_image" not in server.requests[0].json()
+    assert validation.image_retained is None
+    assert validation.purged_at is None
+    assert validation.is_purged is False
+
+
+def test_retain_image_true_tambien_viaja_en_el_camino_asincrono(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-queued")
+
+    client.validations.enqueue_ocr(image=b"png", retain_image=True)
+
+    assert server.requests[0].json()["retain_image"] is True
+
+
+# ── Revisar el estado de pago ───────────────────────────────────────────────
+
+
+def test_revisar_una_validacion_que_pasa_a_returned(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validation-recheck-returned")
+
+    resultado = client.validations.recheck(VALIDATION_ID)
+
+    assert isinstance(resultado, RecheckResult)
+    assert server.requests[0].method == "POST"
+    assert server.requests[0].path == "/v1/validations/" + VALIDATION_ID + "/recheck"
+    assert server.requests[0].body == b""
+    assert resultado.changed is True
+    assert resultado.previous_status == "valid"
+    assert resultado.checked_at == "2026-10-02T09:15:44Z"
+    assert resultado.validation.id == VALIDATION_ID
+    assert resultado.validation.status == "returned"
+    assert resultado.validation.is_terminal is True
+    assert resultado.validation.has_cep is True
+
+
+def test_revisar_una_validacion_que_sigue_valid(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validation-recheck-unchanged")
+
+    resultado = client.validations.recheck(VALIDATION_ID)
+
+    assert resultado.changed is False
+    assert resultado.previous_status == "valid"
+    assert resultado.validation.status == "valid"
+
+
+def test_la_revision_deja_el_estado_del_pago_en_la_validacion(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validation-recheck-returned")
+    server.enqueue_recording("validate-valid")
+
+    devuelta = client.validations.recheck(VALIDATION_ID).validation
+    sin_revisar = client.get_validation(VALIDATION_ID)
+
+    assert devuelta.payment_status is not None
+    assert devuelta.payment_status.code == "devuelto"
+    assert devuelta.payment_status.label == "Devuelto"
+    assert devuelta.payment_status.reversed is True
+    assert devuelta.payment_status.settled is False
+    assert devuelta.payment_status.checked_at == "2026-10-02T09:15:44Z"
+    assert sin_revisar.payment_status is None
+
+
+def test_una_revision_antes_de_tiempo_no_se_reintenta_sola(
+    server: RecordingServer, sleeps: list[float]
+) -> None:
+    server.enqueue_recording("validate-429")
+    client = make_client(server, sleeps)
+
+    with pytest.raises(RateLimitError) as raised:
+        client.validations.recheck(VALIDATION_ID)
+
+    assert raised.value.retry_after == 7
+    assert len(server.requests) == 1
+    assert sleeps == []
+
+
+def test_una_revision_con_banxico_caido_no_se_reintenta_sola(
+    server: RecordingServer, sleeps: list[float]
+) -> None:
+    server.enqueue_recording("validate-503")
+    client = make_client(server, sleeps)
+
+    with pytest.raises(ServerError) as raised:
+        client.validations.recheck(VALIDATION_ID)
+
+    assert raised.value.status == 503
+    assert len(server.requests) == 1
+
+
+def test_una_validacion_purgada_responde_410(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validation-purged-410")
+
+    with pytest.raises(APIError) as raised:
+        client.validations.recheck(VALIDATION_ID)
+
+    assert raised.value.status == 410
+    assert raised.value.code == "validation_purged"
+
+
+# ── Borrado definitivo ──────────────────────────────────────────────────────
+
+
+def test_preparar_el_borrado_devuelve_el_token_y_lo_que_se_borraria(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validation-purge-prepare")
+
+    preparacion = client.validations.prepare_purge(VALIDATION_ID)
+
+    assert isinstance(preparacion, PurgePreparation)
+    assert server.requests[0].method == "POST"
+    assert server.requests[0].path == "/v1/validations/" + VALIDATION_ID + "/purge/prepare"
+    assert preparacion.id == VALIDATION_ID
+    assert preparacion.confirmation_token == "eyJhZG1pbl9pZCI6Ii4uLiJ9.q1w2e3r4t5y6u7i8o9p0"
+    assert preparacion.expires_in == 120
+    assert preparacion.irreversible is True
+    assert preparacion.will_delete["image"] is True
+    assert preparacion.will_delete["stored_data"][0] == "request_data"
+    assert "purged_at" in preparacion.will_keep
+    assert preparacion.cancels_pending_retries is False
+    assert preparacion.refunds_quota is False
+    assert preparacion.same_image_validation_ids == []
+
+
+def test_ejecutar_el_borrado_envia_el_token_y_devuelve_lo_borrado(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validation-purge-executed")
+
+    resultado = client.validations.execute_purge(
+        VALIDATION_ID, confirmation_token="eyJhZG1pbl9pZCI6Ii4uLiJ9.q1w2e3r4t5y6u7i8o9p0"
+    )
+
+    assert isinstance(resultado, PurgeResult)
+    assert server.requests[0].method == "POST"
+    assert server.requests[0].path == "/v1/validations/" + VALIDATION_ID + "/purge/execute"
+    assert server.requests[0].json() == {
+        "confirmation_token": "eyJhZG1pbl9pZCI6Ii4uLiJ9.q1w2e3r4t5y6u7i8o9p0"
+    }
+    assert resultado.id == VALIDATION_ID
+    assert resultado.purged_at == "2026-10-02T09:30:00Z"
+    assert resultado.file_removal == "complete"
+    assert resultado.deleted["image"] is True
+    assert resultado.deleted["webhook_deliveries"] == 1
+
+
+def test_ejecutar_el_borrado_sin_token_no_llama_a_la_api(
+    client: Veriko, server: RecordingServer
+) -> None:
+    with pytest.raises(InvalidRequestError) as raised:
+        client.validations.execute_purge(VALIDATION_ID, confirmation_token="")
+
+    assert raised.value.code == "confirmation_token_missing"
+    assert server.requests == []
+
+
+def test_ejecutar_el_borrado_no_se_reintenta_solo(
+    server: RecordingServer, sleeps: list[float]
+) -> None:
+    server.enqueue_recording("validate-503")
+    server.enqueue_recording("validation-purge-executed")
+    client = make_client(server, sleeps)
+
+    with pytest.raises(ServerError):
+        client.validations.execute_purge(VALIDATION_ID, confirmation_token="token")
+
+    assert len(server.requests) == 1
+    assert sleeps == []
+
+
+def test_una_validacion_purgada_queda_como_una_lapida(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validation-purged-tombstone")
+
+    validation = client.get_validation(VALIDATION_ID)
+
+    assert validation.is_purged is True
+    assert validation.purged_at == "2026-10-02T09:30:00Z"
+    assert validation.status == "valid"
+    assert validation.attributes["normalized_data"] == {"monto": 15000.5}
+    assert validation.request_data == {}
+    assert validation.has_cep is False

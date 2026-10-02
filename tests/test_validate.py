@@ -7,7 +7,7 @@ import json
 import pytest
 
 from conftest import RecordingServer, make_client
-from veriko import InvalidRequestError, RetryPolicy, Veriko
+from veriko import CandidateMatch, InvalidRequestError, RetryPolicy, Veriko
 
 
 def test_veredicto_valid_trae_comprobante(client: Veriko, server: RecordingServer) -> None:
@@ -175,14 +175,108 @@ def test_sin_cuenta_beneficiaria_no_se_llama_a_la_api(
     assert server.requests == []
 
 
-def test_la_cuenta_beneficiaria_es_obligatoria_en_la_firma(client: Veriko) -> None:
-    with pytest.raises(TypeError, match="cuenta_beneficiaria"):
-        client.validate_transfer(  # type: ignore[call-arg]
+def test_sin_cuenta_ni_candidatas_no_se_llama_a_la_api(
+    client: Veriko, server: RecordingServer
+) -> None:
+    with pytest.raises(InvalidRequestError) as raised:
+        client.validate_transfer(
             fecha="2025-03-15", monto=100.0, clave_rastreo="MXBA20250315001234"
         )
 
-    with pytest.raises(TypeError, match="cuenta_beneficiaria"):
+    assert raised.value.code == "cuenta_required"
+
+    with pytest.raises(InvalidRequestError) as encolada:
         client.validations.enqueue(fecha="2025-03-15", monto=100.0, clave_rastreo="MXBA1")
+
+    assert encolada.value.code == "cuenta_required"
+    assert server.requests == []
+
+
+def test_las_cuentas_candidatas_viajan_en_lugar_de_la_cuenta(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-candidates")
+
+    validation = client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        clave_rastreo="MXBA20250315001234",
+        cuentas_candidatas=["012180004412345678", "002010077777777771"],
+    )
+
+    body = server.requests[0].json()
+    assert body["cuentas_candidatas"] == ["012180004412345678", "002010077777777771"]
+    assert "cuenta_beneficiaria" not in body
+    assert validation.candidate_match == CandidateMatch(index=1, account_last4="7771")
+
+
+def test_sin_candidatas_la_validacion_no_trae_candidate_match(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-valid")
+
+    validation = client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        cuenta_beneficiaria="012180004412345678",
+        clave_rastreo="MXBA20250315001234",
+    )
+
+    assert "cuentas_candidatas" not in server.requests[0].json()
+    assert validation.candidate_match is None
+
+
+def test_la_cuenta_y_las_candidatas_son_excluyentes(
+    client: Veriko, server: RecordingServer
+) -> None:
+    with pytest.raises(InvalidRequestError) as raised:
+        client.validate_transfer(
+            fecha="2025-03-15",
+            monto=100.0,
+            clave_rastreo="MXBA20250315001234",
+            cuenta_beneficiaria="012180004412345678",
+            cuentas_candidatas=["012180004412345678", "002010077777777771"],
+        )
+
+    assert raised.value.code == "cuenta_y_candidatas_excluyentes"
+
+    with pytest.raises(InvalidRequestError) as por_imagen:
+        client.validations.validate_ocr(
+            image=b"png",
+            cuenta_beneficiaria="012180004412345678",
+            cuentas_candidatas=["012180004412345678", "002010077777777771"],
+        )
+
+    assert por_imagen.value.code == "cuenta_y_candidatas_excluyentes"
+    assert server.requests == []
+
+
+def test_una_cadena_no_es_una_lista_de_candidatas(client: Veriko, server: RecordingServer) -> None:
+    with pytest.raises(InvalidRequestError) as raised:
+        client.validate_transfer(
+            fecha="2025-03-15",
+            monto=100.0,
+            clave_rastreo="MXBA20250315001234",
+            cuentas_candidatas="012180004412345678",
+        )
+
+    assert raised.value.code == "cuentas_candidatas_invalidas"
+    assert server.requests == []
+
+
+def test_una_lista_que_no_cumple_llega_a_la_api_para_que_la_rechace(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-candidates")
+
+    client.validate_transfer(
+        fecha="2025-03-15",
+        monto=100.0,
+        clave_rastreo="MXBA20250315001234",
+        cuentas_candidatas=["012180004412345678"],
+    )
+
+    assert server.requests[0].json()["cuentas_candidatas"] == ["012180004412345678"]
 
 
 def test_client_ref_viaja_en_el_cuerpo_y_vuelve_en_la_validacion(

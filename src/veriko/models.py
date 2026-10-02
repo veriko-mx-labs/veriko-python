@@ -133,12 +133,63 @@ class AccountConflict:
 
 
 @dataclass(frozen=True)
+class CandidateMatch:
+    """Cuál de las `cuentas_candidatas` enviadas coincidió con la transferencia.
+
+    `index` es la posición, desde 0, de la cuenta ganadora en la lista que se
+    envió, y `account_last4` son sus últimos 4 dígitos. La cuenta completa va en
+    `normalized_data.cuenta_beneficiaria` de la validación. No cambia el veredicto.
+    """
+
+    index: int
+    account_last4: str
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CandidateMatch:
+        return cls(
+            index=int(data.get("index") or 0),
+            account_last4=str(data.get("account_last4") or ""),
+        )
+
+
+@dataclass(frozen=True)
+class PaymentStatus:
+    """El estado oficial del pago, tal como lo dio Banxico la última vez que se le preguntó.
+
+    `code` vale `liquidado`, `en_proceso`, `cancelado`, `rechazado`,
+    `en_proceso_devolucion`, `devuelto` o `desconocido`. Con `devuelto` o
+    `en_proceso_devolucion` la validación pasa a `returned`. `checked_at` es el
+    instante de la consulta, en ISO 8601 UTC.
+    """
+
+    code: str
+    label: str | None = None
+    settled: bool | None = None
+    reversed: bool | None = None
+    checked_at: str | None = None
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PaymentStatus:
+        return cls(
+            code=str(data.get("code") or ""),
+            label=data.get("label"),
+            settled=data.get("settled"),
+            reversed=data.get("reversed"),
+            checked_at=data.get("checked_at"),
+            raw=data,
+        )
+
+
+@dataclass(frozen=True)
 class Validation:
     """Una validación SPEI: el veredicto y todo lo que lo acompaña.
 
     `client_ref` devuelve la referencia propia que se envió al validar, cuando se
-    envió. `duplicate_of` y `account_conflict` son `None` salvo que la API los
-    informe.
+    envió. `duplicate_of`, `account_conflict` y `candidate_match` son `None` salvo
+    que la API los informe. `image_retained` indica si la plataforma conserva el
+    archivo del comprobante, y `purged_at` marca una validación borrada
+    definitivamente, que queda como una lápida.
 
     https://docs.veriko.mx/es/concepts/validation-flow
     """
@@ -158,6 +209,9 @@ class Validation:
     client_ref: str | None = None
     duplicate_of: DuplicateOf | None = None
     account_conflict: AccountConflict | None = None
+    candidate_match: CandidateMatch | None = None
+    image_retained: bool | None = None
+    purged_at: str | None = None
     links: dict[str, Any] = field(default_factory=dict)
     etag: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
@@ -195,6 +249,22 @@ class Validation:
         """
         return bool(self.links.get("cep_xml"))
 
+    @property
+    def is_purged(self) -> bool:
+        """`True` cuando la validación se borró definitivamente y quedó como lápida."""
+        return self.purged_at is not None
+
+    @property
+    def payment_status(self) -> PaymentStatus | None:
+        """El estado del pago que Banxico dio en la última revisión, si existe.
+
+        Se lee de `banxico_result._payment_status`. Su ausencia significa que no se
+        pudo saber, nunca que el pago esté liquidado.
+        """
+        result = self.attributes.get("banxico_result")
+        status = result.get("_payment_status") if isinstance(result, dict) else None
+        return PaymentStatus.from_dict(status) if isinstance(status, dict) else None
+
     @classmethod
     def from_response(cls, body: dict[str, Any]) -> Validation:
         data = body.get("data") or {}
@@ -202,6 +272,7 @@ class Validation:
         retry_state = attributes.get("retry_state")
         duplicate_of = attributes.get("duplicate_of")
         account_conflict = attributes.get("account_conflict")
+        candidate_match = attributes.get("candidate_match")
         return cls(
             id=str(data.get("id") or ""),
             status=str(attributes.get("status") or ""),
@@ -224,6 +295,13 @@ class Validation:
                 if isinstance(account_conflict, dict)
                 else None
             ),
+            candidate_match=(
+                CandidateMatch.from_dict(candidate_match)
+                if isinstance(candidate_match, dict)
+                else None
+            ),
+            image_retained=attributes.get("image_retained"),
+            purged_at=attributes.get("purged_at"),
             links=data.get("links") or {},
             attributes=attributes,
             meta=body.get("meta") or {},
@@ -248,6 +326,111 @@ class QueuedValidation:
     next_poll_after_seconds: int | None = None
     meta: dict[str, Any] = field(default_factory=dict, repr=False)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+
+@dataclass(frozen=True)
+class RecheckResult:
+    """El resultado de volver a consultar el estado de pago de una validación.
+
+    `validation` es la validación con el estado vigente. `checked_at` es el
+    instante de la consulta a Banxico, y vale `None` cuando no se consultó nada
+    porque la validación ya estaba en `returned`. `changed` es `True` cuando esta
+    consulta la pasó de `valid` a `returned`. `previous_status` es el veredicto de
+    Banxico antes de la consulta: `valid` o `returned`.
+
+    https://docs.veriko.mx/es/concepts/cep-concept
+    """
+
+    validation: Validation
+    checked_at: str | None
+    changed: bool
+    previous_status: str
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> RecheckResult:
+        meta = body.get("meta")
+        recheck = meta.get("recheck") if isinstance(meta, dict) else None
+        info: dict[str, Any] = recheck if isinstance(recheck, dict) else {}
+        return cls(
+            validation=Validation.from_response(body),
+            checked_at=info.get("checked_at"),
+            changed=bool(info.get("changed", False)),
+            previous_status=str(info.get("previous_status") or ""),
+            raw=body,
+        )
+
+
+@dataclass(frozen=True)
+class PurgePreparation:
+    """Lo que borraría el borrado definitivo de una validación, y el token que lo confirma.
+
+    Todavía no ha cambiado nada. `id` es el de la validación. `confirmation_token`
+    es de un solo uso, está atado a la cuenta y a esa validación, y caduca en
+    `expires_in` segundos. `will_delete` describe lo que se borraría y `will_keep`
+    lista los campos que conserva la lápida. `irreversible` vale `True` siempre.
+
+    https://docs.veriko.mx/es/how-to/purge-a-validation
+    """
+
+    id: str
+    confirmation_token: str
+    expires_in: int
+    irreversible: bool
+    will_delete: dict[str, Any]
+    will_keep: list[str]
+    cancels_pending_retries: bool
+    refunds_quota: bool
+    same_image_validation_ids: list[str]
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> PurgePreparation:
+        data = body.get("data") or {}
+        attributes: dict[str, Any] = data.get("attributes") or {}
+        return cls(
+            id=str(data.get("id") or ""),
+            confirmation_token=str(attributes.get("confirmation_token") or ""),
+            expires_in=int(attributes.get("expires_in") or 0),
+            irreversible=bool(attributes.get("irreversible", True)),
+            will_delete=attributes.get("will_delete") or {},
+            will_keep=list(attributes.get("will_keep") or []),
+            cancels_pending_retries=bool(attributes.get("cancels_pending_retries", False)),
+            refunds_quota=bool(attributes.get("refunds_quota", False)),
+            same_image_validation_ids=list(attributes.get("same_image_validation_ids") or []),
+            raw=body,
+        )
+
+
+@dataclass(frozen=True)
+class PurgeResult:
+    """El resultado del borrado definitivo de una validación.
+
+    `id` es el de la validación, que queda como una lápida. `purged_at` es el
+    instante del borrado, en ISO 8601 UTC. `file_removal` vale `complete` cuando
+    los archivos ya no existen, y `pending` cuando alguno no se pudo borrar en ese
+    momento y el barrido diario lo termina. `deleted` cuenta lo que se borró.
+
+    https://docs.veriko.mx/es/how-to/purge-a-validation
+    """
+
+    id: str
+    purged_at: str
+    file_removal: str
+    deleted: dict[str, Any]
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any]) -> PurgeResult:
+        data = body.get("data") or {}
+        attributes: dict[str, Any] = data.get("attributes") or {}
+        return cls(
+            id=str(data.get("id") or ""),
+            purged_at=str(attributes.get("purged_at") or ""),
+            file_removal=str(attributes.get("file_removal") or ""),
+            deleted=attributes.get("deleted") or {},
+            raw=body,
+        )
 
 
 @dataclass(frozen=True)
@@ -308,6 +491,9 @@ class BanxicoConfirmed:
 class WebhookEvent:
     """Una entrega de webhook ya verificada.
 
+    `payment_status` sólo viaja en `validation.returned`: es el estado del pago que
+    delató la devolución. En el resto de los eventos vale `None`.
+
     https://docs.veriko.mx/es/concepts/webhooks-architecture
     """
 
@@ -315,6 +501,7 @@ class WebhookEvent:
     timestamp: str | None
     validation: Validation | None
     banxico_confirmed: BanxicoConfirmed | None = None
+    payment_status: PaymentStatus | None = None
     data: dict[str, Any] = field(default_factory=dict)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 

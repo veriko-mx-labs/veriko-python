@@ -1,0 +1,53 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "validation_purge",
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "attributes": {
+        "confirmation_token": "eyJhZG1pbl9pZCI6Ii4uLiJ9.q1w2e3r4t5y6u7i8o9p0",
+        "expires_in": 120,
+        "irreversible": true,
+        "will_delete": {
+          "image": true,
+          "cep": true,
+          "stored_data": [
+            "request_data",
+            "ocr_result",
+            "normalized_data",
+            "banxico_result"
+          ],
+          "retry_attempts": 0,
+          "probe_attempts": 0,
+          "webhook_deliveries": 1,
+          "notifications": 0,
+          "idempotency_responses": 1,
+          "audit_traces": true
+        },
+        "will_keep": [
+          "id",
+          "validation_type",
+          "status",
+          "banxico_status",
+          "amount",
+          "error_code",
+          "processing_time_ms",
+          "created_at",
+          "completed_at",
+          "deleted_at",
+          "purged_at"
+        ],
+        "cancels_pending_retries": false,
+        "refunds_quota": false,
+        "same_image_validation_ids": []
+      }
+    },
+    "meta": {
+      "version": "1.61.0",
+      "request_id": "b3c4d5e6f7a8"
+    }
+  }
+}

@@ -181,3 +181,31 @@ def test_parse_webhook_no_interpreta_un_cuerpo_con_firma_invalida() -> None:
 
     with pytest.raises(SignatureVerificationError):
         parse_webhook(payload, "sha256=0000", SECRET)
+
+
+def test_parse_webhook_lee_validation_returned() -> None:
+    payload = cuerpo("webhook-validation-returned")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.event == "validation.returned"
+    assert evento.timestamp == "2026-10-02T09:15:44Z"
+    assert evento.validation is not None
+    assert evento.validation.status == "returned"
+    assert evento.validation.banxico_status == "returned"
+    assert evento.validation.client_ref == "orden-4812"
+    assert evento.validation.has_cep is True
+    assert evento.payment_status is not None
+    assert evento.payment_status.code == "devuelto"
+    assert evento.payment_status.label == "Devuelto"
+    assert evento.payment_status.settled is False
+    assert evento.payment_status.reversed is True
+    assert evento.payment_status.checked_at == "2026-10-02T09:15:44Z"
+
+
+def test_parse_webhook_sin_payment_status_deja_el_campo_en_none() -> None:
+    payload = cuerpo("webhook-validation-completed")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.payment_status is None

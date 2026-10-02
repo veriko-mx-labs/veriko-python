@@ -52,7 +52,19 @@ OPERATION_RECORDINGS = {
     "downloadCep": ("cep-404", "cep-pdf", "cep-xml"),
     "exportAllDeliveries": ("deliveries-export-csv",),
     "deleteValidation": ("no-content",),
-    "getValidation": ("not-modified", "validation-queued-status", "validation-retrying"),
+    "getValidation": (
+        "not-modified",
+        "validation-purged-tombstone",
+        "validation-queued-status",
+        "validation-retrying",
+    ),
+    "recheckValidation": (
+        "validation-purged-410",
+        "validation-recheck-returned",
+        "validation-recheck-unchanged",
+    ),
+    "prepareValidationPurge": ("validation-purge-prepare",),
+    "executeValidationPurge": ("validation-purge-executed",),
     "cancelValidationRetries": ("retries-cancelled",),
     "listValidationRetryAttempts": ("retry-attempts",),
     "updateValidationRetryPolicy": ("retry-policy-updated",),
@@ -69,12 +81,13 @@ OPERATION_RECORDINGS = {
         "validate-429",
         "validate-503",
         "validate-not-found",
+        "validate-candidates",
         "validate-queued",
         "validate-returned",
         "validate-valid",
         "validate-valid-client-ref",
     ),
-    "validateOcr": ("validate-ocr", "validate-ocr-conflict"),
+    "validateOcr": ("validate-ocr", "validate-ocr-conflict", "validate-ocr-not-retained"),
     "getValidationImage": ("validation-image", "validation-image-pdf"),
     "listValidations": ("validations-empty", "validations-page1", "validations-page2"),
     "exportValidations": ("validations-export-csv", "validations-export-xlsx"),
@@ -97,6 +110,7 @@ NON_RESPONSE_RECORDINGS = {
     "webhook-validation-completed",
     "webhook-validation-completed-banxico-confirmed",
     "webhook-validation-completed-client-ref",
+    "webhook-validation-returned",
 }
 
 

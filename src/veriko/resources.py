@@ -25,7 +25,10 @@ from .models import (
     BeneficiaryLookup,
     CepDocument,
     Document,
+    PurgePreparation,
+    PurgeResult,
     QueuedValidation,
+    RecheckResult,
     RetryAttempt,
     RetryPolicy,
     RetryState,
@@ -96,6 +99,31 @@ def _retry_payload(policy: RetryPolicy | Mapping[str, Any]) -> dict[str, Any]:
     return policy.to_payload() if isinstance(policy, RetryPolicy) else dict(policy)
 
 
+def _account_fields(
+    cuenta_beneficiaria: str | None, cuentas_candidatas: Sequence[str] | None
+) -> dict[str, Any]:
+    """La cuenta de la petición: una sola, o una lista de candidatas, nunca las dos.
+
+    Cuántas candidatas admite la plataforma lo decide la API, que responde `422`
+    con `cuentas_candidatas_invalidas` cuando la lista no cumple.
+    """
+    if cuentas_candidatas is None:
+        return {"cuenta_beneficiaria": cuenta_beneficiaria} if cuenta_beneficiaria else {}
+    if cuenta_beneficiaria:
+        raise InvalidRequestError(
+            "Envía cuenta_beneficiaria o cuentas_candidatas, no las dos",
+            status=422,
+            code="cuenta_y_candidatas_excluyentes",
+        )
+    if isinstance(cuentas_candidatas, (str, bytes)):
+        raise InvalidRequestError(
+            "cuentas_candidatas va como una lista de cuentas",
+            status=422,
+            code="cuentas_candidatas_invalidas",
+        )
+    return {"cuentas_candidatas": list(cuentas_candidatas)}
+
+
 def _flag(value: bool | None) -> str | None:
     """`True` viaja como `1` y `False` como `0`; sin valor, el filtro no viaja."""
     if value is None:
@@ -159,7 +187,12 @@ class _Resource:
 
 
 class Validations(_Resource):
-    """Validaciones SPEI: crearlas, seguirlas y descargar lo que producen."""
+    """Validaciones SPEI: crearlas, seguirlas y descargar lo que producen.
+
+    Una validación purgada con `execute_purge()` responde `410` con
+    `validation_purged` en el CEP, el comprobante, los reintentos y la revisión
+    posterior.
+    """
 
     # ── Crear ───────────────────────────────────────────────────────────────
 
@@ -168,7 +201,8 @@ class Validations(_Resource):
         *,
         fecha: str,
         monto: float | int | str,
-        cuenta_beneficiaria: str,
+        cuenta_beneficiaria: str | None = None,
+        cuentas_candidatas: Sequence[str] | None = None,
         clave_rastreo: str | None = None,
         referencia_numerica: str | None = None,
         emisor: str | None = None,
@@ -184,15 +218,21 @@ class Validations(_Resource):
         volumen está `enqueue()`, que acepta la petición y deja el veredicto
         para después.
 
-        `cuenta_beneficiaria` es obligatoria: la API no la busca entre los
-        beneficiarios guardados. `client_ref` es una referencia propia, de 1 a 64
-        caracteres, que vuelve en `Validation.client_ref` y en los webhooks, y que
-        `list()` acepta como filtro exacto.
+        La cuenta va en `cuenta_beneficiaria`, o en `cuentas_candidatas` cuando no
+        se sabe cuál fue: de 2 a 3 cuentas en una sola validación y con una sola
+        unidad de cuota. Se envía una de las dos, no las dos. La API no busca la
+        cuenta entre los beneficiarios guardados. La cuenta que coincidió queda en
+        `Validation.candidate_match`.
+
+        `client_ref` es una referencia propia, de 1 a 64 caracteres, que vuelve en
+        `Validation.client_ref` y en los webhooks, y que `list()` acepta como filtro
+        exacto.
         """
         body = self._direct_body(
             fecha=fecha,
             monto=monto,
             cuenta_beneficiaria=cuenta_beneficiaria,
+            cuentas_candidatas=cuentas_candidatas,
             clave_rastreo=clave_rastreo,
             referencia_numerica=referencia_numerica,
             emisor=emisor,
@@ -209,8 +249,10 @@ class Validations(_Resource):
         image: bytes | str | Path | None = None,
         image_url: str | None = None,
         cuenta_beneficiaria: str | None = None,
+        cuentas_candidatas: Sequence[str] | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
         client_ref: str | None = None,
+        retain_image: bool | None = None,
         idempotency_key: str | None = None,
     ) -> Validation:
         """Valida una transferencia a partir del comprobante, en imagen o en PDF.
@@ -222,6 +264,15 @@ class Validations(_Resource):
         `image_url` sirve para un comprobante ya publicado en HTTPS. Si se envían las
         dos, la API sólo considera `image`.
 
+        `cuentas_candidatas` sustituye a `cuenta_beneficiaria` cuando la imagen no
+        muestra la cuenta y no se sabe cuál fue: de 2 a 3 cuentas, con una sola
+        unidad de cuota. Se envía una de las dos, no las dos.
+
+        `retain_image` vale `True` por omisión: la plataforma conserva el archivo y
+        `image()` lo sirve. Con `False` lo borra en cuanto la validación llega a un
+        estado terminal del que ya no lo necesita, y `Validation.image_retained` es
+        `False`.
+
         `client_ref` es una referencia propia, de 1 a 64 caracteres, que vuelve en
         `Validation.client_ref` y en los webhooks.
         """
@@ -229,8 +280,10 @@ class Validations(_Resource):
             image=image,
             image_url=image_url,
             cuenta_beneficiaria=cuenta_beneficiaria,
+            cuentas_candidatas=cuentas_candidatas,
             retry_policy=retry_policy,
             client_ref=client_ref,
+            retain_image=retain_image,
         )
         return self._sync("/validate-ocr", body, idempotency_key)
 
@@ -239,7 +292,8 @@ class Validations(_Resource):
         *,
         fecha: str,
         monto: float | int | str,
-        cuenta_beneficiaria: str,
+        cuenta_beneficiaria: str | None = None,
+        cuentas_candidatas: Sequence[str] | None = None,
         clave_rastreo: str | None = None,
         referencia_numerica: str | None = None,
         emisor: str | None = None,
@@ -257,18 +311,15 @@ class Validations(_Resource):
                 status=422,
                 code="clave_or_ref_required",
             )
-        if not cuenta_beneficiaria:
+        if cuentas_candidatas is None and not cuenta_beneficiaria:
             raise InvalidRequestError(
-                "Hace falta cuenta_beneficiaria: la API no la busca entre los "
-                "beneficiarios guardados",
+                "Hace falta cuenta_beneficiaria, o cuentas_candidatas cuando no se sabe "
+                "cuál fue la cuenta: la API no la busca entre los beneficiarios guardados",
                 status=422,
                 code="cuenta_required",
             )
-        body: dict[str, Any] = {
-            "fecha": fecha,
-            "monto": monto,
-            "cuenta_beneficiaria": cuenta_beneficiaria,
-        }
+        body: dict[str, Any] = {"fecha": fecha, "monto": monto}
+        body.update(_account_fields(cuenta_beneficiaria, cuentas_candidatas))
         body.update(
             _clean(
                 {
@@ -291,8 +342,10 @@ class Validations(_Resource):
         image: bytes | str | Path | None = None,
         image_url: str | None = None,
         cuenta_beneficiaria: str | None = None,
+        cuentas_candidatas: Sequence[str] | None = None,
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
         client_ref: str | None = None,
+        retain_image: bool | None = None,
         **_ignorados: Any,
     ) -> dict[str, Any]:
         """El cuerpo de una validación por OCR, con su comprobación previa."""
@@ -307,10 +360,11 @@ class Validations(_Resource):
             body["image"] = _encode_image(image)
         if image_url:
             body["image_url"] = image_url
-        if cuenta_beneficiaria:
-            body["cuenta_beneficiaria"] = cuenta_beneficiaria
+        body.update(_account_fields(cuenta_beneficiaria or None, cuentas_candidatas))
         if client_ref is not None:
             body["client_ref"] = client_ref
+        if retain_image is not None:
+            body["retain_image"] = retain_image
         if retry_policy is not None:
             body["retry_policy"] = _retry_payload(retry_policy)
         return body
@@ -560,7 +614,8 @@ class Validations(_Resource):
     def image(self, validation_id: str) -> Document:
         """Descarga el comprobante de una validación por OCR: una imagen o un PDF.
 
-        `GET /v1/validations/{id}/image`.
+        `GET /v1/validations/{id}/image`. Responde `410` con `image_not_retained`
+        cuando la validación se creó con `retain_image=False`.
         """
         response = self._transport.request(
             "GET",
@@ -640,6 +695,85 @@ class Validations(_Resource):
             "POST", "/validations/" + _path_segment(validation_id) + "/cep/send-telegram"
         )
         return _data_attributes(response)
+
+    # ── Revisar el pago y borrar ────────────────────────────────────────────
+
+    def recheck(self, validation_id: str) -> RecheckResult:
+        """Vuelve a consultar a Banxico el estado de pago de una validación `valid`.
+
+        `POST /v1/validations/{id}/recheck`. No consume cuota. Un `valid` es el
+        veredicto del momento de la consulta: Banxico puede reportar la devolución
+        horas o días después. Si la reporta, la validación pasa a `returned`,
+        conserva su CEP y la API emite el webhook `validation.returned`.
+
+        Se consulta una `valid` creada hace 72 horas como máximo. Una `returned`
+        responde su estado actual sin consultar a Banxico, con `checked_at` en
+        `None`. Cualquier otra, o una `valid` fuera de la ventana, responde `422`
+        con `recheck_not_eligible` o `recheck_window_expired`.
+
+        Cada validación admite una consulta cada 10 minutos: antes responde `429`
+        con `recheck_rate_limited`, y `RateLimitError.retry_after` trae los segundos
+        que faltan. Si Banxico no entrega un estado legible responde `503` con
+        `recheck_unavailable`, y la validación conserva su intervalo. Una validación
+        purgada responde `410` con `validation_purged`. El SDK no reintenta esta
+        llamada por su cuenta: cada una de esas respuestas ya trae su espera.
+
+        https://docs.veriko.mx/es/concepts/cep-concept
+        """
+        response = self._transport.request(
+            "POST",
+            "/validations/" + _path_segment(validation_id) + "/recheck",
+            retry=False,
+        )
+        return RecheckResult.from_response(response.json())
+
+    def prepare_purge(self, validation_id: str) -> PurgePreparation:
+        """Describe lo que borraría el borrado definitivo de una validación.
+
+        `POST /v1/validations/{id}/purge/prepare`. No cambia nada: devuelve lo que se
+        borraría, lo que conservaría la lápida y un `confirmation_token` de un solo
+        uso, que caduca en `expires_in` segundos y que `execute_purge()` exige.
+
+        Sólo admite una validación propia en un estado terminal. Una validación en
+        curso responde `409` con `purge_validation_in_progress`, y una ya purgada,
+        `410` con `validation_purged`.
+
+        https://docs.veriko.mx/es/how-to/purge-a-validation
+        """
+        response = self._transport.request(
+            "POST", "/validations/" + _path_segment(validation_id) + "/purge/prepare"
+        )
+        return PurgePreparation.from_response(response.json())
+
+    def execute_purge(self, validation_id: str, *, confirmation_token: str) -> PurgeResult:
+        """Borra de forma definitiva el contenido de una validación.
+
+        `POST /v1/validations/{id}/purge/execute`. Es el segundo paso: el
+        `confirmation_token` es el que devolvió `prepare_purge()` para esta misma
+        validación. **El borrado es irreversible** y no devuelve cuota. La
+        validación queda como una lápida: conserva el veredicto, las fechas y el
+        monto, y trae `purged_at`.
+
+        Un token ausente, mal formado, vencido o de otra validación responde `422`;
+        uno ya usado, `409` con `confirmation_token_already_used`. Si la respuesta
+        no llega, `get()` dice si el borrado se completó: una validación purgada
+        trae `purged_at`. El SDK no reintenta esta llamada por su cuenta.
+
+        https://docs.veriko.mx/es/how-to/purge-a-validation
+        """
+        if not confirmation_token:
+            raise InvalidRequestError(
+                "Hace falta confirmation_token: lo devuelve prepare_purge()",
+                status=422,
+                code="confirmation_token_missing",
+            )
+        response = self._transport.request(
+            "POST",
+            "/validations/" + _path_segment(validation_id) + "/purge/execute",
+            json_body={"confirmation_token": confirmation_token},
+            retry=False,
+        )
+        return PurgeResult.from_response(response.json())
 
 
 class Webhooks(_Resource):

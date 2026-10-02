@@ -45,15 +45,17 @@ La API consulta el CEP y devuelve un veredicto en el campo `status`:
 | `invalid` | Los datos enviados no forman una consulta válida |
 | `error` | Fallo durante el procesamiento; el motivo viaja en `error_code` |
 
-Con veredicto `valid`, el comprobante queda disponible en XML y en PDF.
+Con veredicto `valid`, el comprobante queda disponible en XML y en PDF. Un `valid` es el veredicto
+del momento de la consulta: Banxico puede reportar la devolución hasta 72 horas después, y la
+validación pasa a `returned`.
 
 ## Las familias de operaciones
 
-El cliente agrupa las 66 operaciones M2M de la API en once familias:
+El cliente agrupa las 69 operaciones M2M de la API en once familias:
 
 | familia | qué cubre |
 | --- | --- |
-| `client.validations` | Validar por campos o por imagen, consultar, listar, exportar, la política de reintentos y la descarga del comprobante |
+| `client.validations` | Validar por campos o por imagen, consultar, listar, exportar, revisar el estado de pago, borrar, la política de reintentos y la descarga del comprobante |
 | `client.webhooks` | Registrar endpoints, rotar su secreto, enviar un evento de prueba y leer el historial de entregas |
 | `client.catalog` | Catálogo de bancos SPEI, banco emisor de una tarjeta y estado del servicio de Banxico |
 | `client.beneficiaries` | Cuentas beneficiarias guardadas y la importación masiva, como ciclo completo |
@@ -101,7 +103,8 @@ client = Veriko(api_key="veriko_tu_clave_aqui")
 La operación exige la fecha de envío, el importe, la cuenta beneficiaria y **la clave de rastreo
 o la referencia numérica**. Enviar las dos precisa la búsqueda. El banco emisor y el receptor son
 opcionales y mejoran la identificación. La API rechaza con `422` (`preflight_failed`) una petición
-sin `cuenta_beneficiaria`: no la busca entre los beneficiarios guardados.
+sin cuenta: no la busca entre los beneficiarios guardados. Cuando no se sabe cuál fue la cuenta,
+`cuentas_candidatas` sustituye a `cuenta_beneficiaria`.
 
 ```python
 from veriko import Veriko
@@ -139,6 +142,7 @@ validation = client.validations.validate_ocr(
 
 El SDK lee el archivo y lo codifica en base64. `image_url` sirve para un
 comprobante ya publicado en HTTPS. Formatos: JPEG, PNG, WebP o PDF de 1 a 3 páginas.
+`cuentas_candidatas` reemplaza a `cuenta_beneficiaria` cuando la imagen no muestra la cuenta.
 
 ### Sin esperar al veredicto
 
@@ -194,6 +198,48 @@ dígitos de la cuenta enviada (`sent_last4`) y de la que muestra la imagen (`rea
 validación por OCR. Ninguno cambia el veredicto, y los dos valen `None` cuando la API no los
 informa.
 
+### Varias cuentas candidatas
+
+`cuentas_candidatas` lleva de 2 a 3 cuentas en una sola validación, con una sola unidad de cuota.
+
+```python
+validation = client.validate_transfer(
+    fecha="2025-03-15",
+    monto=15000.50,
+    clave_rastreo="MXBA20250315001234",
+    cuentas_candidatas=["012180004412345678", "002010077777777771"],
+)
+
+if validation.candidate_match is not None:
+    print(validation.candidate_match.index)  # posición en la lista enviada, desde 0
+    print(validation.candidate_match.account_last4)  # 7771
+```
+
+`validate_ocr()`, `enqueue()` y `enqueue_ocr()` también la aceptan. La API consulta las cuentas en el
+orden enviado y adopta la primera que coincide con la transferencia. `Validation.candidate_match`
+trae su posición y sus últimos 4 dígitos, y la cuenta completa queda en
+`normalized_data.cuenta_beneficiaria`. El veredicto no cambia.
+
+Se envía una de las dos formas, no las dos: con `cuenta_beneficiaria` y `cuentas_candidatas` juntas,
+o sin ninguna, el SDK lanza `InvalidRequestError` (`cuenta_y_candidatas_excluyentes` o
+`cuenta_required`) y no llama a la API. Una lista que no cumple se rechaza con `422`
+(`cuentas_candidatas_invalidas`).
+
+### Conservar el comprobante
+
+La plataforma conserva el archivo de una validación por imagen, y `client.validations.image(id)` lo
+descarga. Con `retain_image=False` lo borra en cuanto la validación llega a un estado terminal del
+que ya no lo necesita. El veredicto y los datos extraídos se conservan.
+
+```python
+validation = client.validations.validate_ocr(image="comprobante.png", retain_image=False)
+print(validation.image_retained)  # False
+```
+
+`enqueue_ocr()` también acepta `retain_image`. `image()` responde `410` con `image_not_retained`
+cuando el archivo no se conserva, y la API rechaza con `422` (`invalid_retain_image`) un valor que
+no es booleano.
+
 ### Listar y recorrer el historial
 
 ```python
@@ -227,6 +273,59 @@ cep.write_to(cep.filename)  # CEP-<id>.pdf
 `get_cep()` devuelve el archivo: el XML que emitió Banxico, con su sello digital y su cadena
 original, o el PDF equivalente. `Validation.has_cep` indica si existe antes de pedirlo; cuando no,
 la API responde `404` con `cep_not_available` y el SDK lanza `NotFoundError`.
+
+## Revisar el pago después
+
+`client.validations.recheck(id)` vuelve a consultar a Banxico el estado de pago de una validación
+`valid` creada hace 72 horas como máximo, sin consumir cuota.
+
+```python
+resultado = client.validations.recheck(validation.id)
+
+print(resultado.changed)  # True si pasó de valid a returned
+print(resultado.previous_status)  # valid
+print(resultado.validation.status)  # returned
+```
+
+Si Banxico reporta `devuelto` o `en_proceso_devolucion`, la validación pasa a `returned`, conserva su
+CEP y la API emite el webhook `validation.returned`. El estado del pago queda en
+`Validation.payment_status`. Una validación que ya estaba en `returned` responde su estado actual sin
+consultar a Banxico, y `checked_at` vale `None`.
+
+Cada validación admite una consulta cada 10 minutos: antes, el SDK lanza `RateLimitError` con
+`recheck_rate_limited`, y `retry_after` trae los segundos que faltan. Una validación en otro estado,
+o con más de 72 horas, lanza `InvalidRequestError` con `recheck_not_eligible` o
+`recheck_window_expired`. Si Banxico no entrega un estado legible, lanza `ServerError` con
+`recheck_unavailable`: la validación conserva su intervalo y se puede reintentar de inmediato.
+
+## Borrar una validación
+
+`client.validations.delete(id)` retira una validación del historial, pero el registro, el CEP, los
+datos extraídos y el archivo del comprobante siguen existiendo. El borrado definitivo los elimina en
+dos pasos: el primero describe lo que se borraría y emite un token de un solo uso, y el segundo lo
+confirma.
+
+```python
+preparacion = client.validations.prepare_purge(validation.id)
+
+print(preparacion.will_delete)  # lo que se borraría
+print(preparacion.expires_in)  # segundos de vigencia del token
+
+resultado = client.validations.execute_purge(
+    validation.id, confirmation_token=preparacion.confirmation_token
+)
+print(resultado.purged_at, resultado.file_removal)
+```
+
+**El borrado es irreversible y no devuelve cuota.** La validación queda como una lápida: conserva el
+veredicto, las fechas y el monto, y trae `Validation.purged_at`. Después, el CEP, el comprobante, los
+reintentos y `recheck()` responden `410` con `validation_purged`. `file_removal` vale `pending`
+cuando algún archivo no se pudo borrar en ese momento y el barrido diario lo termina.
+
+Una validación en curso lanza `ConflictError` con `purge_validation_in_progress`. Un token vencido,
+mal formado o de otra validación lanza `InvalidRequestError`, y uno ya usado, `ConflictError` con
+`confirmation_token_already_used`. Si la respuesta de `execute_purge()` no llega,
+`client.get_validation(id)` dice si el borrado se completó.
 
 ## Registrar un webhook
 
@@ -359,6 +458,31 @@ del evento. Un reintento llega hasta unas 8,6 horas después del evento, pero ll
 generada. Medir la ventana contra el `timestamp` del cuerpo rechazaría reintentos legítimos. La
 ventana no sustituye a la deduplicación: guarda el `Delivery-Id` al menos 24 horas.
 
+### Una devolución posterior
+
+`validation.returned` avisa cuando una validación que había salido `valid` pasa después a
+`returned`. El endpoint recibe sólo los eventos a los que se suscribió, así que hay que añadirlo
+además de `validation.completed`:
+
+```python
+endpoint = client.webhooks.create(
+    url="https://miapp.example.com/hooks/pagos",
+    events=["validation.completed", "validation.returned"],
+)
+```
+
+El cuerpo es el de `validation.completed` más `attributes.payment_status`, que `parse_webhook()`
+entrega en `evento.payment_status`:
+
+```python
+if evento.event == "validation.returned" and evento.payment_status is not None:
+    print(evento.payment_status.code)  # devuelto o en_proceso_devolucion
+```
+
+`checked_at` es el instante de la consulta. En el resto de los eventos `evento.payment_status` vale
+`None`. El evento no se emite al crear la validación: una operación que llega ya devuelta se entrega
+con `validation.completed` y `status` `returned`.
+
 ### El monto que Banxico confirmó
 
 Cuando Banxico confirmó el pago (`banxico_status` es `valid`, o `returned` con el comprobante ya
@@ -373,7 +497,9 @@ Hay dos mecanismos distintos con el mismo nombre.
 
 **Los del cliente** repiten una petición que falló por causas pasajeras. El SDK reintenta los
 `5xx`, el `408` y el `429`, y respeta el `Retry-After` de la respuesta cuando lo trae. El resto de
-los `4xx` no se reintenta, porque la petición hay que corregirla antes de repetirla.
+los `4xx` no se reintenta, porque la petición hay que corregirla antes de repetirla. `recheck()` y
+`execute_purge()` no se reintentan solas: la primera tiene su propio tope de una consulta cada 10
+minutos, y el borrado es irreversible.
 
 ```python
 client = Veriko(max_retries=3)  # 0 los desactiva; por omisión son 2
@@ -453,6 +579,7 @@ except NotFoundError:  # 404
 | `InvalidRequestError` | `400`, `413`, `422` |
 | `RateLimitError` | `429` |
 | `ServerError` | `5xx` |
+| `APIError` | Cualquier otro estado de la API, por ejemplo `410` |
 | `ConnectionError` | Sin respuesta, con los reintentos agotados |
 | `SignatureVerificationError` | La firma de un webhook no cuadra |
 
@@ -511,7 +638,7 @@ limites = client.usage.limits()
 
 ## Superficie M2M
 
-El SDK cubre exactamente las 66 operaciones del spec público: `security: []` para las públicas y
+El SDK cubre exactamente las 69 operaciones del spec público: `security: []` para las públicas y
 `ApiKeyAuth` para las autenticadas.
 
 Entre ellas están el perfil y su política de reintentos, el resumen del panel, los dos endpoints
