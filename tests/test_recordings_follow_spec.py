@@ -96,6 +96,7 @@ NON_RESPONSE_RECORDINGS = {
     "webhook-retry-resolved",
     "webhook-validation-completed",
     "webhook-validation-completed-banxico-confirmed",
+    "webhook-validation-completed-client-ref",
 }
 
 

@@ -91,14 +91,18 @@ from .resources import (
     Webhooks,
 )
 from .webhooks import (
+    DEFAULT_TOLERANCE_SECONDS,
     DELIVERY_ID_HEADER,
     EVENT_HEADER,
     SIGNATURE_HEADER,
     TIMESTAMP_HEADER,
+    TIMESTAMPED_SIGNATURE_HEADER,
     compute_signature,
     parse_webhook,
     signature_from_headers,
+    timestamped_signature_from_headers,
     verify_webhook,
+    verify_webhook_timestamped,
 )
 
 __all__ = [
@@ -106,6 +110,7 @@ __all__ = [
     "BASE_URL_ENV_VAR",
     "CEP_FORMATS",
     "DEFAULT_BASE_URL",
+    "DEFAULT_TOLERANCE_SECONDS",
     "DELIVERY_ID_HEADER",
     "EVENT_HEADER",
     "EXPORT_FORMATS",
@@ -114,6 +119,7 @@ __all__ = [
     "SIGNATURE_HEADER",
     "TEMPLATE_FORMATS",
     "TERMINAL_STATUSES",
+    "TIMESTAMPED_SIGNATURE_HEADER",
     "TIMESTAMP_HEADER",
     "APIError",
     "Account",
@@ -167,5 +173,7 @@ __all__ = [
     "compute_signature",
     "parse_webhook",
     "signature_from_headers",
+    "timestamped_signature_from_headers",
     "verify_webhook",
+    "verify_webhook_timestamped",
 ]

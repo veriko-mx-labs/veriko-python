@@ -14,13 +14,21 @@ Dos detalles del receptor:
    los bytes y rompe la firma.
 2. La entrega dispone de 10 segundos. Responder `2xx` primero y procesar después
    evita reintentos innecesarios.
+3. `X-Webhook-Signature-Timestamped` firma también la hora del intento. Con ella el
+   receptor descarta una entrega vieja que alguien vuelva a enviar: la ventana por
+   omisión es de 5 minutos contra `t`, no contra el `timestamp` del cuerpo.
 """
 
 import os
 
 from flask import Flask, request
 
-from veriko import SignatureVerificationError, parse_webhook
+from veriko import (
+    SignatureVerificationError,
+    parse_webhook,
+    timestamped_signature_from_headers,
+    verify_webhook_timestamped,
+)
 
 app = Flask(__name__)
 
@@ -39,12 +47,16 @@ pedidos = {"f47ac10b-58cc-4372-a567-0e02b2c3d479": 15000.50}
 def recibir():
     delivery_id = request.headers.get("X-Veriko-Delivery-Id")
 
+    cuerpo = request.get_data()  # el cuerpo crudo, sin interpretar
+
+    if not verify_webhook_timestamped(
+        cuerpo, timestamped_signature_from_headers(request.headers), SECRET
+    ):
+        # Firma que no cuadra, o entrega fuera de la ventana: no se procesa.
+        return "", 400
+
     try:
-        evento = parse_webhook(
-            request.get_data(),  # el cuerpo crudo, sin interpretar
-            request.headers.get("X-Webhook-Signature"),
-            SECRET,
-        )
+        evento = parse_webhook(cuerpo, request.headers.get("X-Webhook-Signature"), SECRET)
     except SignatureVerificationError:
         # Firma que no cuadra: el cuerpo no se procesa.
         return "", 400
@@ -56,6 +68,8 @@ def recibir():
     if evento.event == "validation.completed" and evento.validation is not None:
         validation = evento.validation
         print(f"[{evento.event}] {validation.id} → {validation.status}")
+        if validation.client_ref:
+            print("  pedido:", validation.client_ref)
         if validation.has_cep:
             print("  comprobante disponible en", validation.links.get("cep_pdf"))
 

@@ -158,6 +158,24 @@ def test_parse_webhook_lee_banxico_confirmed() -> None:
     assert evento.validation.id == "3fa85f64-5717-4562-b3fc-2c963f66afa6"
 
 
+def test_parse_webhook_lee_client_ref() -> None:
+    payload = cuerpo("webhook-validation-completed-client-ref")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.validation is not None
+    assert evento.validation.client_ref == "orden-4812"
+
+
+def test_parse_webhook_sin_client_ref_deja_el_campo_en_none() -> None:
+    payload = cuerpo("webhook-validation-completed")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.validation is not None
+    assert evento.validation.client_ref is None
+
+
 def test_parse_webhook_no_interpreta_un_cuerpo_con_firma_invalida() -> None:
     payload = cuerpo("webhook-validation-completed")
 

@@ -14,6 +14,13 @@ versiones según [SemVer](https://semver.org/lang/es/).
   `validations.stats()` y `validations.export()`.
 - `Validation.duplicate_of` y `Validation.account_conflict`, con los tipos `DuplicateOf` y
   `AccountConflict`. Valen `None` si la respuesta no los trae.
+- `verify_webhook_timestamped()` comprueba la cabecera `X-Webhook-Signature-Timestamped`
+  (`t=<segundos>,v1=<hex>`): compara en tiempo constante el HMAC-SHA256 de `<t>.<cuerpo>` con cada
+  `v1` y rechaza la entrega cuando `t` se aleja del reloj más de `tolerance` segundos, 300 por
+  omisión. `timestamped_signature_from_headers()` encuentra la cabecera en cualquiera de sus
+  grafías. `verify_webhook()` no cambia.
+- `parse_webhook()` entrega el `client_ref` en `evento.validation` cuando el webhook de validación
+  lo trae.
 
 ### Cambiado
 
