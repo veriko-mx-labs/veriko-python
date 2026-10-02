@@ -85,6 +85,15 @@ def recibir():
             else:
                 print("  monto confirmado no coincide con el pedido:", confirmado.amount)
 
+    elif evento.event == "validation.returned" and evento.validation is not None:
+        # La validación había salido `valid` y Banxico reportó la devolución después.
+        # Suscribe el endpoint a este evento además de a `validation.completed`.
+        estado_pago = evento.payment_status
+        codigo = estado_pago.code if estado_pago is not None else "desconocido"
+        print(f"[{evento.event}] {evento.validation.id} → {evento.validation.status} ({codigo})")
+        if evento.validation.client_ref:
+            print("  pedido a revisar:", evento.validation.client_ref)
+
     elif evento.event == "validation.retry.resolved" and evento.validation is not None:
         estado = evento.validation.retry_state
         intentos = estado.attempts_completed if estado else 0
