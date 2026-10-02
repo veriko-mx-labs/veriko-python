@@ -5,6 +5,10 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+Sin cambios todavía.
+
+## [0.5.6] — 2026-10-01
+
 ### Añadido
 
 - `client_ref` en `validate_transfer()`, `validations.validate()`, `validations.validate_ocr()`,
