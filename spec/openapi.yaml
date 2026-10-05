@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.65.0
+  version: 1.69.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -4240,11 +4240,11 @@ paths:
         - Tarjeta (16 dígitos): `bank_code` es opcional, se deriva del BIN.
         - Celular/DiMo (10 dígitos): `bank_code` es **obligatorio** en el cuerpo, ya que el número por sí solo no identifica a la institución bancaria.
 
-        Si la cuenta a registrar no existe previamente, se registra y responde con un estado HTTP `200`.
+        Si la cuenta a registrar no existe previamente, se registra y responde con un estado HTTP `201`.
 
         Si se intenta registrar una cuenta activa, responde con un estado HTTP `422` (con `beneficiary_already_registered` en el cuerpo).
 
-        Si existe pero está archivada, el alta la **reactiva** y responde con un estado HTTP `200` (con `meta.reactivated=true` en el cuerpo).
+        Si existe pero está archivada, el alta la **reactiva** y responde con un estado HTTP `200` (con `meta.reactivated=true` en el cuerpo). Si la petición no trae `label`, la reactivación conserva el alias que la cuenta ya tenía; si lo trae, lo reemplaza.
       operationId: createBeneficiary
       externalDocs:
         url: https://docs.veriko.mx/how-to/manage-beneficiaries
@@ -4554,13 +4554,15 @@ paths:
               the number alone does not identify the banking institution.
 
             If the account did not exist before, it is registered and the response
-            carries HTTP status `200`.
+            carries HTTP status `201`.
 
             Registering an account that is already active responds with HTTP status
             `422`, with `beneficiary_already_registered` in the body.
 
             If it exists but is archived, the registration **reactivates** it and
             responds with HTTP status `200`, with `meta.reactivated=true` in the body.
+            If the request carries no `label`, the reactivation keeps the alias the
+            account already had; if it carries one, it replaces it.
       security:
         - ApiKeyAuth: []
   /beneficiaries/{id}:
@@ -4583,6 +4585,8 @@ paths:
         - Solo `bank_code`: se aplica únicamente sobre un beneficiario de tipo celular. En una CLABE o una tarjeta el banco se deriva del número, así que el valor enviado se descarta sin error.
 
         Un cuerpo sin ningún campo editable responde con un estado HTTP `422` (con `no_valid_fields` en el cuerpo).
+
+        Si el `account_number` nuevo ya está registrado para la misma cuenta de usuario, activo o archivado, responde con un estado HTTP `422` (con `beneficiary_already_registered` en el cuerpo) y el beneficiario no cambia.
       operationId: updateBeneficiary
       externalDocs:
         url: https://docs.veriko.mx/how-to/manage-beneficiaries
@@ -4734,10 +4738,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `account_number_invalid_type` y `label_invalid_type`. Las dos últimas aparecen cuando `account_number` o `label` llegan con un tipo distinto de cadena de texto (por ejemplo, un número o un arreglo). Todo error de campo trae `source.pointer`.
+          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered`, `account_number_invalid_type` y `label_invalid_type`. Las dos últimas aparecen cuando `account_number` o `label` llegan con un tipo distinto de cadena de texto (por ejemplo, un número o un arreglo). Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `account_number_invalid_type`, and `label_invalid_type`. The last two fire when `account_number` or `label` arrive as a type other than a string (a number or an array, for instance). Every field-level error carries `source.pointer`.
+              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered`, `account_number_invalid_type`, and `label_invalid_type`. The last two fire when `account_number` or `label` arrive as a type other than a string (a number or an array, for instance). Every field-level error carries `source.pointer`.
               examples:
                 no_fields:
                   value:
@@ -4800,6 +4804,11 @@ paths:
 
             A body with no editable field responds with HTTP status `422`, with
             `no_valid_fields` in the body.
+
+            If the new `account_number` is already registered under the same user
+            account, active or archived, it responds with HTTP status `422`, with
+            `beneficiary_already_registered` in the body, and the beneficiary does
+            not change.
       security:
         - ApiKeyAuth: []
     delete:
@@ -5652,7 +5661,7 @@ paths:
                           parsed_bank_name: null
                           parsed_label: null
                           error_codes:
-                            - phone_bank_code_missing
+                            - bank_code_required_for_phone
                           corrections_applied:
                             alias_auto_assigned: Beneficiario 002
                           user_overrides: {}
@@ -6140,7 +6149,7 @@ paths:
 
         Reglas de la confirmación:
 
-        - Filas `valid` y `correctable`: Se persisten (con sufijo de alias si hubo colisión de alias).
+        - Filas `valid` y `correctable`: Se persisten (con sufijo de alias si hubo colisión de alias). La excepción es un celular sin banco válido (`bank_code_required_for_phone` o `invalid_bank_code`): se corrige eligiendo el banco en la vista previa, y si al confirmar sigue sin banco no se guarda, queda como `fatal` con ese mismo código y cuenta en `skipped_count`.
         - Filas `fatal` y `duplicate_account`: Se omiten.
         - Cuentas previamente archivadas con el mismo número: Se reactivan en lugar de duplicarse.
       operationId: commitBeneficiaryImport
@@ -6224,7 +6233,11 @@ paths:
             `completed` or `failed`. Commit rules:
 
             - `valid` and `correctable` rows are persisted, with an alias suffix if
-              there was an alias collision.
+              there was an alias collision. The exception is a phone number without a
+              valid bank (`bank_code_required_for_phone` or `invalid_bank_code`): it
+              is fixed by choosing the bank in the preview, and if it still has no
+              bank when you confirm it is not saved, becomes `fatal` with that same
+              code and counts in `skipped_count`.
             - `fatal` and `duplicate_account` rows are skipped.
             - Previously archived accounts with the same number are reactivated
               instead of duplicated.
@@ -6821,7 +6834,10 @@ paths:
         - `degraded`: Problemas parciales — latencia elevada o errores
           intermitentes.
         - `down`: El servicio es por el momento inaccesible.
-        - `unknown`: Aún no hay datos de chequeos de salud disponibles.
+        - `unknown`: No hay datos de salud vigentes: aún no se ha ejecutado ningún
+          chequeo, o el último es más viejo que tres veces `check_interval_seconds`
+          porque el chequeo automático dejó de correr. En ese caso `last_verified_at`
+          conserva la fecha de ese último chequeo.
 
         La respuesta se cachea 60 segundos en el cliente con `Cache-Control`, y ese
         plazo se configura en el despliegue. Cualquier usuario autenticado puede
@@ -6942,7 +6958,10 @@ paths:
             - `operational`: All checks pass and latency is normal.
             - `degraded`: Partial issues — high latency or intermittent errors.
             - `down`: The service is unreachable for now.
-            - `unknown`: No health check data is available yet.
+            - `unknown`: There is no current health data: no check has run yet,
+              or the last one is more than three times `check_interval_seconds`
+              old because the automated check stopped running. In that case
+              `last_verified_at` keeps the date of that last check.
 
             The response is cached 60 seconds on the client with `Cache-Control`,
             and that window is set at deploy time. Any authenticated user can query
@@ -14262,21 +14281,20 @@ components:
                       description: 'Auto-detected account type: `clabe` (18 digits), `card` (16 digits), or `phone` (10 digits, DiMo mobile).'
                 bank_code:
                   type: string
-                  pattern: ^\d{5}$
-                  minLength: 5
+                  pattern: ^(\d{5})?$
                   maxLength: 5
-                  description: Código SPEI (5 dígitos) del banco resuelto.
+                  description: 'Código SPEI (5 dígitos) del banco resuelto. Es la cadena vacía (`""`) cuando la cuenta no tiene un banco conocido: una tarjeta cuyo BIN no está en el directorio. En ese caso `bank_name` trae un texto de relleno en el idioma de la petición.'
                   example: '40012'
                   x-translations:
                     en:
-                      description: SPEI code (5 digits) of the resolved bank.
+                      description: 'SPEI code (5 digits) of the resolved bank. It is the empty string (`""`) when the account has no known bank: a card whose BIN is not in the directory. In that case `bank_name` carries a placeholder text in the language of the request.'
                 bank_name:
                   type: string
-                  description: Nombre oficial del banco, resuelto a partir de su `bank_code`.
+                  description: Nombre oficial del banco, resuelto a partir de su `bank_code`. Con un `bank_code` vacío es un texto de relleno («BIN no reconocido (411111)»), que se traduce al idioma de la petición.
                   example: BBVA MEXICO
                   x-translations:
                     en:
-                      description: Official name of the bank, resolved from its `bank_code`.
+                      description: Official name of the bank, resolved from its `bank_code`. With an empty `bank_code` it is a placeholder text ("Unrecognized BIN (411111)"), translated into the language of the request.
                 label:
                   type:
                     - string
@@ -14491,14 +14509,13 @@ components:
                   description: 'Account type auto-detected at registration. `clabe`: 18-digit CLABE; `card`: 16-digit card; `phone`: 10-digit phone.'
             bank_code:
               type: string
-              pattern: ^\d{5}$
-              minLength: 5
+              pattern: ^(\d{5})?$
               maxLength: 5
-              description: Código SPEI (5 dígitos) del banco resuelto.
+              description: Código SPEI (5 dígitos) del banco resuelto. Es la cadena vacía (`""`) para una tarjeta cuyo BIN no está en el directorio.
               example: '40012'
               x-translations:
                 en:
-                  description: SPEI code (5 digits) of the resolved bank.
+                  description: SPEI code (5 digits) of the resolved bank. It is the empty string (`""`) for a card whose BIN is not in the directory.
             bank_name:
               type: string
               description: Nombre oficial del banco, resuelto a partir de su `bank_code`.
@@ -15724,11 +15741,11 @@ components:
             - degraded
             - down
             - unknown
-          description: 'Estado agregado del servicio de verificación de Banxico — `operational`: Todas las pruebas pasan y la latencia es normal; `degraded`: Problemas parciales (latencia elevada o errores intermitentes); `down`: Servicio inaccesible; `unknown`: Aún no hay datos de salud disponibles.'
+          description: 'Estado agregado del servicio de verificación de Banxico — `operational`: Todas las pruebas pasan y la latencia es normal; `degraded`: Problemas parciales (latencia elevada o errores intermitentes); `down`: Servicio inaccesible; `unknown`: no hay datos de salud vigentes, porque aún no se ha ejecutado ningún chequeo o porque el último tiene más de tres veces `check_interval_seconds` de antigüedad (el chequeo automático dejó de correr).'
           example: operational
           x-translations:
             en:
-              description: 'Aggregated service status — `operational`: all checks pass and latency is normal; `degraded`: partial issues (high latency or intermittent errors); `down`: service unreachable; `unknown`: no health check data available yet.'
+              description: 'Aggregated service status — `operational`: all checks pass and latency is normal; `degraded`: partial issues (high latency or intermittent errors); `down`: service unreachable; `unknown`: no current health data, because no check has run yet or because the last one is more than three times `check_interval_seconds` old (the automated check stopped running).'
         status_label:
           type: string
           description: Etiqueta legible del estado actual (resuelta según idioma de la llamada).
@@ -15747,11 +15764,11 @@ components:
           oneOf:
             - $ref: '#/components/schemas/TimestampUTC'
             - type: 'null'
-          description: Timestamp del último chequeo de salud ejecutado. `null` cuando aún no se ha ejecutado ningún chequeo.
+          description: 'Timestamp del último chequeo de salud ejecutado. `null` cuando aún no se ha ejecutado ningún chequeo. Cuando `status` es `unknown` por un chequeo demasiado viejo, conserva la fecha de ese chequeo: dice desde cuándo no hay dato.'
           example: '2026-04-11T15:30:00Z'
           x-translations:
             en:
-              description: Timestamp of the last health check executed. `null` when no check has been run yet.
+              description: 'Timestamp of the last health check executed. `null` when no check has been run yet. When `status` is `unknown` because the last check is too old, it keeps that check''s date: it says since when there is no data.'
         estimated_recovery_at:
           oneOf:
             - $ref: '#/components/schemas/TimestampUTC'
