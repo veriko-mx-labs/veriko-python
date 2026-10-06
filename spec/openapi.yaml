@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.69.0
+  version: 1.70.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -11513,10 +11513,10 @@ components:
               example: false
         legal_accepted:
           type: boolean
-          description: '`true` cuando hay una aceptación vigente de los Términos de Servicio y el Aviso de Privacidad (ambos documentos). `false` cuando falta cualquiera de los dos, o cuando quedó antes de `LEGAL_REACCEPT_SINCE` (vacía por defecto). Gatea el modal de consentimiento post-login.'
+          description: '`true` cuando no queda pendiente la aceptación de ningún documento: ni los Términos de Servicio ni el Aviso de Privacidad. `false` cuando falta la aceptación de cualquiera de los dos, o cuando el equipo exigió aceptar una versión que la cuenta todavía no ha aceptado. Gatea el modal de consentimiento post-login, que lista lo pendiente en `GET /users/me/legal/pending`.'
           x-translations:
             en:
-              description: '`true` when there is a current acceptance of both the Terms of Service and the Privacy Notice. `false` when either is missing, or when it predates `LEGAL_REACCEPT_SINCE` (empty by default). Gates the post-login consent modal.'
+              description: '`true` when no document is left pending: neither the Terms of Service nor the Privacy Notice. `false` when the acceptance of either is missing, or when the team required acceptance of a version that the account has not accepted yet. Gates the post-login consent modal, which lists what is pending in `GET /users/me/legal/pending`.'
           example: true
         _warnings:
           type: array
