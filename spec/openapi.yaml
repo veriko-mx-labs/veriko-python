@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.62.0
+  version: 1.71.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -3725,6 +3725,258 @@ paths:
 
             The returned `banxico_code` is the 5-digit code that identifies each banking institution participating in SPEI.
       security: []
+  /public/spei-calendar/{year}:
+    get:
+      x-related:
+        - GET /v1/public/banks
+        - POST /v1/validate
+        - GET /v1/validations/{id}
+      tags:
+        - Public
+      summary: Obtener el calendario de días inhábiles SPEI de un año
+      description: |-
+        Devuelve el calendario de días inhábiles SPEI de un año, con la disposición oficial de la que sale.
+
+        La respuesta incluye:
+
+        - `non_business_days`: Los días inhábiles que caen de lunes a viernes, en orden y con formato `YYYY-MM-DD`.
+        - `source`: La disposición de la **Comisión Nacional Bancaria y de Valores (CNBV)** publicada en el **Diario Oficial de la Federación (DOF)**, con su título y su fecha de publicación.
+
+        Los sábados y los domingos también son inhábiles, siempre, y no se repiten en `non_business_days`.
+
+        El calendario determina el día de operación de una transferencia. El SPEI opera todos los días, pero el día hábil cambia a las 18:00 (hora del centro de México): lo enviado a partir de esa hora, en sábado, en domingo o en un día inhábil opera el siguiente día hábil. Ese día es el `operationDate` de `banxico_result`, y puede diferir de la fecha de envío.
+
+        La consulta no consume cuota de validaciones. Un año sin calendario responde un estado HTTP `404` (con `spei_calendar_year_not_covered` en el cuerpo), y `meta.covered_years` lista los años disponibles. El calendario de cada año se añade cuando la CNBV publica su disposición, normalmente en diciembre del año anterior.
+
+        La respuesta es cacheable: incluye la cabecera `ETag`, que puede enviarse en otra petición como `If-None-Match`; si el calendario no ha cambiado, responde con un estado HTTP `304` (sin cuerpo).
+
+        La diferencia entre la fecha de envío y la de operación está en {% concept slug="timezone-handling" %}fechas y zona horaria{% /concept %}.
+      operationId: getSpeiCalendar
+      parameters:
+        - name: year
+          in: path
+          required: true
+          description: Año del calendario, de cuatro dígitos.
+          x-translations:
+            en:
+              description: Calendar year, four digits.
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 9999
+            example: 2026
+          example: 2026
+        - $ref: '#/components/parameters/IfNoneMatchHeader'
+      x-codeSamples:
+        - lang: curl
+          label: Shell
+          source: curl -X GET 'https://api.veriko.mx/v1/public/spei-calendar/{year}'
+        - lang: python
+          label: Python
+          source: |
+            import requests
+
+            year = 2026
+            response = requests.get(f"https://api.veriko.mx/v1/public/spei-calendar/{year}")
+            print(response.json())
+        - lang: javascript
+          label: JavaScript
+          source: |
+            const year = 2026;
+
+            fetch(`https://api.veriko.mx/v1/public/spei-calendar/${year}`)
+              .then(response => response.json())
+              .then(data => console.log(data));
+        - lang: php
+          label: PHP
+          source: |
+            <?php
+
+            $year = 2026;
+            $ch = curl_init("https://api.veriko.mx/v1/public/spei-calendar/$year");
+
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            echo $response;
+      responses:
+        '200':
+          description: Calendario de días inhábiles SPEI del año, con su fuente.
+          x-translations:
+            en:
+              description: SPEI non-business-day calendar of the year, with its source.
+          headers:
+            ETag:
+              schema:
+                type: string
+                example: '"a1b2c3d4e5f6..."'
+              description: Firma del calendario actual. Pasar como `If-None-Match` en peticiones posteriores.
+              x-translations:
+                en:
+                  description: Fingerprint of the current calendar. Pass as `If-None-Match` on subsequent requests.
+            Cache-Control:
+              schema:
+                type: string
+                example: private, max-age=3600
+              description: TTL de caché en el cliente (1 h).
+              x-translations:
+                en:
+                  description: Client cache TTL (1 h).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeiCalendarResponse'
+              examples:
+                calendar:
+                  summary: Calendario de 2026
+                  x-translations:
+                    en:
+                      summary: Calendar of 2026
+                  value:
+                    data:
+                      type: spei_calendar
+                      id: '2026'
+                      attributes:
+                        year: 2026
+                        non_business_days:
+                          - '2026-01-01'
+                          - '2026-02-02'
+                          - '2026-03-16'
+                          - '2026-04-02'
+                          - '2026-04-03'
+                          - '2026-05-01'
+                          - '2026-09-16'
+                          - '2026-11-02'
+                          - '2026-11-16'
+                          - '2026-12-25'
+                        source:
+                          issuer: CNBV
+                          published_in: DOF
+                          published_on: '2025-12-10'
+                          title: Disposiciones de carácter general que señalan los días del año 2026 en que las entidades financieras sujetas a la supervisión de la Comisión Nacional Bancaria y de Valores deberán cerrar sus puertas y suspender operaciones
+                    meta:
+                      version: 1.63.0
+                      api_version: v1
+                      request_id: e7f8a9b0c1d2
+                      covered_years:
+                        - 2024
+                        - 2025
+                        - 2026
+        '304':
+          description: 'No modificado: el calendario no ha cambiado según el ETag enviado.'
+          x-translations:
+            en:
+              description: 'Not modified: the calendar has not changed per the sent ETag.'
+          headers:
+            ETag:
+              schema:
+                type: string
+                example: '"a1b2c3d4e5f6..."'
+              description: ETag actual del calendario.
+              x-translations:
+                en:
+                  description: Current calendar ETag.
+            Cache-Control:
+              schema:
+                type: string
+                example: private, max-age=3600
+              description: TTL de caché en el cliente (1 h).
+              x-translations:
+                en:
+                  description: Client cache TTL (1 h).
+        '404':
+          description: El año no tiene calendario (código `spei_calendar_year_not_covered`). `meta.covered_years` lista los años disponibles.
+          x-translations:
+            en:
+              description: The year has no calendar (code `spei_calendar_year_not_covered`). `meta.covered_years` lists the available years.
+              example:
+                errors:
+                  - status: '404'
+                    code: spei_calendar_year_not_covered
+                    detail: We do not have the calendar for 2030. The available years run from 2024 to 2026.
+                meta:
+                  version: 1.63.0
+                  request_id: c1d2e3f4a5b6
+                  covered_years:
+                    - 2024
+                    - 2025
+                    - 2026
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      meta:
+                        type: object
+                        properties:
+                          covered_years:
+                            type: array
+                            items:
+                              type: integer
+                            description: Años con calendario publicado, de menor a mayor.
+                            x-translations:
+                              en:
+                                description: Years with a published calendar, from lowest to highest.
+              example:
+                errors:
+                  - status: '404'
+                    code: spei_calendar_year_not_covered
+                    detail: No tenemos el calendario de 2030. Los años disponibles van de 2024 a 2026.
+                meta:
+                  version: 1.63.0
+                  request_id: c1d2e3f4a5b6
+                  covered_years:
+                    - 2024
+                    - 2025
+                    - 2026
+        '422':
+          description: El año no tiene cuatro dígitos (código `spei_calendar_year_invalid`).
+          x-translations:
+            en:
+              description: The year does not have four digits (code `spei_calendar_year_invalid`).
+              example:
+                errors:
+                  - status: '422'
+                    code: spei_calendar_year_invalid
+                    detail: The year must have four digits, for example 2026.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                errors:
+                  - status: '422'
+                    code: spei_calendar_year_invalid
+                    detail: El año debe tener cuatro dígitos, por ejemplo 2026.
+                meta:
+                  version: 1.63.0
+                  request_id: d2e3f4a5b6c7
+        '429':
+          $ref: '#/components/responses/RateLimited'
+      x-translations:
+        en:
+          summary: Get the calendar of SPEI non-business days for a year
+          description: |-
+            Returns the calendar of SPEI non-business days for a year, with the official provision it comes from.
+
+            The response includes:
+
+            - `non_business_days`: The non-business days that fall from Monday to Friday, in order and in `YYYY-MM-DD` format.
+            - `source`: The provision of the **Comisión Nacional Bancaria y de Valores (CNBV)** published in the **Diario Oficial de la Federación (DOF)**, with its title and publication date.
+
+            Saturdays and Sundays are also non-business days, always, and are not repeated in `non_business_days`.
+
+            The calendar determines the operation day of a transfer. SPEI operates every day, but the business day changes at 18:00 (Mexico central time): what is sent from that hour on, on a Saturday, on a Sunday, or on a non-business day operates on the next business day. That day is the `operationDate` of `banxico_result`, and it can differ from the sending date.
+
+            The request does not consume validation quota. A year without a calendar responds with an HTTP status `404` (with `spei_calendar_year_not_covered` in the body), and `meta.covered_years` lists the available years. The calendar of each year is added when the CNBV publishes its provision, normally in December of the previous year.
+
+            The response is cacheable: it includes the `ETag` header, which can be sent in another request as `If-None-Match`; if the calendar has not changed, it returns an HTTP status `304` (no body).
+
+            The difference between the sending date and the operation date is in {% concept slug="timezone-handling" %}dates and time zone{% /concept %}.
+      security: []
   /beneficiaries/export:
     get:
       x-related:
@@ -3988,11 +4240,11 @@ paths:
         - Tarjeta (16 dígitos): `bank_code` es opcional, se deriva del BIN.
         - Celular/DiMo (10 dígitos): `bank_code` es **obligatorio** en el cuerpo, ya que el número por sí solo no identifica a la institución bancaria.
 
-        Si la cuenta a registrar no existe previamente, se registra y responde con un estado HTTP `200`.
+        Si la cuenta a registrar no existe previamente, se registra y responde con un estado HTTP `201`.
 
         Si se intenta registrar una cuenta activa, responde con un estado HTTP `422` (con `beneficiary_already_registered` en el cuerpo).
 
-        Si existe pero está archivada, el alta la **reactiva** y responde con un estado HTTP `200` (con `meta.reactivated=true` en el cuerpo).
+        Si existe pero está archivada, el alta la **reactiva** y responde con un estado HTTP `200` (con `meta.reactivated=true` en el cuerpo). Si la petición no trae `label`, la reactivación conserva el alias que la cuenta ya tenía; si lo trae, lo reemplaza.
       operationId: createBeneficiary
       externalDocs:
         url: https://docs.veriko.mx/how-to/manage-beneficiaries
@@ -4302,13 +4554,15 @@ paths:
               the number alone does not identify the banking institution.
 
             If the account did not exist before, it is registered and the response
-            carries HTTP status `200`.
+            carries HTTP status `201`.
 
             Registering an account that is already active responds with HTTP status
             `422`, with `beneficiary_already_registered` in the body.
 
             If it exists but is archived, the registration **reactivates** it and
             responds with HTTP status `200`, with `meta.reactivated=true` in the body.
+            If the request carries no `label`, the reactivation keeps the alias the
+            account already had; if it carries one, it replaces it.
       security:
         - ApiKeyAuth: []
   /beneficiaries/{id}:
@@ -4331,6 +4585,8 @@ paths:
         - Solo `bank_code`: se aplica únicamente sobre un beneficiario de tipo celular. En una CLABE o una tarjeta el banco se deriva del número, así que el valor enviado se descarta sin error.
 
         Un cuerpo sin ningún campo editable responde con un estado HTTP `422` (con `no_valid_fields` en el cuerpo).
+
+        Si el `account_number` nuevo ya está registrado para la misma cuenta de usuario, activo o archivado, responde con un estado HTTP `422` (con `beneficiary_already_registered` en el cuerpo) y el beneficiario no cambia.
       operationId: updateBeneficiary
       externalDocs:
         url: https://docs.veriko.mx/how-to/manage-beneficiaries
@@ -4482,10 +4738,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `account_number_invalid_type` y `label_invalid_type`. Las dos últimas aparecen cuando `account_number` o `label` llegan con un tipo distinto de cadena de texto (por ejemplo, un número o un arreglo). Todo error de campo trae `source.pointer`.
+          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered`, `account_number_invalid_type` y `label_invalid_type`. Las dos últimas aparecen cuando `account_number` o `label` llegan con un tipo distinto de cadena de texto (por ejemplo, un número o un arreglo). Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `account_number_invalid_type`, and `label_invalid_type`. The last two fire when `account_number` or `label` arrive as a type other than a string (a number or an array, for instance). Every field-level error carries `source.pointer`.
+              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered`, `account_number_invalid_type`, and `label_invalid_type`. The last two fire when `account_number` or `label` arrive as a type other than a string (a number or an array, for instance). Every field-level error carries `source.pointer`.
               examples:
                 no_fields:
                   value:
@@ -4548,6 +4804,11 @@ paths:
 
             A body with no editable field responds with HTTP status `422`, with
             `no_valid_fields` in the body.
+
+            If the new `account_number` is already registered under the same user
+            account, active or archived, it responds with HTTP status `422`, with
+            `beneficiary_already_registered` in the body, and the beneficiary does
+            not change.
       security:
         - ApiKeyAuth: []
     delete:
@@ -5400,7 +5661,7 @@ paths:
                           parsed_bank_name: null
                           parsed_label: null
                           error_codes:
-                            - phone_bank_code_missing
+                            - bank_code_required_for_phone
                           corrections_applied:
                             alias_auto_assigned: Beneficiario 002
                           user_overrides: {}
@@ -5888,7 +6149,7 @@ paths:
 
         Reglas de la confirmación:
 
-        - Filas `valid` y `correctable`: Se persisten (con sufijo de alias si hubo colisión de alias).
+        - Filas `valid` y `correctable`: Se persisten (con sufijo de alias si hubo colisión de alias). La excepción es un celular sin banco válido (`bank_code_required_for_phone` o `invalid_bank_code`): se corrige eligiendo el banco en la vista previa, y si al confirmar sigue sin banco no se guarda, queda como `fatal` con ese mismo código y cuenta en `skipped_count`.
         - Filas `fatal` y `duplicate_account`: Se omiten.
         - Cuentas previamente archivadas con el mismo número: Se reactivan en lugar de duplicarse.
       operationId: commitBeneficiaryImport
@@ -5972,7 +6233,11 @@ paths:
             `completed` or `failed`. Commit rules:
 
             - `valid` and `correctable` rows are persisted, with an alias suffix if
-              there was an alias collision.
+              there was an alias collision. The exception is a phone number without a
+              valid bank (`bank_code_required_for_phone` or `invalid_bank_code`): it
+              is fixed by choosing the bank in the preview, and if it still has no
+              bank when you confirm it is not saved, becomes `fatal` with that same
+              code and counts in `skipped_count`.
             - `fatal` and `duplicate_account` rows are skipped.
             - Previously archived accounts with the same number are reactivated
               instead of duplicated.
@@ -6569,7 +6834,10 @@ paths:
         - `degraded`: Problemas parciales — latencia elevada o errores
           intermitentes.
         - `down`: El servicio es por el momento inaccesible.
-        - `unknown`: Aún no hay datos de chequeos de salud disponibles.
+        - `unknown`: No hay datos de salud vigentes: aún no se ha ejecutado ningún
+          chequeo, o el último es más viejo que tres veces `check_interval_seconds`
+          porque el chequeo automático dejó de correr. En ese caso `last_verified_at`
+          conserva la fecha de ese último chequeo.
 
         La respuesta se cachea 60 segundos en el cliente con `Cache-Control`, y ese
         plazo se configura en el despliegue. Cualquier usuario autenticado puede
@@ -6690,7 +6958,10 @@ paths:
             - `operational`: All checks pass and latency is normal.
             - `degraded`: Partial issues — high latency or intermittent errors.
             - `down`: The service is unreachable for now.
-            - `unknown`: No health check data is available yet.
+            - `unknown`: There is no current health data: no check has run yet,
+              or the last one is more than three times `check_interval_seconds`
+              old because the automated check stopped running. In that case
+              `last_verified_at` keeps the date of that last check.
 
             The response is cached 60 seconds on the client with `Cache-Control`,
             and that window is set at deploy time. Any authenticated user can query
@@ -11242,10 +11513,10 @@ components:
               example: false
         legal_accepted:
           type: boolean
-          description: '`true` cuando hay una aceptación vigente de los Términos de Servicio y el Aviso de Privacidad (ambos documentos). `false` cuando falta cualquiera de los dos, o cuando quedó antes de `LEGAL_REACCEPT_SINCE` (vacía por defecto). Gatea el modal de consentimiento post-login.'
+          description: '`true` cuando no queda pendiente la aceptación de ningún documento: ni los Términos de Servicio ni el Aviso de Privacidad. `false` cuando falta la aceptación de cualquiera de los dos, o cuando el equipo exigió aceptar una versión que la cuenta todavía no ha aceptado. Gatea el modal de consentimiento post-login, que lista lo pendiente en `GET /users/me/legal/pending`.'
           x-translations:
             en:
-              description: '`true` when there is a current acceptance of both the Terms of Service and the Privacy Notice. `false` when either is missing, or when it predates `LEGAL_REACCEPT_SINCE` (empty by default). Gates the post-login consent modal.'
+              description: '`true` when no document is left pending: neither the Terms of Service nor the Privacy Notice. `false` when the acceptance of either is missing, or when the team required acceptance of a version that the account has not accepted yet. Gates the post-login consent modal, which lists what is pending in `GET /users/me/legal/pending`.'
           example: true
         _warnings:
           type: array
@@ -11347,11 +11618,11 @@ components:
           pattern: ^\d{4}-\d{2}-\d{2}$
           minLength: 10
           maxLength: 10
-          description: Fecha de la transferencia en formato ISO 8601 (YYYY-MM-DD).
+          description: Fecha de envío de la transferencia en formato ISO 8601 (YYYY-MM-DD). Con ella Banxico localiza el CEP, y puede diferir del día de operación que el CEP imprime (`banxico_result.operationDate`).
           example: '2025-03-15'
           x-translations:
             en:
-              description: Transfer date in ISO 8601 format (YYYY-MM-DD).
+              description: Sending date of the transfer in ISO 8601 format (YYYY-MM-DD). Banxico locates the CEP with it, and it can differ from the operation day the CEP prints (`banxico_result.operationDate`).
           x-invalid-examples:
             - 15/03/2025
             - 2025-3-15
@@ -11734,11 +12005,11 @@ components:
                       description: Milliseconds spent processing the validation.
                 request_data:
                   type: object
-                  description: Copia de los campos de la petición original.
+                  description: Copia de los campos de la petición original. `fecha` conserva la fecha de envío tal como se envió, aunque Banxico haya encontrado el pago con otra (`banxico_result._fecha`).
                   additionalProperties: true
                   x-translations:
                     en:
-                      description: Copy of the original request fields.
+                      description: Copy of the original request fields. `fecha` keeps the sending date exactly as sent, even when Banxico found the payment with another one (`banxico_result._fecha`).
                 client_ref:
                   type: string
                   minLength: 1
@@ -11927,9 +12198,9 @@ components:
                     - sent_last4
                     - read_last4
                   description: |-
-                    Conflicto entre la cuenta enviada y la que muestra la imagen. Solo aparece en validaciones de tipo `ocr`, cuando se envió `cuenta_beneficiaria` y la imagen muestra otra cuenta completa de la misma longitud, válida y con confianza suficiente.
+                    Conflicto entre la cuenta enviada y la que muestra la imagen. Solo aparece en validaciones de tipo `ocr`, cuando se envió `cuenta_beneficiaria` y la imagen muestra otra cuenta completa de la misma longitud, válida y con confianza suficiente, o una cuenta enmascarada cuyos dígitos finales visibles (3 o más) no son el final de la cuenta enviada.
 
-                    Prevalece la cuenta enviada, que es la que se consulta en Banxico: el campo no cambia el veredicto. Si el pago fue a la cuenta de la imagen, lo esperable es un `not_found`. Solo trae los últimos 4 dígitos de cada cuenta, y el conflicto también se añade a `normalization_warnings`.
+                    Prevalece la cuenta enviada, que es la que se consulta en Banxico: el campo no cambia el veredicto. Si el pago fue a la cuenta de la imagen, lo esperable es un `not_found`. Solo trae los últimos 4 dígitos de cada cuenta, y el conflicto también se añade a `normalization_warnings`. Con una cuenta enmascarada, `read_last4` trae los dígitos finales que el propio comprobante muestra (3 o 4), nunca más.
                   properties:
                     sent_last4:
                       type: string
@@ -11942,17 +12213,17 @@ components:
                     read_last4:
                       type: string
                       pattern: ^\d{1,4}$
-                      description: Últimos 4 dígitos de la cuenta completa que muestra la imagen.
+                      description: Últimos 4 dígitos de la cuenta que muestra la imagen (los visibles, 3 o 4, si está enmascarada).
                       example: '9012'
                       x-translations:
                         en:
-                          description: Last 4 digits of the full account shown in the image.
+                          description: Last 4 digits of the account shown in the image (the visible ones, 3 or 4, if it is masked).
                   x-translations:
                     en:
                       description: |-
-                        Conflict between the account sent and the one shown in the image. It only appears on `ocr` validations, when `cuenta_beneficiaria` was sent and the image shows another full account of the same length, valid and with enough confidence.
+                        Conflict between the account sent and the one shown in the image. It only appears on `ocr` validations, when `cuenta_beneficiaria` was sent and the image shows another full account of the same length, valid and with enough confidence, or a masked account whose visible trailing digits (3 or more) are not the end of the account sent.
 
-                        The account sent prevails and is the one queried at Banxico: the field does not change the verdict. If the payment went to the account in the image, a `not_found` is the expected outcome. It carries only the last 4 digits of each account, and the conflict is also added to `normalization_warnings`.
+                        The account sent prevails and is the one queried at Banxico: the field does not change the verdict. If the payment went to the account in the image, a `not_found` is the expected outcome. It carries only the last 4 digits of each account, and the conflict is also added to `normalization_warnings`. With a masked account, `read_last4` carries the trailing digits the receipt itself shows (3 or 4), never more.
                 candidate_match:
                   type: object
                   required:
@@ -12013,6 +12284,17 @@ components:
                     `label`, `settled`, `reversed` y `checked_at` (ISO 8601 UTC).
                     Su ausencia significa que no se pudo saber, nunca que el pago esté liquidado.
                     Se actualiza en cada revisión posterior, y con `devuelto` o `en_proceso_devolucion` la validación pasa a `returned`.
+
+                    `_fecha` aparece cuando Banxico no encontró el pago con la fecha enviada y sí con otra.
+                    `used` es la fecha con la que se encontró, `requested` es la fecha con la que se consultó primero
+                    y `reason` es el motivo por el que se probó `used`.
+                    Valores de `reason`:
+                    `clave_embedded_date`: La clave de rastreo incrusta otra fecha, a un día hábil SPEI o menos de la enviada;
+                    `cutoff_18h`: La clave no incrusta fecha y el comprobante indica una hora cercana al corte de las 18:00,
+                    así que se probó el día siguiente;
+                    `dia_operacion`: La clave incrusta la fecha enviada, porque el comprobante trae la de operación,
+                    y se probó un día anterior hasta el día hábil previo.
+                    El veredicto sigue siendo el de Banxico, y `request_data.fecha` conserva la fecha enviada.
                   x-translations:
                     en:
                       description: |-
@@ -12030,21 +12312,31 @@ components:
                         `label`, `settled`, `reversed`, and `checked_at` (ISO 8601 UTC).
                         Its absence means it could not be determined, never that the payment is settled.
                         It is updated on every follow-up check, and with `devuelto` or `en_proceso_devolucion` the validation moves to `returned`.
+
+                        `_fecha` appears when Banxico did not find the payment with the date sent and did find it with another.
+                        `used` is the date it was found with, `requested` is the date first queried, and `reason` is why `used` was tried.
+                        Values of `reason`:
+                        `clave_embedded_date`: The tracking key embeds another date, at most one SPEI business day from the one sent;
+                        `cutoff_18h`: The key embeds no date and the receipt shows a time close to the 18:00 cutoff,
+                        so the next day was tried;
+                        `dia_operacion`: The key embeds the date sent, because the receipt carries the operation date,
+                        and an earlier day was tried back to the previous business day.
+                        The verdict is still Banxico's, and `request_data.fecha` keeps the date sent.
                   properties:
                     operationDate:
                       type: string
-                      description: Fecha de la operación tal como la reporta el CEP de Banxico (`AAAA-MM-DD`).
+                      description: 'Día hábil SPEI que Banxico asignó a la operación, tal como lo reporta el CEP (`YYYY-MM-DD`), en hora del centro de México. Puede diferir de la fecha de envío: lo enviado a partir de las 18:00, en sábado, en domingo o en un día inhábil opera el siguiente día hábil.'
                       example: '2025-03-15'
                       x-translations:
                         en:
-                          description: Operation date as reported by the Banxico CEP (`YYYY-MM-DD`).
+                          description: 'SPEI business day that Banxico assigned to the operation, as reported by the CEP (`YYYY-MM-DD`), in Mexico central time. It can differ from the sending date: what is sent from 18:00 on, on a Saturday, on a Sunday, or on a non-business day operates on the next business day.'
                     processingTime:
                       type: string
-                      description: Hora de la operación tal como la reporta el CEP de Banxico (`HH:MM:SS`).
+                      description: Hora de la operación tal como la reporta el CEP (`HH:MM:SS`), en hora del centro de México y no en UTC.
                       example: '14:22:10'
                       x-translations:
                         en:
-                          description: Operation time as reported by the Banxico CEP (`HH:MM:SS`).
+                          description: Operation time as reported by the CEP (`HH:MM:SS`), in Mexico central time, not UTC.
                     speiKey:
                       type: string
                       description: Clave de la operación dentro del sistema SPEI (`ClaveSPEI` del CEP). Distinta de la clave de rastreo.
@@ -13733,6 +14025,161 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/BinResource'
+    SpeiCalendarResource:
+      type: object
+      description: 'Calendario de días inhábiles SPEI de un año, en formato JSON:API. `id` y `attributes.year` son siempre iguales: el año del calendario.'
+      x-translations:
+        en:
+          description: 'SPEI non-business-day calendar of one year, in JSON:API shape. `id` and `attributes.year` are always equal: the year of the calendar.'
+      allOf:
+        - $ref: '#/components/schemas/JsonApiResourceBase'
+        - type: object
+          required:
+            - type
+            - id
+            - attributes
+          properties:
+            type:
+              type: string
+              enum:
+                - spei_calendar
+              description: Tipo de recurso JSON:API. Siempre `spei_calendar`.
+              example: spei_calendar
+              x-translations:
+                en:
+                  description: JSON:API resource type. Always `spei_calendar`.
+            id:
+              type: string
+              pattern: ^\d{4}$
+              minLength: 4
+              maxLength: 4
+              description: Año del calendario (cuatro dígitos).
+              example: '2026'
+              x-translations:
+                en:
+                  description: Calendar year (four digits).
+            attributes:
+              type: object
+              description: Datos del calendario del año.
+              x-translations:
+                en:
+                  description: Data of the year's calendar.
+              required:
+                - year
+                - non_business_days
+                - source
+              properties:
+                year:
+                  type: integer
+                  minimum: 1000
+                  maximum: 9999
+                  description: Año del calendario (cuatro dígitos). Mismo valor que `id`.
+                  example: 2026
+                  x-translations:
+                    en:
+                      description: Calendar year (four digits). Same value as `id`.
+                non_business_days:
+                  type: array
+                  items:
+                    type: string
+                    format: date
+                    pattern: ^\d{4}-\d{2}-\d{2}$
+                  description: Días inhábiles que caen de lunes a viernes (`YYYY-MM-DD`), de menor a mayor. Los sábados y los domingos también son inhábiles y no se repiten aquí.
+                  example:
+                    - '2026-01-01'
+                    - '2026-02-02'
+                    - '2026-03-16'
+                    - '2026-04-02'
+                    - '2026-04-03'
+                    - '2026-05-01'
+                    - '2026-09-16'
+                    - '2026-11-02'
+                    - '2026-11-16'
+                    - '2026-12-25'
+                  x-translations:
+                    en:
+                      description: Non-business days that fall from Monday to Friday (`YYYY-MM-DD`), from lowest to highest. Saturdays and Sundays are also non-business days and are not repeated here.
+                source:
+                  type: object
+                  description: Disposición oficial de la que sale el calendario.
+                  x-translations:
+                    en:
+                      description: Official provision the calendar comes from.
+                  required:
+                    - issuer
+                    - published_in
+                    - published_on
+                    - title
+                  properties:
+                    issuer:
+                      type: string
+                      description: Siglas de la autoridad que emite la disposición, por ejemplo `CNBV`.
+                      example: CNBV
+                      x-translations:
+                        en:
+                          description: Acronym of the authority that issues the provision, for example `CNBV`.
+                    published_in:
+                      type: string
+                      description: Siglas del medio oficial en el que se publicó la disposición, por ejemplo `DOF`.
+                      example: DOF
+                      x-translations:
+                        en:
+                          description: Acronym of the official gazette that published the provision, for example `DOF`.
+                    published_on:
+                      type: string
+                      format: date
+                      pattern: ^\d{4}-\d{2}-\d{2}$
+                      description: Fecha de publicación de la disposición (`YYYY-MM-DD`).
+                      example: '2025-12-10'
+                      x-translations:
+                        en:
+                          description: Publication date of the provision (`YYYY-MM-DD`).
+                    title:
+                      type: string
+                      description: Título oficial de la disposición, en español.
+                      example: Disposiciones de carácter general que señalan los días del año 2026 en que las entidades financieras sujetas a la supervisión de la Comisión Nacional Bancaria y de Valores deberán cerrar sus puertas y suspender operaciones
+                      x-translations:
+                        en:
+                          description: Official title of the provision, in Spanish.
+    SpeiCalendarResponse:
+      type: object
+      description: Respuesta de `GET /v1/public/spei-calendar/{year}`. Un único recurso con los días inhábiles SPEI del año y su fuente, y en `meta.covered_years` los años que tienen calendario. Un año sin calendario responde `404`, no este cuerpo.
+      x-translations:
+        en:
+          description: Response from `GET /v1/public/spei-calendar/{year}`. A single resource with the SPEI non-business days of the year and its source, and in `meta.covered_years` the years that have a calendar. A year without a calendar responds `404`, not this body.
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          description: Cuerpo específico de la respuesta del calendario SPEI.
+          x-translations:
+            en:
+              description: Schema body specific to the SPEI calendar response.
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/SpeiCalendarResource'
+            meta:
+              type: object
+              description: Metadatos de la respuesta.
+              x-translations:
+                en:
+                  description: Response metadata.
+              properties:
+                covered_years:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 1000
+                    maximum: 9999
+                  description: Años con calendario publicado, de menor a mayor.
+                  example:
+                    - 2024
+                    - 2025
+                    - 2026
+                  x-translations:
+                    en:
+                      description: Years with a published calendar, from lowest to highest.
     BeneficiaryCapacity:
       type: object
       description: Cupo de beneficiarios activos del plan y ocupación actual de la cuenta autenticada.
@@ -13834,21 +14281,20 @@ components:
                       description: 'Auto-detected account type: `clabe` (18 digits), `card` (16 digits), or `phone` (10 digits, DiMo mobile).'
                 bank_code:
                   type: string
-                  pattern: ^\d{5}$
-                  minLength: 5
+                  pattern: ^(\d{5})?$
                   maxLength: 5
-                  description: Código SPEI (5 dígitos) del banco resuelto.
+                  description: 'Código SPEI (5 dígitos) del banco resuelto. Es la cadena vacía (`""`) cuando la cuenta no tiene un banco conocido: una tarjeta cuyo BIN no está en el directorio. En ese caso `bank_name` trae un texto de relleno en el idioma de la petición.'
                   example: '40012'
                   x-translations:
                     en:
-                      description: SPEI code (5 digits) of the resolved bank.
+                      description: 'SPEI code (5 digits) of the resolved bank. It is the empty string (`""`) when the account has no known bank: a card whose BIN is not in the directory. In that case `bank_name` carries a placeholder text in the language of the request.'
                 bank_name:
                   type: string
-                  description: Nombre oficial del banco, resuelto a partir de su `bank_code`.
+                  description: Nombre oficial del banco, resuelto a partir de su `bank_code`. Con un `bank_code` vacío es un texto de relleno («BIN no reconocido (411111)»), que se traduce al idioma de la petición.
                   example: BBVA MEXICO
                   x-translations:
                     en:
-                      description: Official name of the bank, resolved from its `bank_code`.
+                      description: Official name of the bank, resolved from its `bank_code`. With an empty `bank_code` it is a placeholder text ("Unrecognized BIN (411111)"), translated into the language of the request.
                 label:
                   type:
                     - string
@@ -14063,14 +14509,13 @@ components:
                   description: 'Account type auto-detected at registration. `clabe`: 18-digit CLABE; `card`: 16-digit card; `phone`: 10-digit phone.'
             bank_code:
               type: string
-              pattern: ^\d{5}$
-              minLength: 5
+              pattern: ^(\d{5})?$
               maxLength: 5
-              description: Código SPEI (5 dígitos) del banco resuelto.
+              description: Código SPEI (5 dígitos) del banco resuelto. Es la cadena vacía (`""`) para una tarjeta cuyo BIN no está en el directorio.
               example: '40012'
               x-translations:
                 en:
-                  description: SPEI code (5 digits) of the resolved bank.
+                  description: SPEI code (5 digits) of the resolved bank. It is the empty string (`""`) for a card whose BIN is not in the directory.
             bank_name:
               type: string
               description: Nombre oficial del banco, resuelto a partir de su `bank_code`.
@@ -15296,11 +15741,11 @@ components:
             - degraded
             - down
             - unknown
-          description: 'Estado agregado del servicio de verificación de Banxico — `operational`: Todas las pruebas pasan y la latencia es normal; `degraded`: Problemas parciales (latencia elevada o errores intermitentes); `down`: Servicio inaccesible; `unknown`: Aún no hay datos de salud disponibles.'
+          description: 'Estado agregado del servicio de verificación de Banxico — `operational`: Todas las pruebas pasan y la latencia es normal; `degraded`: Problemas parciales (latencia elevada o errores intermitentes); `down`: Servicio inaccesible; `unknown`: no hay datos de salud vigentes, porque aún no se ha ejecutado ningún chequeo o porque el último tiene más de tres veces `check_interval_seconds` de antigüedad (el chequeo automático dejó de correr).'
           example: operational
           x-translations:
             en:
-              description: 'Aggregated service status — `operational`: all checks pass and latency is normal; `degraded`: partial issues (high latency or intermittent errors); `down`: service unreachable; `unknown`: no health check data available yet.'
+              description: 'Aggregated service status — `operational`: all checks pass and latency is normal; `degraded`: partial issues (high latency or intermittent errors); `down`: service unreachable; `unknown`: no current health data, because no check has run yet or because the last one is more than three times `check_interval_seconds` old (the automated check stopped running).'
         status_label:
           type: string
           description: Etiqueta legible del estado actual (resuelta según idioma de la llamada).
@@ -15319,11 +15764,11 @@ components:
           oneOf:
             - $ref: '#/components/schemas/TimestampUTC'
             - type: 'null'
-          description: Timestamp del último chequeo de salud ejecutado. `null` cuando aún no se ha ejecutado ningún chequeo.
+          description: 'Timestamp del último chequeo de salud ejecutado. `null` cuando aún no se ha ejecutado ningún chequeo. Cuando `status` es `unknown` por un chequeo demasiado viejo, conserva la fecha de ese chequeo: dice desde cuándo no hay dato.'
           example: '2026-04-11T15:30:00Z'
           x-translations:
             en:
-              description: Timestamp of the last health check executed. `null` when no check has been run yet.
+              description: 'Timestamp of the last health check executed. `null` when no check has been run yet. When `status` is `unknown` because the last check is too old, it keeps that check''s date: it says since when there is no data.'
         estimated_recovery_at:
           oneOf:
             - $ref: '#/components/schemas/TimestampUTC'
