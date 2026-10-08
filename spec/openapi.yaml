@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.70.3
+  version: 1.71.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -12198,9 +12198,9 @@ components:
                     - sent_last4
                     - read_last4
                   description: |-
-                    Conflicto entre la cuenta enviada y la que muestra la imagen. Solo aparece en validaciones de tipo `ocr`, cuando se envió `cuenta_beneficiaria` y la imagen muestra otra cuenta completa de la misma longitud, válida y con confianza suficiente.
+                    Conflicto entre la cuenta enviada y la que muestra la imagen. Solo aparece en validaciones de tipo `ocr`, cuando se envió `cuenta_beneficiaria` y la imagen muestra otra cuenta completa de la misma longitud, válida y con confianza suficiente, o una cuenta enmascarada cuyos dígitos finales visibles (3 o más) no son el final de la cuenta enviada.
 
-                    Prevalece la cuenta enviada, que es la que se consulta en Banxico: el campo no cambia el veredicto. Si el pago fue a la cuenta de la imagen, lo esperable es un `not_found`. Solo trae los últimos 4 dígitos de cada cuenta, y el conflicto también se añade a `normalization_warnings`.
+                    Prevalece la cuenta enviada, que es la que se consulta en Banxico: el campo no cambia el veredicto. Si el pago fue a la cuenta de la imagen, lo esperable es un `not_found`. Solo trae los últimos 4 dígitos de cada cuenta, y el conflicto también se añade a `normalization_warnings`. Con una cuenta enmascarada, `read_last4` trae los dígitos finales que el propio comprobante muestra (3 o 4), nunca más.
                   properties:
                     sent_last4:
                       type: string
@@ -12213,17 +12213,17 @@ components:
                     read_last4:
                       type: string
                       pattern: ^\d{1,4}$
-                      description: Últimos 4 dígitos de la cuenta completa que muestra la imagen.
+                      description: Últimos 4 dígitos de la cuenta que muestra la imagen (los visibles, 3 o 4, si está enmascarada).
                       example: '9012'
                       x-translations:
                         en:
-                          description: Last 4 digits of the full account shown in the image.
+                          description: Last 4 digits of the account shown in the image (the visible ones, 3 or 4, if it is masked).
                   x-translations:
                     en:
                       description: |-
-                        Conflict between the account sent and the one shown in the image. It only appears on `ocr` validations, when `cuenta_beneficiaria` was sent and the image shows another full account of the same length, valid and with enough confidence.
+                        Conflict between the account sent and the one shown in the image. It only appears on `ocr` validations, when `cuenta_beneficiaria` was sent and the image shows another full account of the same length, valid and with enough confidence, or a masked account whose visible trailing digits (3 or more) are not the end of the account sent.
 
-                        The account sent prevails and is the one queried at Banxico: the field does not change the verdict. If the payment went to the account in the image, a `not_found` is the expected outcome. It carries only the last 4 digits of each account, and the conflict is also added to `normalization_warnings`.
+                        The account sent prevails and is the one queried at Banxico: the field does not change the verdict. If the payment went to the account in the image, a `not_found` is the expected outcome. It carries only the last 4 digits of each account, and the conflict is also added to `normalization_warnings`. With a masked account, `read_last4` carries the trailing digits the receipt itself shows (3 or 4), never more.
                 candidate_match:
                   type: object
                   required:
