@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.72.0
+  version: 1.72.4
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -15533,6 +15533,15 @@ components:
                               en:
                                 description: Summary data of the recent validation shown in the dashboard.
                             properties:
+                              bank_code:
+                                description: Clave Banxico canónica del banco, si se puede resolver.
+                                x-translations:
+                                  en:
+                                    description: Canonical Banxico bank code, when it can be resolved.
+                                type:
+                                  - string
+                                  - 'null'
+                                example: '40012'
                               bank_name:
                                 description: Nombre del banco de la contraparte. Prioriza `receptor_name` o `emisor_name` guardado; si falta, intenta resolver el código de receptor o emisor. Si tampoco puede resolverlo, devuelve ese código o `Banco no identificado`.
                                 x-translations:
