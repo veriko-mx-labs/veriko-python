@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.72.5
+  version: 1.73.3
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -10942,11 +10942,11 @@ components:
       required: false
       schema:
         type: string
-        example: W/"3-processing"
-      description: '**ETag** recibido en peticiones anteriores. Si los datos no han cambiado y el `etag_version` sigue igual, el server responde `304 Not Modified` (sin cuerpo) — evita recibir los datos de nuevo cuando el estado del recurso NO ha cambiado.'
+        example: '"9b2d4c7e1f0a3b6d8e5c2a7f4b1d9e0c3a6f8b2d"'
+      description: '**ETag** recibido en una respuesta anterior, tal cual (débil `W/"…"` en una validación, fuerte en los catálogos públicos). Si el recurso no ha cambiado, el server responde `304 Not Modified` (sin cuerpo) y evita mandar los datos de nuevo.'
       x-translations:
         en:
-          description: '**ETag** received in previous requests. If the data has not changed and `etag_version` is still the same, the server responds `304 Not Modified` (no body) — avoids receiving the data again when the resource state has NOT changed.'
+          description: '**ETag** received in a previous response, sent as is (weak `W/"…"` on a validation, strong on the public catalogs). If the resource has not changed, the server responds `304 Not Modified` (no body) and avoids sending the data again.'
   schemas:
     ErrorObject:
       type: object
@@ -12084,7 +12084,7 @@ components:
                   x-translations:
                     en:
                       description: 'Relative reference to the receipt, image or PDF, only when `validation_type` is `ocr`. It is not published when the file is not kept: see `image_retained`.'
-                  example: ocr/2026/04/a1b2c3d4.jpg
+                  example: comprobantes/12345.jpg
                 image_retained:
                   type: boolean
                   description: |-
@@ -12720,6 +12720,20 @@ components:
             - - '012180004412345678'
             - - '012180004412345678'
               - '012180004412345678'
+        banco_emisor:
+          type: string
+          description: '**Código SPEI** del banco emisor (4 o 5 dígitos, p. ej. `40012`), para corregir el que se leyó del comprobante. Sustituye al leído antes de consultar Banxico. Un valor que no son 4 o 5 dígitos (un nombre, por ejemplo) se ignora y se conserva el leído.'
+          example: '40012'
+          x-translations:
+            en:
+              description: '**SPEI code** of the sending bank (4 or 5 digits, e.g. `40012`), to correct the one read from the receipt. It replaces the one read before querying Banxico. A value that is not 4 or 5 digits (a name, for example) is ignored and the one read is kept.'
+        banco_receptor:
+          type: string
+          description: '**Código SPEI** del banco receptor (4 o 5 dígitos, p. ej. `40002`), para corregir el que se leyó del comprobante. Sustituye al leído antes de consultar Banxico. Un valor que no son 4 o 5 dígitos (un nombre, por ejemplo) se ignora y se conserva el leído.'
+          example: '40002'
+          x-translations:
+            en:
+              description: '**SPEI code** of the receiving bank (4 or 5 digits, e.g. `40002`), to correct the one read from the receipt. It replaces the one read before querying Banxico. A value that is not 4 or 5 digits (a name, for example) is ignored and the one read is kept.'
         retry_policy:
           allOf:
             - $ref: '#/components/schemas/RetryPolicy'
@@ -14559,7 +14573,6 @@ components:
           description: 'Multipart body for `POST /v1/beneficiaries/imports`: the file to import and the parse mode it is read with.'
       required:
         - file
-        - parse_mode
       properties:
         file:
           type: string
@@ -14574,6 +14587,7 @@ components:
           enum:
             - template
             - free
+          default: template
           description: 'Modo de lectura del archivo — `template`: Respeta los encabezados canónicos; `free`: Formato libre, el sistema deduce la estructura.'
           x-translations:
             en:
@@ -18737,7 +18751,7 @@ components:
           example:
             errors:
               - status: '403'
-                code: forbidden
+                code: permission_denied
                 detail: No tienes permiso para acceder a este recurso.
             meta:
               version: 1.51.0
