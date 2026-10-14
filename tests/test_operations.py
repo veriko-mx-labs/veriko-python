@@ -1,4 +1,4 @@
-"""Las 69 operaciones M2M que cubre el SDK, contra el spec público.
+"""Las 70 operaciones M2M que cubre el SDK, contra el spec público.
 
 Cada caso llama a un método con todos sus argumentos opcionales y comprueba que lo
 que llegó al servidor existe en el spec: el método y la ruta, los parámetros de
@@ -317,6 +317,11 @@ CASOS = [
     # ── Catálogo y estado de Banxico ────────────────────────────────────────
     Caso("listBanks", "banks", lambda c: c.catalog.banks(if_none_match='"a1b2c3d4e5f6"')),
     Caso("lookupBin", "bin-lookup", lambda c: c.catalog.bin_lookup("455632")),
+    Caso(
+        "getSpeiCalendar",
+        "spei-calendar",
+        lambda c: c.catalog.spei_calendar(2026, if_none_match='"a1b2c3d4e5f6"'),
+    ),
     Caso("banxicoPublicStatus", "banxico-status", lambda c: c.catalog.banxico_status()),
     Caso(
         "banxicoPublicTimeseries",
@@ -571,6 +576,7 @@ IMPLEMENTED_OPERATIONS = {
     "exportAllDeliveries",
     "listBanks",
     "lookupBin",
+    "getSpeiCalendar",
     "banxicoPublicStatus",
     "banxicoPublicTimeseries",
     "createBeneficiary",
@@ -686,10 +692,10 @@ def test_lo_que_el_sdk_envia_existe_en_el_spec(
             assert campos == sorted(set(propiedades) - caso.sin_campos)
 
 
-def test_cubre_exactamente_las_69_operaciones_del_contrato_sin_familias_parciales() -> None:
+def test_cubre_exactamente_las_70_operaciones_del_contrato_sin_familias_parciales() -> None:
     cubiertas = {caso.operacion for caso in CASOS}
 
-    assert len(IMPLEMENTED_OPERATIONS) == 69
+    assert len(IMPLEMENTED_OPERATIONS) == 70
     assert cubiertas == IMPLEMENTED_OPERATIONS
     assert coverage_errors(m2m_operation_ids(), IMPLEMENTED_OPERATIONS, KNOWN_GAPS) == []
 

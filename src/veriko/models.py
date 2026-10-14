@@ -746,6 +746,44 @@ class BankList(list[Bank]):
 
 
 @dataclass(frozen=True)
+class SpeiCalendar:
+    """El calendario de días inhábiles SPEI de un año, con la disposición de la que sale.
+
+    `non_business_days` trae sólo los días inhábiles de lunes a viernes, en formato
+    `YYYY-MM-DD`; los sábados y los domingos son inhábiles siempre. `source` es la
+    disposición oficial (`issuer`, `published_in`, `published_on` y `title`).
+    `covered_years` lista los años que tienen calendario, y `etag` se pasa como
+    `if_none_match` en la lectura siguiente.
+    """
+
+    year: int | None = None
+    non_business_days: list[str] = field(default_factory=list)
+    source: dict[str, Any] = field(default_factory=dict)
+    covered_years: list[int] = field(default_factory=list)
+    etag: str | None = None
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    @classmethod
+    def from_response(cls, body: dict[str, Any], *, etag: str | None = None) -> SpeiCalendar:
+        data = body.get("data")
+        item: dict[str, Any] = data if isinstance(data, dict) else {}
+        attributes: dict[str, Any] = item.get("attributes") or {}
+        meta = body.get("meta")
+        covered = meta.get("covered_years") if isinstance(meta, dict) else None
+        days = attributes.get("non_business_days")
+        source = attributes.get("source")
+        year = attributes.get("year")
+        return cls(
+            year=year if isinstance(year, int) else None,
+            non_business_days=[str(day) for day in days] if isinstance(days, list) else [],
+            source=dict(source) if isinstance(source, dict) else {},
+            covered_years=[int(y) for y in covered] if isinstance(covered, list) else [],
+            etag=etag,
+            raw=item,
+        )
+
+
+@dataclass(frozen=True)
 class Beneficiary:
     """Una cuenta beneficiaria guardada: CLABE, tarjeta o celular DiMo.
 

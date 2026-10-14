@@ -28,6 +28,7 @@ from veriko.models import (
     RecheckResult,
     RetryAttempt,
     RetryState,
+    SpeiCalendar,
     UsageSummary,
     Validation,
     ValidationSummary,
@@ -53,6 +54,7 @@ MODELOS: list[tuple[type[Any], str, str, set[str]]] = [
     (BeneficiaryImportJob, "BeneficiaryImportJob", "attributes", PROPIOS | {"id"}),
     (BeneficiaryImportRow, "BeneficiaryImportRow", "attributes", PROPIOS | {"id"}),
     (UsageSummary, "UsageSummary", "plano", PROPIOS),
+    (SpeiCalendar, "SpeiCalendarResource", "attributes", PROPIOS | {"covered_years", "etag"}),
 ]
 
 

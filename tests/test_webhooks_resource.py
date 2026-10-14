@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 from conftest import RecordingServer
-from veriko import APIError, ConfigurationError, InvalidRequestError, Veriko
+from veriko import APIError, ConfigurationError, InvalidRequestError, NotFoundError, Veriko
 
 WEBHOOK_ID = "9f8e7d6c-5b4a-3210-fedc-ba9876543210"
 
@@ -210,6 +210,40 @@ def test_banco_emisor_de_una_tarjeta(client: Veriko, server: RecordingServer) ->
     assert resultado["bank_name"] == "BBVA MEXICO"
     assert resultado["banxico_code"] == "40012"
     assert resultado["card_brand"] == "VISA"
+
+
+def test_calendario_spei_de_un_anio(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("spei-calendar")
+
+    calendario = client.catalog.spei_calendar(2026)
+
+    assert server.requests[0].path == "/v1/public/spei-calendar/2026"
+    assert calendario.year == 2026
+    assert calendario.non_business_days[0] == "2026-01-01"
+    assert len(calendario.non_business_days) == 10
+    assert calendario.source["issuer"] == "CNBV"
+    assert calendario.source["published_on"] == "2025-12-10"
+    assert calendario.covered_years == [2024, 2025, 2026]
+    assert calendario.etag == '"a1b2c3d4e5f6"'
+
+
+def test_el_calendario_spei_admite_etag(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("not-modified")
+
+    with pytest.raises(APIError) as raised:
+        client.catalog.spei_calendar(2026, if_none_match='"a1b2c3d4e5f6"')
+
+    assert server.requests[0].header("if-none-match") == '"a1b2c3d4e5f6"'
+    assert raised.value.status == 304
+
+
+def test_un_anio_sin_calendario_spei_es_404(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("spei-calendar-404")
+
+    with pytest.raises(NotFoundError) as raised:
+        client.catalog.spei_calendar(2030)
+
+    assert raised.value.code == "spei_calendar_year_not_covered"
 
 
 def test_estado_del_servicio_de_banxico(client: Veriko, server: RecordingServer) -> None:

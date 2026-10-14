@@ -32,6 +32,7 @@ from .models import (
     RetryAttempt,
     RetryPolicy,
     RetryState,
+    SpeiCalendar,
     UsageSummary,
     Validation,
     ValidationSummary,
@@ -954,7 +955,7 @@ class Webhooks(_Resource):
 
 
 class Catalog(_Resource):
-    """Datos abiertos: el catálogo de bancos y el estado del servicio."""
+    """Datos abiertos: el catálogo de bancos, el calendario SPEI y el estado del servicio."""
 
     def banks(self, *, if_none_match: str | None = None) -> BankList:
         """Lista las instituciones participantes en SPEI con su código.
@@ -986,6 +987,24 @@ class Catalog(_Resource):
         """
         response = self._transport.request("GET", "/public/bin-lookup/" + _path_segment(bin))
         return _data_attributes(response)
+
+    def spei_calendar(self, year: int, *, if_none_match: str | None = None) -> SpeiCalendar:
+        """Calendario de días inhábiles SPEI de un año, con la disposición de la que sale.
+
+        `GET /v1/public/spei-calendar/{year}`. No consume cuota. Un año sin
+        calendario levanta `NotFoundError` con `spei_calendar_year_not_covered`.
+        Con `if_none_match` la API responde `304` cuando el calendario no cambió, y
+        el SDK lo señala levantando `APIError` con `status=304`. El `ETag` de cada
+        lectura queda en `SpeiCalendar.etag`.
+        """
+        response = self._transport.request(
+            "GET",
+            "/public/spei-calendar/" + _path_segment(str(year)),
+            extra_headers={"If-None-Match": if_none_match} if if_none_match else None,
+        )
+        if response.status == 304:
+            raise _not_modified("El calendario", response)
+        return SpeiCalendar.from_response(response.json(), etag=response.headers.get("etag"))
 
     def banxico_status(self) -> dict[str, Any]:
         """Estado del servicio de consulta de Banxico.

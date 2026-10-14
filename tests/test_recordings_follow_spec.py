@@ -49,6 +49,7 @@ OPERATION_RECORDINGS = {
     "lookupBeneficiaryAccount": ("beneficiary-lookup",),
     "updateBeneficiary": ("beneficiary-updated",),
     "lookupBin": ("bin-lookup",),
+    "getSpeiCalendar": ("spei-calendar", "spei-calendar-404"),
     "downloadCep": ("cep-404", "cep-pdf", "cep-xml"),
     "exportAllDeliveries": ("deliveries-export-csv",),
     "deleteValidation": ("no-content",),

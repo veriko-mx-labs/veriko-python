@@ -51,13 +51,13 @@ validación pasa a `returned`.
 
 ## Las familias de operaciones
 
-El cliente agrupa las 69 operaciones M2M de la API en once familias:
+El cliente agrupa las 70 operaciones M2M de la API en once familias:
 
 | familia | qué cubre |
 | --- | --- |
 | `client.validations` | Validar por campos o por imagen, consultar, listar, exportar, revisar el estado de pago, borrar, la política de reintentos y la descarga del comprobante |
 | `client.webhooks` | Registrar endpoints, rotar su secreto, enviar un evento de prueba y leer el historial de entregas |
-| `client.catalog` | Catálogo de bancos SPEI, banco emisor de una tarjeta y estado del servicio de Banxico |
+| `client.catalog` | Catálogo de bancos SPEI, calendario de días inhábiles SPEI, banco emisor de una tarjeta y estado del servicio de Banxico |
 | `client.beneficiaries` | Cuentas beneficiarias guardadas y la importación masiva, como ciclo completo |
 | `client.usage` | Cuota de validaciones, límites de tasa y registro de actividad de la API |
 | `client.account` | Perfil y política de reintentos predeterminada de la cuenta |
@@ -359,11 +359,18 @@ borra.
 
 ```python
 bancos = client.catalog.banks()  # instituciones SPEI con su código
+calendario = client.catalog.spei_calendar(2026)  # días inhábiles SPEI del año
 tarjeta = client.catalog.bin_lookup("455632")  # banco emisor de una tarjeta
 estado = client.catalog.banxico_status()
 
 print(estado["status"])  # 'operational'
 ```
+
+`spei_calendar()` devuelve `SpeiCalendar`: `non_business_days` trae los días inhábiles de lunes a
+viernes (`YYYY-MM-DD`), `source` la disposición de la CNBV publicada en el DOF y `covered_years` los
+años con calendario. Los sábados y los domingos son inhábiles siempre y no se repiten en la lista. La
+consulta no consume cuota. Un año sin calendario levanta `NotFoundError` con
+`spei_calendar_year_not_covered`.
 
 `banxico_status()` sirve para distinguir un `cep_unavailable` propio de la transferencia de una caída
 del servicio, y `banxico_timeseries()` devuelve la serie de latencia o de veredictos por ventana. Las
@@ -372,8 +379,9 @@ consultas que devuelven un recurso sin modelo propio (`stats()`, `bin_lookup()`,
 
 ## Lecturas condicionales
 
-`client.validations.get()` y `client.catalog.banks()` admiten `if_none_match`. Cada lectura trae su
-`ETag` (`Validation.etag`, `BankList.etag`), y cuando nada cambió la API responde `304`, que el SDK
+`client.validations.get()`, `client.catalog.banks()` y `client.catalog.spei_calendar()` admiten
+`if_none_match`. Cada lectura trae su `ETag` (`Validation.etag`, `BankList.etag`,
+`SpeiCalendar.etag`), y cuando nada cambió la API responde `304`, que el SDK
 levanta como `APIError` con `status=304`.
 
 ## Verificar la firma de un webhook
@@ -638,7 +646,7 @@ limites = client.usage.limits()
 
 ## Superficie M2M
 
-El SDK cubre exactamente las 69 operaciones del spec público: `security: []` para las públicas y
+El SDK cubre exactamente las 70 operaciones del spec público: `security: []` para las públicas y
 `ApiKeyAuth` para las autenticadas.
 
 Entre ellas están el perfil y su política de reintentos, el resumen del panel, los dos endpoints
