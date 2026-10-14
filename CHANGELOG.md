@@ -5,6 +5,10 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+Sin cambios todavía.
+
+## [0.5.8] — 2026-10-14
+
 ### Añadido
 
 - `catalog.spei_calendar()` (`GET /v1/public/spei-calendar/{year}`): el calendario de días
