@@ -49,7 +49,7 @@ MODELOS: list[tuple[type[Any], str, str, set[str]]] = [
     (WebhookDelivery, "WebhookDelivery", "attributes", PROPIOS | {"id"}),
     (WebhookTestResult, "SendWebhookTestAttributes", "plano", PROPIOS),
     (Bank, "BankResource", "attributes", PROPIOS),
-    (Beneficiary, "Beneficiary", "attributes", PROPIOS | {"id"}),
+    (Beneficiary, "Beneficiary", "attributes", PROPIOS | {"id", "reactivated"}),
     (BeneficiaryLookup, "BeneficiaryLookupResource", "attributes", PROPIOS),
     (BeneficiaryImportJob, "BeneficiaryImportJob", "attributes", PROPIOS | {"id"}),
     (BeneficiaryImportRow, "BeneficiaryImportRow", "attributes", PROPIOS | {"id"}),
@@ -122,3 +122,10 @@ def test_los_tipos_anidados_existen_en_el_spec(
     inventados = sorted(campos - declaradas)
     assert not inventados, f"{modelo.__name__} lee campos que el spec no declara: {inventados}"
     assert campos == declaradas
+
+
+def test_reactivated_sale_de_la_meta_que_declara_el_spec() -> None:
+    respuesta = load_spec()["components"]["schemas"]["CreateBeneficiaryResponse"]
+    meta = schema_properties(respuesta)["meta"]
+
+    assert schema_properties(meta)["reactivated"]["type"] == "boolean"

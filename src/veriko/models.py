@@ -10,7 +10,7 @@ después queda accesible ahí sin esperar a una versión nueva del SDK.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 # Estados del ciclo de vida de una validación. Los tres primeros no son
@@ -787,6 +787,10 @@ class SpeiCalendar:
 class Beneficiary:
     """Una cuenta beneficiaria guardada: CLABE, tarjeta o celular DiMo.
 
+    `reactivated` vale `True` sólo en la respuesta de `beneficiaries.create()`
+    cuando el alta reactivó una cuenta archivada con el mismo número; en un alta
+    nueva y en las demás lecturas es `False`.
+
     https://docs.veriko.mx/es/concepts/beneficiaries
     """
 
@@ -798,6 +802,7 @@ class Beneficiary:
     label: str | None = None
     status: str | None = None
     created_at: str | None = None
+    reactivated: bool = False
     attributes: dict[str, Any] = field(default_factory=dict, repr=False)
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
@@ -825,7 +830,11 @@ class Beneficiary:
     @classmethod
     def from_response(cls, body: dict[str, Any]) -> Beneficiary:
         data = body.get("data")
-        return cls.from_item(data if isinstance(data, dict) else {})
+        beneficiary = cls.from_item(data if isinstance(data, dict) else {})
+        meta = body.get("meta")
+        if isinstance(meta, dict) and meta.get("reactivated") is True:
+            return replace(beneficiary, reactivated=True)
+        return beneficiary
 
 
 @dataclass(frozen=True)

@@ -7,6 +7,14 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 Sin cambios todavía.
 
+## [0.5.9] — 2026-10-15
+
+### Añadido
+
+- `Beneficiary.reactivated`: `True` cuando `beneficiaries.create()` reactivó una cuenta archivada con
+  el mismo número (la API responde `200` con `meta.reactivated`); `False` en un alta nueva y en las
+  demás lecturas.
+
 ## [0.5.8] — 2026-10-15
 
 ### Añadido

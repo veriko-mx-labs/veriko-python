@@ -31,6 +31,19 @@ def test_registrar_un_beneficiario(client: Veriko, server: RecordingServer) -> N
     assert beneficiary.account_type == "clabe"
     assert beneficiary.bank_name == "BBVA MEXICO"
     assert beneficiary.is_archived is False
+    assert beneficiary.reactivated is False
+
+
+def test_registrar_una_cuenta_archivada_la_reactiva(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("beneficiary-reactivated")
+
+    beneficiary = client.beneficiaries.create(account_number="012180004412345678")
+
+    assert beneficiary.reactivated is True
+    assert beneficiary.id == "42"
+    assert beneficiary.is_archived is False
 
 
 def test_registrar_sin_cuenta_no_llega_a_la_api(client: Veriko, server: RecordingServer) -> None:

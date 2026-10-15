@@ -630,6 +630,10 @@ beneficiary = client.beneficiaries.create(
 beneficiary = client.beneficiaries.lookup("012180004412345678")  # la cuenta ya guardada
 ```
 
+Registrar una cuenta archivada la reactiva: la API responde `200` en vez de `201` y
+`beneficiary.reactivated` vale `True`. Sin `label`, la cuenta conserva su alias. Registrar una cuenta
+que ya está activa levanta `InvalidRequestError` con `beneficiary_already_registered`.
+
 La lista se recorre con `client.beneficiaries.list()`, y se exporta con
 `client.beneficiaries.export(format="csv")`.
 

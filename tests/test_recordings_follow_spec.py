@@ -45,7 +45,7 @@ OPERATION_RECORDINGS = {
     "patchBeneficiaryImportRow": ("beneficiaries-import-row-updated",),
     "downloadBeneficiaryImportTemplate": ("beneficiaries-import-template",),
     "listBeneficiaries": ("beneficiaries-list",),
-    "createBeneficiary": ("beneficiary-created",),
+    "createBeneficiary": ("beneficiary-created", "beneficiary-reactivated"),
     "lookupBeneficiaryAccount": ("beneficiary-lookup",),
     "updateBeneficiary": ("beneficiary-updated",),
     "lookupBin": ("bin-lookup",),

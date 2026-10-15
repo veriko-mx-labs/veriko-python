@@ -1125,7 +1125,10 @@ class Beneficiaries(_Resource):
         `POST /beneficiaries`. El tipo se detecta por longitud: CLABE (18
         dígitos), tarjeta (16) o celular DiMo (10). Para un celular, `bank_code`
         es obligatorio; en CLABE y tarjeta se deriva del número. Un alta de una
-        cuenta archivada la reactiva.
+        cuenta archivada la reactiva: la API responde `200` en vez de `201` y
+        `Beneficiary.reactivated` vale `True`. Sin `label`, la cuenta reactivada
+        conserva su alias. Una cuenta activa con el mismo número levanta
+        `InvalidRequestError` con `beneficiary_already_registered`.
         """
         if not account_number:
             raise InvalidRequestError(
