@@ -137,7 +137,7 @@ def _filters(filtros: Mapping[str, Any]) -> dict[str, Any]:
 
     `from_` viaja como `from`. `playground` sólo admite `1`, así que `False` no
     filtra. `with_deleted` distingue `1` (sólo retiradas) de `0` (sólo activas).
-    Varios estados se unen con comas.
+    Varios estados, o varias claves de banco en `banks`, se unen con comas.
     """
     query = dict(filtros)
     if "from_" in query:
@@ -146,10 +146,39 @@ def _filters(filtros: Mapping[str, Any]) -> dict[str, Any]:
         query["playground"] = "1" if query["playground"] else None
     if "with_deleted" in query:
         query["with_deleted"] = _flag(query["with_deleted"])
-    estados = query.get("status")
-    if isinstance(estados, (list, tuple)):
-        query["status"] = ",".join(str(estado) for estado in estados)
+    for nombre in ("status", "banks"):
+        query[nombre] = _comma_list(query.get(nombre))
     return _clean(query)
+
+
+def _comma_list(value: Any) -> Any:
+    """Una lista viaja como un solo valor separado por comas; un valor suelto, tal cual."""
+    if isinstance(value, (list, tuple)):
+        return ",".join(str(elemento) for elemento in value)
+    return value
+
+
+def _delivery_filters(filtros: Mapping[str, Any]) -> dict[str, Any]:
+    """Los filtros de una consulta de entregas, con el nombre y el valor que la API espera.
+
+    `from_` viaja como `from`. `status`, `event_type` y `response_status` admiten
+    varios valores, que se unen con comas.
+    """
+    query = dict(filtros)
+    if "from_" in query:
+        query["from"] = query.pop("from_")
+    for nombre in ("status", "event_type", "response_status"):
+        query[nombre] = _comma_list(query.get(nombre))
+    return _clean(query)
+
+
+def _endpoint_ids(webhook_id: str | Sequence[str] | None) -> str | None:
+    """Uno o varios endpoints para el filtro `endpoint_id`, separados por comas."""
+    if webhook_id is None:
+        return None
+    if isinstance(webhook_id, str):
+        return _path_segment(webhook_id)
+    return ",".join(_path_segment(identificador) for identificador in webhook_id)
 
 
 def _subscribed_events(events: Sequence[str] | None) -> list[str]:
@@ -254,6 +283,8 @@ class Validations(_Resource):
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
         client_ref: str | None = None,
         retain_image: bool | None = None,
+        banco_emisor: str | None = None,
+        banco_receptor: str | None = None,
         idempotency_key: str | None = None,
     ) -> Validation:
         """Valida una transferencia a partir del comprobante, en imagen o en PDF.
@@ -276,6 +307,11 @@ class Validations(_Resource):
 
         `client_ref` es una referencia propia, de 1 a 64 caracteres, que vuelve en
         `Validation.client_ref` y en los webhooks.
+
+        `banco_emisor` y `banco_receptor` corrigen el banco que se leyó del
+        comprobante: la clave SPEI de 4 o 5 dígitos (`"40012"`) sustituye a la
+        leída antes de consultar a Banxico. Un valor con otro formato, como un
+        nombre, se ignora y se conserva el leído.
         """
         body = self._ocr_body(
             image=image,
@@ -285,6 +321,8 @@ class Validations(_Resource):
             retry_policy=retry_policy,
             client_ref=client_ref,
             retain_image=retain_image,
+            banco_emisor=banco_emisor,
+            banco_receptor=banco_receptor,
         )
         return self._sync("/validate-ocr", body, idempotency_key)
 
@@ -347,6 +385,8 @@ class Validations(_Resource):
         retry_policy: RetryPolicy | Mapping[str, Any] | None = None,
         client_ref: str | None = None,
         retain_image: bool | None = None,
+        banco_emisor: str | None = None,
+        banco_receptor: str | None = None,
         **_ignorados: Any,
     ) -> dict[str, Any]:
         """El cuerpo de una validación por OCR, con su comprobación previa."""
@@ -366,6 +406,10 @@ class Validations(_Resource):
             body["client_ref"] = client_ref
         if retain_image is not None:
             body["retain_image"] = retain_image
+        if banco_emisor is not None:
+            body["banco_emisor"] = banco_emisor
+        if banco_receptor is not None:
+            body["banco_receptor"] = banco_receptor
         if retry_policy is not None:
             body["retry_policy"] = _retry_payload(retry_policy)
         return body
@@ -462,6 +506,7 @@ class Validations(_Resource):
         with_deleted: bool | None = None,
         batch_id: int | None = None,
         bank: str | None = None,
+        banks: str | Sequence[str] | None = None,
         amount_min: float | None = None,
         amount_max: float | None = None,
         client_ref: str | None = None,
@@ -474,6 +519,10 @@ class Validations(_Resource):
         lista. `with_deleted=True` devuelve sólo las retiradas y `False` sólo las
         activas. `playground=True` limita a las del banco de pruebas. `client_ref`
         filtra por coincidencia exacta con la referencia enviada al validar.
+
+        `banks` admite hasta 50 claves SPEI, en lista o separadas por comas, y
+        devuelve las validaciones cuyo banco emisor o receptor sea cualquiera de
+        ellas. Se combina con `bank`: con los dos, se cumplen ambos.
 
         Un listado trae menos campos que `get()`: no incluye los datos enviados,
         el resultado de Banxico ni los enlaces al comprobante.
@@ -495,6 +544,7 @@ class Validations(_Resource):
                         "with_deleted": with_deleted,
                         "batch_id": batch_id,
                         "bank": bank,
+                        "banks": banks,
                         "amount_min": amount_min,
                         "amount_max": amount_max,
                         "client_ref": client_ref,
@@ -873,24 +923,50 @@ class Webhooks(_Resource):
 
     def deliveries(
         self,
-        webhook_id: str | None = None,
+        webhook_id: str | Sequence[str] | None = None,
         *,
         page: int | None = None,
         per_page: int | None = None,
-        status: str | None = None,
-        event_type: str | None = None,
+        status: str | Sequence[str] | None = None,
+        event_type: str | Sequence[str] | None = None,
+        response_status: str | int | Sequence[str | int] | None = None,
+        validation_id: str | None = None,
+        q: str | None = None,
+        from_: str | None = None,
+        to: str | None = None,
+        min_attempt: int | None = None,
+        min_response_time_ms: int | None = None,
     ) -> Page[WebhookDelivery]:
         """Lista los intentos de entrega.
 
         Con `webhook_id` consulta los de ese endpoint
         (`GET /v1/webhooks/{id}/deliveries`); sin él, los de todos
-        (`GET /v1/webhooks/deliveries`), donde además se puede filtrar por estado
-        y por tipo de evento. La ruta por endpoint no admite esos filtros, así que
-        con `webhook_id` y un filtro la petición va al listado global con
-        `endpoint_id`.
+        (`GET /v1/webhooks/deliveries`), donde además se puede filtrar. La ruta por
+        endpoint no admite filtros, así que con `webhook_id` y un filtro la
+        petición va al listado global con `endpoint_id`. `webhook_id` acepta
+        también una lista de hasta 20 endpoints, que siempre va al listado global.
+
+        `status`, `event_type` y `response_status` aceptan un valor o una lista.
+        `response_status` admite un código exacto (`404`), una familia (`"5xx"`) o
+        `"none"` para las entregas sin respuesta. `from_` y `to` acotan la fecha de
+        creación (`from_` viaja como `from`); `min_attempt=2` deja sólo los
+        reintentos y `min_response_time_ms` las respuestas lentas. `q` busca en el
+        identificador, el endpoint, el evento, la validación y el código HTTP.
         """
-        filtrado = status is not None or event_type is not None
-        if webhook_id is not None and not filtrado:
+        filtros = _delivery_filters(
+            {
+                "status": status,
+                "event_type": event_type,
+                "response_status": response_status,
+                "validation_id": validation_id,
+                "q": q,
+                "from_": from_,
+                "to": to,
+                "min_attempt": min_attempt,
+                "min_response_time_ms": min_response_time_ms,
+            }
+        )
+        if isinstance(webhook_id, str) and not filtros:
             path = "/webhooks/" + _path_segment(webhook_id) + "/deliveries"
             query = _clean({"page": page, "per_page": per_page})
         else:
@@ -899,9 +975,8 @@ class Webhooks(_Resource):
                 {
                     "page": page,
                     "per_page": per_page,
-                    "endpoint_id": None if webhook_id is None else _path_segment(webhook_id),
-                    "status": status,
-                    "event_type": event_type,
+                    "endpoint_id": _endpoint_ids(webhook_id),
+                    **filtros,
                 }
             )
 
@@ -909,7 +984,7 @@ class Webhooks(_Resource):
         return Page.from_response(response.json(), WebhookDelivery.from_item)
 
     def iter_deliveries(
-        self, webhook_id: str | None = None, **filtros: Any
+        self, webhook_id: str | Sequence[str] | None = None, **filtros: Any
     ) -> Iterator[WebhookDelivery]:
         """Recorre todos los intentos de entrega, página a página."""
         max_pages = filtros.pop("max_pages", None)
@@ -922,35 +997,34 @@ class Webhooks(_Resource):
 
     def export_deliveries(
         self,
-        webhook_id: str | None = None,
+        webhook_id: str | Sequence[str] | None = None,
         *,
         format: str = "csv",
         **filtros: Any,
     ) -> Document:
         """Exporta el historial de entregas en CSV o en XLSX.
 
-        Con `webhook_id`, las de ese endpoint; sin él, las de todos. Como en
-        `deliveries()`, un filtro (`status`, `event_type`) con `webhook_id` lleva la
-        petición al listado global con `endpoint_id`.
+        Con `webhook_id`, las de ese endpoint; sin él, las de todos. Admite los
+        filtros de `deliveries()` y `limit`. Como allí, un filtro con `webhook_id`,
+        o una lista de endpoints, lleva la petición al listado global con
+        `endpoint_id`.
         """
-        filtrado = filtros.get("status") is not None or filtros.get("event_type") is not None
-        if webhook_id is not None and not filtrado:
+        limite = filtros.pop("limit", None)
+        consulta = _delivery_filters(filtros)
+        if isinstance(webhook_id, str) and not consulta:
             return _export(
                 self._transport,
                 "/webhooks/" + _path_segment(webhook_id) + "/deliveries/export",
                 format,
-                {"limit": filtros.get("limit")},
+                {"limit": limite},
                 "entregas-" + webhook_id,
             )
         return _export(
             self._transport,
             "/webhooks/deliveries/export",
             format,
-            {
-                **filtros,
-                "endpoint_id": None if webhook_id is None else _path_segment(webhook_id),
-            },
-            "entregas" if webhook_id is None else "entregas-" + webhook_id,
+            {**consulta, "limit": limite, "endpoint_id": _endpoint_ids(webhook_id)},
+            "entregas-" + webhook_id if isinstance(webhook_id, str) else "entregas",
         )
 
 

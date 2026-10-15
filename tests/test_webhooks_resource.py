@@ -317,6 +317,53 @@ def test_un_endpoint_con_filtro_consulta_el_listado_global(
     assert consulta["status"] == ["failed"]
 
 
+def test_los_filtros_de_varios_valores_viajan_separados_por_comas(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("webhook-deliveries")
+
+    client.webhooks.deliveries(
+        status=["failed", "retrying"],
+        event_type=["validation.completed", "validation.returned"],
+        response_status=["5xx", 404, "none"],
+        from_="2026-10-01",
+        min_attempt=2,
+    )
+
+    consulta = _consulta(server, 0)
+    assert consulta["status"] == ["failed,retrying"]
+    assert consulta["event_type"] == ["validation.completed,validation.returned"]
+    assert consulta["response_status"] == ["5xx,404,none"]
+    assert consulta["from"] == ["2026-10-01"]
+    assert consulta["min_attempt"] == ["2"]
+    assert "from_" not in consulta
+
+
+def test_varios_endpoints_consultan_el_listado_global(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("webhook-deliveries")
+    otro = "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+
+    client.webhooks.deliveries([WEBHOOK_ID, otro])
+
+    assert server.requests[0].path.startswith("/v1/webhooks/deliveries?")
+    assert _consulta(server, 0)["endpoint_id"] == [WEBHOOK_ID + "," + otro]
+
+
+def test_un_endpoint_con_un_filtro_nuevo_tambien_va_al_listado_global(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("webhook-deliveries")
+
+    client.webhooks.deliveries(WEBHOOK_ID, min_response_time_ms=3000)
+
+    assert server.requests[0].path.startswith("/v1/webhooks/deliveries?")
+    consulta = _consulta(server, 0)
+    assert consulta["endpoint_id"] == [WEBHOOK_ID]
+    assert consulta["min_response_time_ms"] == ["3000"]
+
+
 def test_recorrer_las_entregas_en_dos_paginas(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("webhook-deliveries-page1")
     server.enqueue_recording("webhook-deliveries-page2")
@@ -353,6 +400,32 @@ def test_exportar_las_entregas_de_todos_con_filtros(
     assert consulta["status"] == ["failed"]
     assert consulta["limit"] == ["50"]
     assert "endpoint_id" not in consulta
+
+
+def test_exportar_las_entregas_de_un_endpoint_con_un_filtro_nuevo(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("deliveries-export-csv")
+
+    client.webhooks.export_deliveries(WEBHOOK_ID, q="erp.example.com", to="2026-10-15", limit=20)
+
+    assert server.requests[0].path.startswith("/v1/webhooks/deliveries/export?")
+    consulta = _consulta(server, 0)
+    assert consulta["endpoint_id"] == [WEBHOOK_ID]
+    assert consulta["q"] == ["erp.example.com"]
+    assert consulta["to"] == ["2026-10-15"]
+    assert consulta["limit"] == ["20"]
+
+
+def test_exportar_las_entregas_de_un_endpoint_sin_filtros_usa_su_ruta(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("deliveries-export-csv")
+
+    client.webhooks.export_deliveries(WEBHOOK_ID, limit=20)
+
+    assert server.requests[0].path.startswith("/v1/webhooks/" + WEBHOOK_ID + "/deliveries/export?")
+    assert _consulta(server, 0)["limit"] == ["20"]
 
 
 def test_los_endpoints_traen_los_campos_del_spec(client: Veriko, server: RecordingServer) -> None:

@@ -410,6 +410,19 @@ def test_los_filtros_de_la_exportacion_y_las_estadisticas_usan_los_mismos_valore
     assert estadisticas["with_deleted"] == ["0"]
 
 
+def test_varios_bancos_viajan_separados_por_comas(client: Veriko, server: RecordingServer) -> None:
+    server.enqueue_recording("validations-page1")
+    server.enqueue_recording("validations-stats")
+
+    client.validations.list(banks=["40012", "40014"], bank="40072")
+    client.validations.stats(banks="40012,40014")
+
+    listado = _consulta(server, 0)
+    assert listado["banks"] == ["40012,40014"]
+    assert listado["bank"] == ["40072"]
+    assert _consulta(server, 1)["banks"] == ["40012,40014"]
+
+
 def test_una_lista_vacia_no_tiene_pagina_siguiente(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("validations-empty")
 
@@ -640,6 +653,30 @@ def test_retain_image_true_tambien_viaja_en_el_camino_asincrono(
     client.validations.enqueue_ocr(image=b"png", retain_image=True)
 
     assert server.requests[0].json()["retain_image"] is True
+
+
+def test_los_bancos_corregidos_viajan_en_el_cuerpo_del_ocr(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-queued")
+
+    client.validations.enqueue_ocr(image=b"png", banco_emisor="40012", banco_receptor="40002")
+
+    cuerpo = server.requests[0].json()
+    assert cuerpo["banco_emisor"] == "40012"
+    assert cuerpo["banco_receptor"] == "40002"
+
+
+def test_sin_bancos_corregidos_el_cuerpo_del_ocr_no_los_lleva(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-ocr")
+
+    client.validations.validate_ocr(image=b"png")
+
+    cuerpo = server.requests[0].json()
+    assert "banco_emisor" not in cuerpo
+    assert "banco_receptor" not in cuerpo
 
 
 # ── Revisar el estado de pago ───────────────────────────────────────────────

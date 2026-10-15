@@ -144,6 +144,10 @@ El SDK lee el archivo y lo codifica en base64. `image_url` sirve para un
 comprobante ya publicado en HTTPS. Formatos: JPEG, PNG, WebP o PDF de 1 a 3 páginas.
 `cuentas_candidatas` reemplaza a `cuenta_beneficiaria` cuando la imagen no muestra la cuenta.
 
+`banco_emisor` y `banco_receptor` corrigen el banco que se leyó del comprobante. Llevan la clave SPEI
+de 4 o 5 dígitos (`"40012"`), que sustituye a la leída antes de consultar a Banxico; un valor con
+otro formato, como un nombre, se ignora y se conserva el leído.
+
 ### Sin esperar al veredicto
 
 Para volumen, la API acepta la petición y responde con el identificador:
@@ -257,6 +261,10 @@ viaja como `from`.
 `status` acepta un estado o una lista. `with_deleted=True` devuelve sólo las validaciones retiradas
 y `False` sólo las activas, y `playground=True` limita a las del banco de pruebas.
 
+`banks` filtra por varios bancos a la vez: hasta 50 claves SPEI, en lista o separadas por comas, y
+devuelve las validaciones cuyo banco emisor o receptor sea cualquiera de ellos. `stats()` y
+`export()` aceptan los mismos filtros.
+
 Un listado trae menos campos que `get()`: no incluye los datos enviados, el resultado de Banxico ni
 los enlaces al comprobante, y por eso `ValidationSummary` no tiene `has_cep`.
 
@@ -349,8 +357,23 @@ estado queda en `auto_disabled` y se reactiva con
 `client.webhooks.update(id, status="active")`.
 
 El historial de intentos está en `client.webhooks.deliveries()`, con o sin
-identificador de endpoint. Los filtros `status` y `event_type` sólo existen en el listado global:
-con un endpoint y un filtro, el SDK consulta ese listado con `endpoint_id`.
+identificador de endpoint. Los filtros sólo existen en el listado global: con un endpoint y un
+filtro, o con una lista de hasta 20 endpoints, el SDK consulta ese listado con `endpoint_id`.
+
+```python
+fallidas = client.webhooks.deliveries(
+    status=["failed", "retrying"],
+    response_status=["5xx", "none"],
+    from_="2026-10-01",
+    min_attempt=2,
+)
+```
+
+`status`, `event_type` y `response_status` aceptan un valor o una lista. `response_status` admite
+un código exacto (`404`), una familia (`"5xx"`) o `"none"` para las entregas sin respuesta. `from_`
+y `to` acotan la fecha de creación, `validation_id` deja las de una validación,
+`min_response_time_ms` las respuestas lentas y `q` busca en el identificador, el endpoint, el evento,
+la validación y el código HTTP. `export_deliveries()` acepta los mismos filtros y `limit`.
 
 `create()` y `update()` aceptan `description`, una etiqueta libre que `update(id, description=None)`
 borra.

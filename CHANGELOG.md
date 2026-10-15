@@ -7,7 +7,7 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 Sin cambios todavía.
 
-## [0.5.8] — 2026-10-14
+## [0.5.8] — 2026-10-15
 
 ### Añadido
 
@@ -15,6 +15,15 @@ Sin cambios todavía.
   inhábiles SPEI de un año. Devuelve `SpeiCalendar` con `year`, `non_business_days`, `source` y
   `covered_years`. Admite `if_none_match`, y su `ETag` queda en `SpeiCalendar.etag`. No consume
   cuota. Un año sin calendario levanta `NotFoundError` con `spei_calendar_year_not_covered`.
+- `validations.validate_ocr()` y `validations.enqueue_ocr()` aceptan `banco_emisor` y
+  `banco_receptor`: la clave SPEI de 4 o 5 dígitos sustituye al banco leído del comprobante antes de
+  consultar a Banxico.
+- `validations.list()`, `validations.stats()` y `validations.export()` aceptan `banks`, hasta 50
+  claves SPEI en lista o separadas por comas; filtra por banco emisor o receptor.
+- `webhooks.deliveries()` y `webhooks.export_deliveries()` aceptan `response_status`,
+  `validation_id`, `q`, `from_`, `to`, `min_attempt` y `min_response_time_ms`. `status`,
+  `event_type` y `response_status` admiten una lista, y `webhook_id` una lista de hasta 20
+  endpoints.
 
 ## [0.5.7] — 2026-10-02
 
