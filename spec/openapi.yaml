@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.73.3
+  version: 1.76.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -184,7 +184,7 @@ paths:
                         email_verified_at: '2026-04-30T10:15:00Z'
                         created_at: '2026-01-15T08:00:00Z'
                         api_key:
-                          prefix: veriko_a1b2
+                          prefix: veriko_
                           last_4: f9c2
                         subscription:
                           plan_slug: pro
@@ -260,7 +260,7 @@ paths:
 
         La cuenta beneficiaria (`cuenta_beneficiaria`) es obligatoria en esta operación, salvo que se envíe `cuentas_candidatas`. Si faltan las dos, la petición se rechaza con `422 preflight_failed` y el error de campo `cuenta_required`: el servicio no la busca entre los beneficiarios guardados.
 
-        Cuando no se sabe a cuál de varias cuentas se hizo el pago, `cuentas_candidatas` sustituye a `cuenta_beneficiaria`: de 2 a 3 cuentas en una sola validación y con una sola unidad de cuota. La consulta recorre las candidatas en el orden enviado y adopta la primera que coincide con la transferencia; esa cuenta vuelve completa en `normalized_data.cuenta_beneficiaria` y su posición en `candidate_match`. Si ninguna coincide, la respuesta es un estado HTTP `422` con el motivo en `code`. Las dos formas no pueden enviarse juntas (`422 cuenta_y_candidatas_excluyentes`) y una lista que no cumple se rechaza con `422 cuentas_candidatas_invalidas`, las dos antes de consumir cuota.
+        Cuando no se sabe a cuál de varias cuentas se hizo el pago, `cuentas_candidatas` sustituye a `cuenta_beneficiaria`: de 2 cuentas al máximo que admite el servicio (3 de forma predeterminada) en una sola validación y con una sola unidad de cuota. La consulta recorre las candidatas en el orden enviado y adopta la primera que coincide con la transferencia; esa cuenta vuelve completa en `normalized_data.cuenta_beneficiaria` y su posición en `candidate_match`. Si ninguna coincide, la respuesta es un estado HTTP `422` con el motivo en `code`. Las dos formas no pueden enviarse juntas (`422 cuenta_y_candidatas_excluyentes`) y una lista que no cumple se rechaza con `422 cuentas_candidatas_invalidas`, las dos antes de consumir cuota.
 
         El veredicto final (estado terminal) de una validación puede ser alguno de estos:
 
@@ -326,7 +326,7 @@ paths:
                   receptor: BBVA MEXICO
                   cuenta_beneficiaria: '012180004412345678'
               both_identifiers:
-                summary: Clave de rastreo + referencia (mayor precisión)
+                summary: Clave de rastreo y referencia (la consulta usa la clave)
                 value:
                   fecha: '2025-03-15'
                   monto: 15000.5
@@ -450,12 +450,12 @@ paths:
                         cep_pdf: /v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=pdf
                     meta:
                       version: 1.51.0
-                      request_id: b3c4d5e6f7a8
+                      request_id: b3c4d5e6f7a88a7f6e5d4c3b
                 not_found:
                   summary: Transferencia no encontrada en el CEP
                   value:
                     data:
-                      id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                      id: a1b2c3d4-e5f6-4890-abcd-ef1234567890
                       type: validation
                       attributes:
                         validation_type: direct
@@ -467,12 +467,12 @@ paths:
                         completed_at: '2025-03-16T09:10:01Z'
                     meta:
                       version: 1.51.0
-                      request_id: c4d5e6f7a8b9
+                      request_id: c4d5e6f7a8b99b8a7f6e5d4c
                 cep_unavailable:
                   summary: Banxico no respondió a tiempo
                   value:
                     data:
-                      id: b2c3d4e5-f6a7-8901-bcde-f12345678901
+                      id: b2c3d4e5-f6a7-4901-bcde-f12345678901
                       type: validation
                       attributes:
                         validation_type: direct
@@ -483,7 +483,7 @@ paths:
                         completed_at: '2025-03-15T18:05:31Z'
                     meta:
                       version: 1.51.0
-                      request_id: d5e6f7a8b9c0
+                      request_id: d5e6f7a8b9c00c9b8a7f6e5d
         '202':
           $ref: '#/components/responses/ValidationQueuedAccepted'
         '400':
@@ -537,7 +537,7 @@ paths:
 
             The beneficiary account (`cuenta_beneficiaria`) is required on this operation, unless `cuentas_candidatas` is sent. When both are missing, the request is rejected with `422 preflight_failed` and the field error `cuenta_required`: the service does not look it up among the saved beneficiaries.
 
-            When it is not known which of several accounts the payment went to, `cuentas_candidatas` replaces `cuenta_beneficiaria`: 2 to 3 accounts in a single validation and with a single quota unit. The query goes through the candidates in the order sent and adopts the first one that matches the transfer; that account comes back in full in `normalized_data.cuenta_beneficiaria` and its position in `candidate_match`. If none matches, the response is an HTTP status `422` with the reason in `code`. The two forms cannot be sent together (`422 cuenta_y_candidatas_excluyentes`) and a list that does not comply is rejected with `422 cuentas_candidatas_invalidas`, both before any quota is consumed.
+            When it is not known which of several accounts the payment went to, `cuentas_candidatas` replaces `cuenta_beneficiaria`: from 2 accounts up to the maximum the service accepts (3 by default) in a single validation and with a single quota unit. The query goes through the candidates in the order sent and adopts the first one that matches the transfer; that account comes back in full in `normalized_data.cuenta_beneficiaria` and its position in `candidate_match`. If none matches, the response is an HTTP status `422` with the reason in `code`. The two forms cannot be sent together (`422 cuenta_y_candidatas_excluyentes`) and a list that does not comply is rejected with `422 cuentas_candidatas_invalidas`, both before any quota is consumed.
 
             The final verdict (terminal state) can be one of the following:
 
@@ -609,7 +609,7 @@ paths:
         El campo `cuenta_beneficiaria` permite enviar explícitamente la cuenta receptora de la transferencia, enviarlo es especialmente útil cuando la imagen no lleva este dato o lo lleva incompleto.\
         Un beneficiario guardado (con `POST /v1/beneficiaries`) no sustituye a este campo: solo sirve para completar los dígitos de la cuenta que la imagen sí muestra. Si la imagen no trae dígitos suficientes, la validación se rechaza con `cuenta_unresolvable`, porque las cuentas guardadas no se prueban una por una.\
         \
-        Cuando no se sabe cuál de varias cuentas recibió el pago, `cuentas_candidatas` las prueba en una sola validación (de 2 a 3 cuentas, una sola unidad de cuota, también con `?async=1`) y sustituye a `cuenta_beneficiaria`: enviar las dos se rechaza con `422 cuenta_y_candidatas_excluyentes`, y una lista que no cumple, con `422 cuentas_candidatas_invalidas`, las dos antes de consumir cuota. La lista tiene prioridad sobre la cuenta que se lea en la imagen; la ganadora vuelve completa en `normalized_data.cuenta_beneficiaria` y su posición en `candidate_match`. Si ninguna coincide, la respuesta es un estado HTTP `422` con el motivo en `code`.
+        Cuando no se sabe cuál de varias cuentas recibió el pago, `cuentas_candidatas` las prueba en una sola validación (de 2 cuentas al máximo que admite el servicio, 3 de forma predeterminada; una sola unidad de cuota, también con `?async=1`) y sustituye a `cuenta_beneficiaria`: enviar las dos se rechaza con `422 cuenta_y_candidatas_excluyentes`, y una lista que no cumple, con `422 cuentas_candidatas_invalidas`, las dos antes de consumir cuota. La lista tiene prioridad sobre la cuenta que se lea en la imagen; la ganadora vuelve completa en `normalized_data.cuenta_beneficiaria` y su posición en `candidate_match`. Si ninguna coincide, la respuesta es un estado HTTP `422` con el motivo en `code`.
 
         {% /callout %}
 
@@ -730,7 +730,7 @@ paths:
                   summary: OCR exitoso — transferencia confirmada
                   value:
                     data:
-                      id: c3d4e5f6-a7b8-9012-cdef-123456789012
+                      id: c3d4e5f6-a7b8-4012-8def-123456789012
                       type: validation
                       attributes:
                         validation_type: ocr
@@ -738,7 +738,7 @@ paths:
                         status: valid
                         banxico_status: valid
                         processing_time_ms: 2840
-                        image_path: comprobantes/c3d4e5f6-a7b8-9012-cdef-123456789012.png
+                        image_path: comprobantes/c3d4e5f6-a7b8-4012-8def-123456789012.png
                         ocr_result:
                           fecha: '2025-04-10'
                           monto: 12500
@@ -748,12 +748,12 @@ paths:
                         completed_at: '2025-04-10T11:30:02Z'
                     meta:
                       version: 1.51.0
-                      request_id: e6f7a8b9c0d1
+                      request_id: e6f7a8b9c0d11d0c9b8a7f6e
                 ocr_not_found:
                   summary: OCR extraído pero transferencia no encontrada
                   value:
                     data:
-                      id: d4e5f6a7-b8c9-0123-defa-234567890123
+                      id: d4e5f6a7-b8c9-4123-9efa-234567890123
                       type: validation
                       attributes:
                         validation_type: ocr
@@ -765,7 +765,7 @@ paths:
                         completed_at: '2025-04-10T14:00:01Z'
                     meta:
                       version: 1.51.0
-                      request_id: f7a8b9c0d1e2
+                      request_id: f7a8b9c0d1e22e1d0c9b8a7f
         '202':
           $ref: '#/components/responses/ValidationQueuedAccepted'
         '400':
@@ -824,7 +824,7 @@ paths:
             The `cuenta_beneficiaria` field sends the receiving account of the transfer explicitly, which is especially useful when the image does not carry that data or carries it incomplete.\
             A saved beneficiary (with `POST /v1/beneficiaries`) does not replace this field: it only completes the digits of the account that the image does show. When the image carries too few digits, the validation is rejected with `cuenta_unresolvable`, because the saved accounts are not tried one by one.\
             \
-            When it is not known which of several accounts received the payment, `cuentas_candidatas` tries them in a single validation (2 to 3 accounts, a single quota unit, also with `?async=1`) and replaces `cuenta_beneficiaria`: sending both is rejected with `422 cuenta_y_candidatas_excluyentes`, and a list that does not comply, with `422 cuentas_candidatas_invalidas`, both before any quota is consumed. The list takes priority over the account read from the image; the winner comes back in full in `normalized_data.cuenta_beneficiaria` and its position in `candidate_match`. If none matches, the response is an HTTP status `422` with the reason in `code`.
+            When it is not known which of several accounts received the payment, `cuentas_candidatas` tries them in a single validation (from 2 accounts up to the maximum the service accepts, 3 by default; a single quota unit, also with `?async=1`) and replaces `cuenta_beneficiaria`: sending both is rejected with `422 cuenta_y_candidatas_excluyentes`, and a list that does not comply, with `422 cuentas_candidatas_invalidas`, both before any quota is consumed. The list takes priority over the account read from the image; the winner comes back in full in `normalized_data.cuenta_beneficiaria` and its position in `candidate_match`. If none matches, the response is an HTTP status `422` with the reason in `code`.
 
             {% /callout %}
 
@@ -1022,6 +1022,16 @@ paths:
           x-translations:
             en:
               description: SPEI code of the sending or receiving bank in the original request. Values outside 1 to 5 digits are ignored; sending it as a list (`bank[]=`) returns HTTP status `422` with `invalid_filter`.
+        - name: banks
+          in: query
+          schema:
+            type: string
+            pattern: ^\d{1,5}(,\d{1,5}){0,49}$
+          example: 40012,40014,40072
+          description: 'Filtro — Varias claves SPEI separadas por coma (hasta 50); devuelve las validaciones cuyo banco emisor o receptor sea cualquiera de ellas. Si un elemento no tiene de 1 a 5 dígitos, responde con estado HTTP `422` e `invalid_filter`. Se combina con `bank`: si mandas los dos, se cumplen ambos.'
+          x-translations:
+            en:
+              description: 'Comma-separated SPEI codes (up to 50); returns the validations whose sending or receiving bank is any of them. If an element does not have 1 to 5 digits, the response is HTTP status `422` with `invalid_filter`. Combines with `bank`: if you send both, both must hold.'
         - name: amount_min
           in: query
           schema:
@@ -1120,10 +1130,16 @@ paths:
                           deleted_at: null
                           retry_state:
                             enabled: false
+                            max_retries: null
+                            interval_seconds: null
+                            outcomes: null
                             attempts_completed: 0
                             next_attempt_at: null
+                            resolved_at: null
+                            exhausted_at: null
+                            cancelled_at: null
                             terminal_state: null
-                      - id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                      - id: a1b2c3d4-e5f6-4890-abcd-ef1234567890
                         type: validation
                         attributes:
                           bank_name: SCOTIABANK
@@ -1141,12 +1157,18 @@ paths:
                           deleted_at: null
                           retry_state:
                             enabled: false
+                            max_retries: null
+                            interval_seconds: null
+                            outcomes: null
                             attempts_completed: 0
                             next_attempt_at: null
+                            resolved_at: null
+                            exhausted_at: null
+                            cancelled_at: null
                             terminal_state: null
                     meta:
                       version: 1.51.0
-                      request_id: e1f2a3b4c5d6
+                      request_id: e1f2a3b4c5d66d5c4b3a2f1e
                       pagination:
                         page: 1
                         per_page: 10
@@ -1158,7 +1180,7 @@ paths:
                     data: []
                     meta:
                       version: 1.51.0
-                      request_id: f2a3b4c5d6e7
+                      request_id: f2a3b4c5d6e77e6d5c4b3a2f
                       pagination:
                         page: 1
                         per_page: 10
@@ -1317,6 +1339,16 @@ paths:
           x-translations:
             en:
               description: SPEI code of the sending or receiving bank in the original request. Values outside 1 to 5 digits are ignored.
+        - name: banks
+          in: query
+          schema:
+            type: string
+            pattern: ^\d{1,5}(,\d{1,5}){0,49}$
+          example: 40012,40014,40072
+          description: 'Filtro — Varias claves SPEI separadas por coma (hasta 50); devuelve las validaciones cuyo banco emisor o receptor sea cualquiera de ellas. Si un elemento no tiene de 1 a 5 dígitos, responde con estado HTTP `422` e `invalid_filter`. Se combina con `bank`: si mandas los dos, se cumplen ambos.'
+          x-translations:
+            en:
+              description: 'Comma-separated SPEI codes (up to 50); returns the validations whose sending or receiving bank is any of them. If an element does not have 1 to 5 digits, the response is HTTP status `422` with `invalid_filter`. Combines with `bank`: if you send both, both must hold.'
         - name: amount_min
           in: query
           schema:
@@ -1415,7 +1447,7 @@ paths:
                           error: 1
                     meta:
                       version: 1.50.1
-                      request_id: f4a5b6c7d8e9
+                      request_id: f4a5b6c7d8e99e8d7c6b5a4f
                 new_user:
                   summary: Estadísticas de usuario nuevo — todos en cero
                   x-translations:
@@ -1449,7 +1481,7 @@ paths:
                           error: 0
                     meta:
                       version: 1.50.1
-                      request_id: a5b6c7d8e9f0
+                      request_id: a5b6c7d8e9f00f9e8d7c6b5a
         '401':
           $ref: '#/components/responses/Unauthorized'
         '422':
@@ -1480,7 +1512,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: c3d4e5f6a1b2
+                      request_id: c3d4e5f6a1b22b1a6f5e4d3c
       x-translations:
         en:
           summary: Get validation statistics for the account
@@ -1657,6 +1689,16 @@ paths:
           x-translations:
             en:
               description: SPEI code of the sending or receiving bank in the original request. Values outside 1 to 5 digits are ignored.
+        - name: banks
+          in: query
+          schema:
+            type: string
+            pattern: ^\d{1,5}(,\d{1,5}){0,49}$
+          example: 40012,40014,40072
+          description: 'Filtro — Varias claves SPEI separadas por coma (hasta 50); devuelve las validaciones cuyo banco emisor o receptor sea cualquiera de ellas. Si un elemento no tiene de 1 a 5 dígitos, responde con estado HTTP `422` e `invalid_filter`. Se combina con `bank`: si mandas los dos, se cumplen ambos.'
+          x-translations:
+            en:
+              description: 'Comma-separated SPEI codes (up to 50); returns the validations whose sending or receiving bank is any of them. If an element does not have 1 to 5 digits, the response is HTTP status `422` with `invalid_filter`. Combines with `bank`: if you send both, both must hold.'
         - name: amount_min
           in: query
           schema:
@@ -1749,7 +1791,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: d4e5f6a1b2c3
+                      request_id: d4e5f6a1b2c33c2b1a6f5e4d
       x-translations:
         en:
           summary: Export validations
@@ -1865,7 +1907,7 @@ paths:
                         cep_pdf: /v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=pdf
                     meta:
                       version: 1.51.0
-                      request_id: b3c4d5e6f7a8
+                      request_id: b3c4d5e6f7a88a7f6e5d4c3b
                 queued_async:
                   summary: Validación asíncrona en cola — consulta periódica activa
                   x-translations:
@@ -1873,7 +1915,7 @@ paths:
                       summary: Async validation queued — polling active
                   value:
                     data:
-                      id: c3d4e5f6-a7b8-9012-cdef-123456789abc
+                      id: c3d4e5f6-a7b8-4012-8def-123456789abc
                       type: validation
                       attributes:
                         validation_type: direct
@@ -1881,16 +1923,26 @@ paths:
                         status: queued
                         enqueued_at: '2025-03-17T08:00:01Z'
                         expires_at: '2025-03-17T09:00:01Z'
-                        etag_version: 0
+                        retry_state:
+                          enabled: false
+                          max_retries: null
+                          interval_seconds: null
+                          outcomes: null
+                          attempts_completed: 0
+                          next_attempt_at: null
+                          resolved_at: null
+                          exhausted_at: null
+                          cancelled_at: null
+                          terminal_state: null
                     meta:
                       version: 1.51.0
-                      request_id: a9b0c1d2e3f4
+                      request_id: a9b0c1d2e3f44f3e2d1c0b9a
                       next_poll_after_seconds: 2
                 not_found:
                   summary: Transferencia no encontrada en el CEP
                   value:
                     data:
-                      id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                      id: a1b2c3d4-e5f6-4890-abcd-ef1234567890
                       type: validation
                       attributes:
                         validation_type: direct
@@ -1899,9 +1951,20 @@ paths:
                         banxico_status: not_found
                         created_at: '2025-03-16T09:10:00Z'
                         completed_at: '2025-03-16T09:10:01Z'
+                        retry_state:
+                          enabled: false
+                          max_retries: null
+                          interval_seconds: null
+                          outcomes: null
+                          attempts_completed: 0
+                          next_attempt_at: null
+                          resolved_at: null
+                          exhausted_at: null
+                          cancelled_at: null
+                          terminal_state: null
                     meta:
                       version: 1.51.0
-                      request_id: c4d5e6f7a8b9
+                      request_id: c4d5e6f7a8b99b8a7f6e5d4c
         '304':
           $ref: '#/components/responses/ValidationNotModified'
           headers:
@@ -2046,7 +2109,7 @@ paths:
         - Validations
       summary: Descargar el CEP oficial
       description: |-
-        Descarga el {% concept slug="cep-concept" %}Comprobante Electrónico de Pago (CEP){% /concept %} emitido por Banxico de una validación con veredicto `valid`.
+        Descarga el {% concept slug="cep-concept" %}Comprobante Electrónico de Pago (CEP){% /concept %} emitido por Banxico de una validación con veredicto `valid`, o `returned` cuando el CEP se descargó antes de conocerse la devolución.
 
         El formato predeterminado es `xml`; con `format=pdf` se solicita el documento en PDF.
 
@@ -2114,10 +2177,10 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Validación no encontrada (`not_found`) o el CEP no está disponible para esta validación (`cep_not_available`). Este último código se devuelve cuando `banxico_status` no es `valid` o falta el archivo solicitado.
+          description: Validación no encontrada (`not_found`) o el CEP no está disponible para esta validación (`cep_not_available`). Este último código se devuelve cuando `banxico_status` no es `valid` ni `returned` o falta el archivo solicitado.
           x-translations:
             en:
-              description: Validation not found (`not_found`) or the CEP is not available for this validation (`cep_not_available`). The latter code is returned when `banxico_status` is not `valid` or the requested file is missing.
+              description: Validation not found (`not_found`) or the CEP is not available for this validation (`cep_not_available`). The latter code is returned when `banxico_status` is neither `valid` nor `returned` or the requested file is missing.
           content:
             application/json:
               schema:
@@ -2137,7 +2200,7 @@ paths:
         en:
           summary: Download the official CEP
           description: |-
-            Downloads {% concept slug="cep-concept" %}the Electronic Payment Receipt (CEP) issued by Banxico{% /concept %} for a validation with a `valid` verdict.
+            Downloads {% concept slug="cep-concept" %}the Electronic Payment Receipt (CEP) issued by Banxico{% /concept %} for a validation with a `valid` verdict, or `returned` when the CEP was downloaded before the return was known.
 
             The default format is `xml`; `format=pdf` requests the document as a PDF.
 
@@ -2502,7 +2565,7 @@ paths:
                         proxy_pool_member: proxy-03
                     meta:
                       version: 1.51.0
-                      request_id: b6c7d8e9f0a1
+                      request_id: b6c7d8e9f0a11a0f9e8d7c6b
                 no_attempts:
                   summary: Sin intentos — política recién configurada
                   x-translations:
@@ -2512,7 +2575,7 @@ paths:
                     data: []
                     meta:
                       version: 1.51.0
-                      request_id: c7d8e9f0a1b2
+                      request_id: c7d8e9f0a1b22b1a0f9e8d7c
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2569,13 +2632,13 @@ paths:
         **No se admite en tres casos:**\
         — Validaciones que llegaron por importación masiva.\
         — Validaciones ya resueltas.\
-        — Validaciones fuera de la antigüedad que permite el plan.
+        — Validaciones con más de siete días de antigüedad.
 
         {% /callout %}
 
         Un ciclo de reintentos puede devolver `terminal_state="exhausted"` cuando se alcanzan el máximo de reintentos configurado. También puede devolver `terminal_state="cancelled"` cuando el usuario cancela manualmente los reintentos de la validación.
 
-        En ambos casos, el ciclo puede reactivarse mientras conserve reintentos disponibles.
+        En ambos casos, el ciclo puede reactivarse hasta tres veces; pasado ese tope, la petición se rechaza con `422 reactivation_cap_exceeded`.
 
         El estado completo de una validación se obtiene con `GET /v1/validations/{id}`, y los límites están descritos en {% concept slug="retry-policy" %}la política de reintentos{% /concept %}.
       operationId: updateValidationRetryPolicy
@@ -2630,6 +2693,7 @@ paths:
                     outcomes:
                       - not_found
                       - cep_unavailable
+                      - error
       x-codeSamples:
         - lang: curl
           label: Shell
@@ -2722,7 +2786,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: c3d4e5f6a1b3
+                      request_id: c3d4e5f6a1b33b1a6f5e4d3c
                 invalid_json:
                   summary: JSON mal formado
                   x-translations:
@@ -2736,7 +2800,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: d4e5f6a1b2c4
+                      request_id: d4e5f6a1b2c44c2b1a6f5e4d
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -2775,13 +2839,13 @@ paths:
             **Not admitted in three cases:**\
             — Validations that arrived through a bulk import.\
             — Validations already resolved.\
-            — Validations older than the age the plan allows.
+            — Validations more than seven days old.
 
             {% /callout %}
 
             A retry cycle can return `terminal_state="exhausted"` when the configured maximum number of retries is reached. It can also return `terminal_state="cancelled"` when the user cancels the validation's retries manually.
 
-            In both cases the cycle can be reactivated while it keeps retries available.
+            In both cases the cycle can be reactivated up to three times; past that cap, the request is rejected with `422 reactivation_cap_exceeded`.
 
             The full state of a validation is obtained with `GET /v1/validations/{id}`, and the caps are described in {% concept slug="retry-policy" %}the retry policy{% /concept %}.
       security:
@@ -3012,7 +3076,7 @@ paths:
                         cep_pdf: /v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=pdf
                     meta:
                       version: 1.60.0
-                      request_id: b3c4d5e6f7a8
+                      request_id: b3c4d5e6f7a88a7f6e5d4c3b
                       recheck:
                         checked_at: '2026-10-01T18:42:07Z'
                         changed: false
@@ -3049,7 +3113,7 @@ paths:
                         cep_pdf: /v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=pdf
                     meta:
                       version: 1.60.0
-                      request_id: c4d5e6f7a8b9
+                      request_id: c4d5e6f7a8b99b8a7f6e5d4c
                       recheck:
                         checked_at: '2026-10-02T09:15:44Z'
                         changed: true
@@ -3255,7 +3319,7 @@ paths:
                         same_image_validation_ids: []
                     meta:
                       version: 1.61.0
-                      request_id: b3c4d5e6f7a8
+                      request_id: b3c4d5e6f7a88a7f6e5d4c3b
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -3426,7 +3490,7 @@ paths:
                           security_events_rows: 1
                     meta:
                       version: 1.61.0
-                      request_id: c4d5e6f7a8b9
+                      request_id: c4d5e6f7a8b99b8a7f6e5d4c
         '400':
           $ref: '#/components/responses/BodyEmpty'
         '401':
@@ -3589,20 +3653,25 @@ paths:
                         attributes:
                           code: '40012'
                           name: BBVA MEXICO
+                          aliases:
+                            - bancomer
+                            - bbva bancomer
                       - type: bank
                         id: '40021'
                         attributes:
                           code: '40021'
                           name: HSBC
+                          aliases: []
                       - type: bank
                         id: '40002'
                         attributes:
                           code: '40002'
                           name: BANCO NACIONAL DE MEXICO
+                          aliases: []
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: e7f8a9b0c1d2
+                      request_id: e7f8a9b0c1d22d1c0b9a8f7e
         '304':
           description: No modificado — los datos no han cambiado según el ETag enviado.
           x-translations:
@@ -3858,7 +3927,7 @@ paths:
                     meta:
                       version: 1.63.0
                       api_version: v1
-                      request_id: e7f8a9b0c1d2
+                      request_id: e7f8a9b0c1d22d1c0b9a8f7e
                       covered_years:
                         - 2024
                         - 2025
@@ -3897,7 +3966,7 @@ paths:
                     detail: We do not have the calendar for 2030. The available years run from 2024 to 2026.
                 meta:
                   version: 1.63.0
-                  request_id: c1d2e3f4a5b6
+                  request_id: c1d2e3f4a5b66b5a4f3e2d1c
                   covered_years:
                     - 2024
                     - 2025
@@ -3927,7 +3996,7 @@ paths:
                     detail: No tenemos el calendario de 2030. Los años disponibles van de 2024 a 2026.
                 meta:
                   version: 1.63.0
-                  request_id: c1d2e3f4a5b6
+                  request_id: c1d2e3f4a5b66b5a4f3e2d1c
                   covered_years:
                     - 2024
                     - 2025
@@ -3953,7 +4022,7 @@ paths:
                     detail: El año debe tener cuatro dígitos, por ejemplo 2026.
                 meta:
                   version: 1.63.0
-                  request_id: d2e3f4a5b6c7
+                  request_id: d2e3f4a5b6c77c6b5a4f3e2d
         '429':
           $ref: '#/components/responses/RateLimited'
       x-translations:
@@ -3990,7 +4059,7 @@ paths:
         - Beneficiaries
       summary: Exportar los beneficiarios de la cuenta de usuario
       description: |-
-        Descarga las cuentas beneficiarias del usuario autenticado como archivo, usa el mismo filtro `with_archived` que `GET /v1/beneficiaries/list-beneficiaries`.
+        Descarga las cuentas beneficiarias del usuario autenticado como archivo, usa el mismo filtro `with_archived` que `GET /v1/beneficiaries`.
 
         El formato de descarga se elige con `?format` (`csv` por defecto, `xlsx` como alternativa). El tope de filas es de 100 000, y `?limit` sirve para pedir menos, nunca más.
 
@@ -4056,7 +4125,7 @@ paths:
             Content-Disposition:
               schema:
                 type: string
-                example: attachment; filename="cuentas-2026-05-16.csv"
+                example: attachment; filename="platform_cuentas_2026-05-16.csv"
               description: Sugerencia de nombre de archivo, derivada de la marca y de la fecha de exportación.
               x-translations:
                 en:
@@ -4074,10 +4143,10 @@ paths:
               schema:
                 type: string
                 format: binary
-                description: 'Archivo CSV. Columnas: Alias, Cuenta, Tipo, Banco, Código Banco, Estado, Fecha Creación (UTC). El número de cuenta va prefijado con apóstrofe para forzar Excel a tratarlo como texto (no notación científica).'
+                description: 'Archivo CSV. Abre con un bloque de cabecera (razón social, soporte, fecha de generación y folio) y una línea en blanco; después vienen los encabezados en el idioma de la petición (en español: Alias, Cuenta, Tipo, Banco, Código Banco, Estado, Fecha Creación (UTC)) y las filas. El número de cuenta va prefijado con apóstrofe para forzar Excel a tratarlo como texto (no notación científica).'
                 x-translations:
                   en:
-                    description: 'CSV file. Columns: Alias, Cuenta, Tipo, Banco, Código Banco, Estado, Fecha Creación (UTC). The account number is prefixed with an apostrophe to force Excel to treat it as text (no scientific notation).'
+                    description: 'CSV file. It opens with a header block (legal name, support, generation date, and folio) and a blank line; then come the column headers in the request language (in Spanish: Alias, Cuenta, Tipo, Banco, Código Banco, Estado, Fecha Creación (UTC)) and the rows. The account number is prefixed with an apostrophe to force Excel to treat it as text (no scientific notation).'
             application/octet-stream:
               schema:
                 type: string
@@ -4096,7 +4165,7 @@ paths:
           description: |-
             Downloads the beneficiary accounts of the authenticated account as a
             file, under the same `with_archived` filter as `GET
-            /v1/beneficiaries/list-beneficiaries`.
+            /v1/beneficiaries`.
 
             The download format is chosen with `?format` (`csv` by default,
             `xlsx` as the alternative). The row cap is 100,000, and `?limit`
@@ -4199,7 +4268,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: b2c3d4e5f6a7
+                      request_id: b2c3d4e5f6a77a6f5e4d3c2b
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4309,7 +4378,6 @@ paths:
                   attributes:
                     account_number: '012180004412345678'
                     account_type: clabe
-                    clabe: '012180004412345678'
                     bank_code: '40012'
                     bank_name: BBVA MEXICO
                     label: Proveedor ABC
@@ -4342,7 +4410,6 @@ paths:
                       attributes:
                         account_number: '012180004412345678'
                         account_type: clabe
-                        clabe: '012180004412345678'
                         bank_code: '40012'
                         bank_name: BBVA MEXICO
                         label: Proveedor ABC
@@ -4364,7 +4431,6 @@ paths:
                       attributes:
                         account_number: '5512345678'
                         account_type: phone
-                        clabe: '5512345678'
                         bank_code: '40012'
                         bank_name: BBVA MEXICO
                         label: Cuenta DiMo Banamex
@@ -4406,7 +4472,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: c1d2e3f4a5b6
+                      request_id: c1d2e3f4a5b66b5a4f3e2d1c
                 invalid_json:
                   summary: JSON mal formado
                   x-translations:
@@ -4420,7 +4486,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: d2e3f4a5b6c7
+                      request_id: d2e3f4a5b6c77c6b5a4f3e2d
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4428,10 +4494,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: La cuenta no pasó la validación, o el alta chocó con un tope. Los códigos posibles son `account_number_required`, `account_number_invalid_type`, `label_invalid_type`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered` y `plan_cap_exceeded`. `account_number_invalid_type` y `label_invalid_type` aparecen cuando el campo llega con un tipo distinto de cadena de texto. Todo error de campo trae `source.pointer`.
+          description: La cuenta no pasó la validación, o el alta chocó con un tope. Los códigos posibles son `account_number_required`, `account_number_invalid_type`, `label_invalid_type`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `invalid_bank_code`, `max_length_exceeded`, `beneficiary_already_registered` y `plan_cap_exceeded`. `account_number_invalid_type` y `label_invalid_type` aparecen cuando el campo llega con un tipo distinto de cadena de texto. Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The account failed validation, or the request hit a cap. The possible codes are `account_number_required`, `account_number_invalid_type`, `label_invalid_type`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered` and `plan_cap_exceeded`. `account_number_invalid_type` and `label_invalid_type` fire when the field arrives as a type other than a string. Every field-level error carries `source.pointer`.
+              description: The account failed validation, or the request hit a cap. The possible codes are `account_number_required`, `account_number_invalid_type`, `label_invalid_type`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `invalid_bank_code`, `max_length_exceeded`, `beneficiary_already_registered` and `plan_cap_exceeded`. `account_number_invalid_type` and `label_invalid_type` fire when the field arrives as a type other than a string. Every field-level error carries `source.pointer`.
               examples:
                 phone_missing_bank_code:
                   value:
@@ -4473,7 +4539,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: f6a7b8c9d0e1
+                      request_id: f6a7b8c9d0e11e0d9c8b7a6f
                 clabe_unknown_prefix:
                   summary: CLABE con prefijo no reconocido
                   x-translations:
@@ -4489,7 +4555,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: a7b8c9d0e1f2
+                      request_id: a7b8c9d0e1f22f1e0d9c8b7a
                 duplicate:
                   summary: Cuenta activa ya existe
                   x-translations:
@@ -4505,7 +4571,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: b8c9d0e1f2a3
+                      request_id: b8c9d0e1f2a33a2f1e0d9c8b
                 plan_cap:
                   summary: El plan no admite más beneficiarios
                   x-translations:
@@ -4519,7 +4585,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: f4a5b6c7d8e9
+                      request_id: f4a5b6c7d8e99e8d7c6b5a4f
                 account_number_invalid_type:
                   summary: account_number con tipo inválido
                   x-translations:
@@ -4535,7 +4601,7 @@ paths:
                     meta:
                       version: 1.59.1
                       api_version: v1
-                      request_id: a1b2c3d4e5f6
+                      request_id: a1b2c3d4e5f66f5e4d3c2b1a
       x-related:
         - GET /v1/beneficiaries
         - GET /v1/public/banks
@@ -4581,8 +4647,8 @@ paths:
         Actualiza un beneficiario ya registrado. El cuerpo admite la envoltura JSON:API o un objeto plano, y lo que se envíe determina el alcance del cambio:
 
         - Solo `label`: Se guarda, sin tocar la cuenta.
-        - Un `account_number` nuevo, o el alias antiguo: vuelven a derivarse `account_type`, `bank_code` y `bank_name`. Si el nuevo número es un celular (phone), el cuerpo debe llevar `bank_code`.
-        - Solo `bank_code`: se aplica únicamente sobre un beneficiario de tipo celular. En una CLABE o una tarjeta el banco se deriva del número, así que el valor enviado se descarta sin error.
+        - Un `account_number` nuevo: vuelven a derivarse `account_type`, `bank_code` y `bank_name`. Si el nuevo número es un celular (phone), el cuerpo debe llevar `bank_code`.
+        - Solo `bank_code`: se aplica únicamente sobre un beneficiario de tipo celular. En una CLABE o una tarjeta el banco se deriva del número, así que el valor enviado se descarta sin error; si era el único campo, responde con `no_valid_fields`.
 
         Un cuerpo sin ningún campo editable responde con un estado HTTP `422` (con `no_valid_fields` en el cuerpo).
 
@@ -4672,7 +4738,6 @@ paths:
                   attributes:
                     account_number: '5512345678'
                     account_type: phone
-                    clabe: '5512345678'
                     bank_code: '40021'
                     bank_name: HSBC
                     label: Cuenta DiMo HSBC
@@ -4714,7 +4779,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: a5b6c7d8e9f0
+                      request_id: a5b6c7d8e9f00f9e8d7c6b5a
                 invalid_json:
                   summary: JSON mal formado
                   x-translations:
@@ -4728,7 +4793,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: b6c7d8e9f0a1
+                      request_id: b6c7d8e9f0a11a0f9e8d7c6b
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -4738,10 +4803,10 @@ paths:
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
         '422':
-          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered`, `account_number_invalid_type` y `label_invalid_type`. Las dos últimas aparecen cuando `account_number` o `label` llegan con un tipo distinto de cadena de texto (por ejemplo, un número o un arreglo). Todo error de campo trae `source.pointer`.
+          description: El cuerpo no pasó la validación. Los códigos posibles son `no_valid_fields`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `invalid_bank_code`, `max_length_exceeded`, `beneficiary_already_registered`, `account_number_invalid_type` y `label_invalid_type`. Las dos últimas aparecen cuando `account_number` o `label` llegan con un tipo distinto de cadena de texto (por ejemplo, un número o un arreglo). Todo error de campo trae `source.pointer`.
           x-translations:
             en:
-              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_length`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `beneficiary_already_registered`, `account_number_invalid_type`, and `label_invalid_type`. The last two fire when `account_number` or `label` arrive as a type other than a string (a number or an array, for instance). Every field-level error carries `source.pointer`.
+              description: The body failed validation. Possible codes are `no_valid_fields`, `invalid_account_format`, `invalid_account_length`, `invalid_clabe_checksum`, `invalid_card_luhn`, `clabe_prefix_not_recognized`, `bank_code_required_for_phone`, `invalid_bank_code`, `max_length_exceeded`, `beneficiary_already_registered`, `account_number_invalid_type`, and `label_invalid_type`. The last two fire when `account_number` or `label` arrive as a type other than a string (a number or an array, for instance). Every field-level error carries `source.pointer`.
               examples:
                 no_fields:
                   value:
@@ -4769,7 +4834,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: d0e1f2a3b4c5
+                      request_id: d0e1f2a3b4c55c4b3a2f1e0d
                 label_invalid_type:
                   summary: label con tipo inválido
                   x-translations:
@@ -4785,7 +4850,7 @@ paths:
                     meta:
                       version: 1.59.1
                       api_version: v1
-                      request_id: e1f2a3b4c5d6
+                      request_id: e1f2a3b4c5d66d5c4b3a2f1e
       x-translations:
         en:
           summary: Update a beneficiary
@@ -4795,12 +4860,13 @@ paths:
             change:
 
             - `label` only: it is stored, leaving the account untouched.
-            - A new `account_number`, or the legacy alias: `account_type`,
-              `bank_code` and `bank_name` are derived again. If the new number is a
+            - A new `account_number`: `account_type`, `bank_code` and
+              `bank_name` are derived again. If the new number is a
               phone, the body must carry `bank_code`.
             - `bank_code` only: it applies solely to a phone-type beneficiary. On a
               CLABE or a card the bank is derived from the number, so the value sent
-              is discarded without an error.
+              is discarded without an error; if it was the only field, the response
+              is `no_valid_fields`.
 
             A body with no editable field responds with HTTP status `422`, with
             `no_valid_fields` in the body.
@@ -4942,7 +5008,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: a1b2c3d4e5f6
+                      request_id: a1b2c3d4e5f66f5e4d3c2b1a
                 card_found:
                   summary: Tarjeta encontrada en la lista
                   x-translations:
@@ -4960,7 +5026,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: a2b3c4d5e6f7
+                      request_id: a2b3c4d5e6f77f6e5d4c3b2a
                 phone_found:
                   summary: Celular DiMo encontrado en la lista
                   x-translations:
@@ -4978,7 +5044,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: b2c3d4e5f6a7
+                      request_id: b2c3d4e5f6a77a6f5e4d3c2b
         '400':
           description: Parámetro `account` ausente (`query_param_account_required`) o formato inválido (`invalid_account_format`).
           x-translations:
@@ -5011,7 +5077,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: c3d4e5f6a7b8
+                      request_id: c3d4e5f6a7b88b7a6f5e4d3c
                 bad_format:
                   summary: Longitud fuera de rango / no numérico
                   x-translations:
@@ -5025,7 +5091,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: d4e5f6a7b8c9
+                      request_id: d4e5f6a7b8c99c8b7a6f5e4d
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5050,7 +5116,7 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: b2c3d4e5f6a7
+                  request_id: b2c3d4e5f6a77a6f5e4d3c2b
       x-translations:
         en:
           summary: Look up account in own whitelist
@@ -5076,9 +5142,9 @@ paths:
         - Beneficiaries
       summary: Descargar la plantilla de importación de beneficiarios
       description: |-
-        Devuelve un **archivo plantilla para la importación de beneficiarios** en el formato solicitado, con encabezados en español o inglés y filas de ejemplo para CLABE, tarjeta y celular/DiMo. Sirve de punto de partida para {% concept slug="bulk-imports" %}la importación masiva{% /concept %}.
+        Devuelve un **archivo plantilla para la importación de beneficiarios** en el formato solicitado, con los encabezados fijos `alias`, `cuenta` y `banco` y filas de ejemplo para CLABE, tarjeta y celular/DiMo. Sirve de punto de partida para {% concept slug="bulk-imports" %}la importación masiva{% /concept %}.
 
-        El idioma de los encabezados se negocia con la cabecera `Accept-Language`; de forma predeterminada se entregan en español, acepta después encabezados en ambos idiomas de forma insensible a acentos.
+        Los encabezados no cambian con el idioma: la cabecera `Accept-Language` sólo elige el idioma de las filas de ejemplo y del nombre de la hoja; de forma predeterminada se entregan en español. La importación acepta después encabezados en ambos idiomas de forma insensible a acentos.
       operationId: downloadBeneficiaryImportTemplate
       externalDocs:
         url: https://docs.veriko.mx/how-to/beneficiary-import
@@ -5087,12 +5153,14 @@ paths:
         en:
           summary: Download bulk import template
           description: |-
-            Returns a template file in the requested format, with headers in
-            Spanish or English and example rows for CLABE, card and DiMo phone.
+            Returns a template file in the requested format, with the fixed headers
+            `alias`, `cuenta` and `banco` and example rows for CLABE, card and DiMo
+            phone.
             Serves as a starting point for {% concept slug="bulk-imports" %}the
             bulk import{% /concept %}.
 
-            Header language is negotiated with the `Accept-Language` header;
+            The headers do not change with the language: the `Accept-Language`
+            header only picks the language of the example rows and the sheet name;
             Spanish is served by default. The import parser then accepts headers
             in both languages accent-insensitively.
       security:
@@ -5130,7 +5198,7 @@ paths:
             Content-Disposition:
               schema:
                 type: string
-                example: attachment; filename="beneficiarios_plantilla.csv"
+                example: attachment; filename="platform_plantilla_beneficiarios.csv"
               description: Sugerencia de nombre de archivo para descarga.
               x-translations:
                 en:
@@ -5172,14 +5240,14 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: c5d6e7f8a9b0
+                  request_id: c5d6e7f8a9b00b9a8f7e6d5c
   /beneficiaries/imports:
     post:
       tags:
         - Beneficiaries
       summary: Iniciar importación masiva de beneficiarios
       description: |-
-        Sube un archivo (CSV, XLS, XLSX, TXT o PDF) de hasta 20 MB y abre con él un trabajo de importación.
+        Sube un archivo (CSV, XLS, XLSX, TXT, JSON o PDF) de hasta 20 MB y abre con él un trabajo de importación.
         Las hojas XLSX/XLS admiten hasta 10 000 filas y 64 columnas. Las fórmulas XLSX se leen como texto, sin ejecutarlas. Los PDF admiten hasta 50 páginas y limitan a 8 MiB la descompresión de cada flujo.
 
         El modo de lectura decide cuánto trabajo hace el archivo y cuánto el servidor:
@@ -5212,16 +5280,18 @@ paths:
               $ref: '#/components/schemas/CreateBeneficiaryImportRequest'
             encoding:
               file:
-                contentType: text/csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/plain, application/pdf
+                contentType: text/csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, text/plain, application/json, application/pdf
               parse_mode:
                 contentType: text/plain
       x-codeSamples:
         - lang: curl
           label: Shell
+          x-manual: true
           source: |-
             curl -X POST 'https://api.veriko.mx/v1/beneficiaries/imports' \
               -H 'Authorization: Bearer veriko_••••' \
-              -H 'Content-Type: application/json'
+              -F 'parse_mode=template' \
+              -F 'file=@beneficiarios.csv'
       responses:
         '202':
           description: Trabajo de importación creado y esperando procesamiento.
@@ -5241,16 +5311,16 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: e1f2a3b4c5d6
+                  request_id: e1f2a3b4c5d66d5c4b3a2f1e
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '422':
-          description: 'Falló la validación o la pre-condición. Códigos posibles: `file_required`, `file_too_large`, `unsupported_format` e `import_already_in_flight`.'
+          description: 'Falló la validación o la pre-condición. Códigos posibles: `file_required`, `upload_error`, `file_too_large`, `invalid_parse_mode`, `unsupported_format`, `import_already_in_flight` y `persist_failed`.'
           x-translations:
             en:
-              description: 'Validation or pre-condition failed. Possible codes: `file_required`, `file_too_large`, `unsupported_format`, and `import_already_in_flight`.'
+              description: 'Validation or pre-condition failed. Possible codes: `file_required`, `upload_error`, `file_too_large`, `invalid_parse_mode`, `unsupported_format`, `import_already_in_flight`, and `persist_failed`.'
               example:
                 errors:
                   - detail: A `file` part is required in the multipart body.
@@ -5266,7 +5336,7 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: f2a3b4c5d6e7
+                  request_id: f2a3b4c5d6e77e6d5c4b3a2f
       x-related:
         - GET /v1/beneficiaries/imports/{id}
         - GET /v1/beneficiaries/imports/{id}/preview
@@ -5277,7 +5347,7 @@ paths:
         en:
           summary: Start a bulk beneficiary import
           description: |-
-            Uploads a file — CSV, XLS, XLSX, TXT, or PDF, up to 20 MB — and opens an
+            Uploads a file — CSV, XLS, XLSX, TXT, JSON, or PDF, up to 20 MB — and opens an
             import job with it. XLSX/XLS sheets allow up to 10,000 rows and 64 columns.
             XLSX formulas are read as text without evaluation. PDFs allow up to 50
             pages and cap decoded streams at 8 MiB. The reading mode decides how much work the file does
@@ -5388,7 +5458,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: d6e7f8a9b0c1
+                      request_id: d6e7f8a9b0c11c0b9a8f7e6d
                 committed:
                   summary: Commit finalizado (completed)
                   x-translations:
@@ -5419,7 +5489,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: e7f8a9b0c1d2
+                      request_id: e7f8a9b0c1d22d1c0b9a8f7e
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5507,7 +5577,7 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: f8a9b0c1d2e3
+                  request_id: f8a9b0c1d2e33e2d1c0b9a8f
       x-translations:
         en:
           summary: Cancel an import job
@@ -5537,7 +5607,7 @@ paths:
       description: |-
         Devuelve las filas extraídas del archivo en un trabajo de importación (paginadas y filtrables por grupo).
 
-        Disponible solo cuando la importación está en `preview_ready` o estados posteriores con `total_rows>0`.
+        Responde en cualquier estado del trabajo; antes de `preview_ready` la lista sale vacía.
 
         {% callout type="warning" %}
         En este endpoint los datos de CLABEs, tarjetas o celulares NO son enmascarados. Se presume que el usuario solicitante de la importación ya tiene en su poder dichos datos, por lo que no hay motivos para tratarlos bajo nuestra política de {% concept slug="pii-masking" %}enmascarado de datos{% /concept %}
@@ -5659,11 +5729,11 @@ paths:
                           parsed_account_type: phone
                           parsed_bank_code: null
                           parsed_bank_name: null
-                          parsed_label: null
+                          parsed_label: Cuenta
                           error_codes:
                             - bank_code_required_for_phone
                           corrections_applied:
-                            alias_auto_assigned: Beneficiario 002
+                            alias_auto_assigned: Cuenta
                           user_overrides: {}
                           raw_preview:
                             Alias: ''
@@ -5698,7 +5768,7 @@ paths:
                           completed_at: null
                       version: 1.47.0
                       api_version: v1
-                      request_id: a9b0c1d2e3f4
+                      request_id: a9b0c1d2e3f44f3e2d1c0b9a
                 only_fatal:
                   summary: Filtrado solo a filas fatales
                   x-translations:
@@ -5753,7 +5823,7 @@ paths:
                           completed_at: null
                       version: 1.47.0
                       api_version: v1
-                      request_id: b0c1d2e3f4a5
+                      request_id: b0c1d2e3f4a55a4f3e2d1c0b
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -5767,8 +5837,8 @@ paths:
             Returns the rows extracted from the file in an import job, paginated
             and filterable by bucket.
 
-            Available only when the import is in `preview_ready` or later states
-            with `total_rows>0`.
+            It responds in any job state; before `preview_ready` the list is
+            empty.
 
             {% callout type="warning" %}
             On this endpoint the CLABE, card and phone numbers are NOT masked.
@@ -5983,10 +6053,10 @@ paths:
                     parsed_account_type: phone
                     parsed_bank_code: '40012'
                     parsed_bank_name: BBVA MEXICO
-                    parsed_label: null
+                    parsed_label: Cuenta
                     error_codes: []
                     corrections_applied:
-                      alias_auto_assigned: Beneficiario 002
+                      alias_auto_assigned: Cuenta
                     user_overrides:
                       parsed_account_type: phone
                       parsed_bank_code: '40012'
@@ -5998,7 +6068,7 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: c1d2e3f4a5b6
+                  request_id: c1d2e3f4a5b66b5a4f3e2d1c
         '400':
           description: El cuerpo de la petición está vacío o no es JSON válido.
           x-translations:
@@ -6031,7 +6101,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: a5b6c7d8e9f0
+                      request_id: a5b6c7d8e9f00f9e8d7c6b5a
                 invalid_json:
                   summary: JSON mal formado
                   x-translations:
@@ -6045,7 +6115,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: b6c7d8e9f0a1
+                      request_id: b6c7d8e9f0a11a0f9e8d7c6b
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -6086,7 +6156,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: d2e3f4a5b6c7
+                      request_id: d2e3f4a5b6c77c6b5a4f3e2d
                 bad_type:
                   summary: parsed_account_type fuera del enum
                   x-translations:
@@ -6100,7 +6170,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: e3f4a5b6c7d8
+                      request_id: e3f4a5b6c7d88d7c6b5a4f3e
       x-translations:
         en:
           summary: Edit a preview row
@@ -6150,7 +6220,7 @@ paths:
         Reglas de la confirmación:
 
         - Filas `valid` y `correctable`: Se persisten (con sufijo de alias si hubo colisión de alias). La excepción es un celular sin banco válido (`bank_code_required_for_phone` o `invalid_bank_code`): se corrige eligiendo el banco en la vista previa, y si al confirmar sigue sin banco no se guarda, queda como `fatal` con ese mismo código y cuenta en `skipped_count`.
-        - Filas `fatal` y `duplicate_account`: Se omiten.
+        - Filas `fatal` y `duplicate_account`: Se omiten, salvo una `duplicate_account` cuya cuenta está archivada, que se reactiva.
         - Cuentas previamente archivadas con el mismo número: Se reactivan en lugar de duplicarse.
       operationId: commitBeneficiaryImport
       externalDocs:
@@ -6193,7 +6263,7 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: f4a5b6c7d8e9
+                  request_id: f4a5b6c7d8e99e8d7c6b5a4f
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -6220,7 +6290,7 @@ paths:
                 meta:
                   version: 1.47.0
                   api_version: v1
-                  request_id: a5b6c7d8e9f0
+                  request_id: a5b6c7d8e9f00f9e8d7c6b5a
       x-translations:
         en:
           summary: Confirm the bulk import
@@ -6238,7 +6308,8 @@ paths:
               is fixed by choosing the bank in the preview, and if it still has no
               bank when you confirm it is not saved, becomes `fatal` with that same
               code and counts in `skipped_count`.
-            - `fatal` and `duplicate_account` rows are skipped.
+            - `fatal` and `duplicate_account` rows are skipped, except a
+              `duplicate_account` whose account is archived, which is reactivated.
             - Previously archived accounts with the same number are reactivated
               instead of duplicated.
       security:
@@ -6331,7 +6402,7 @@ paths:
             Content-Disposition:
               schema:
                 type: string
-                example: attachment; filename="actividad_api_2025-01-15.csv"
+                example: attachment; filename="platform_actividad_api_2025-01-15.csv"
           content:
             text/csv:
               schema:
@@ -6373,9 +6444,9 @@ paths:
       description: |-
         Devuelve las métricas de uso de la API del usuario autenticado:
 
-        - Peticiones a la API hoy y en el mes.
+        - Peticiones con clave de API hoy y en el mes.
         - Cuota del plan vigente.
-        - Últimas peticiones a la API.
+        - Últimas 15 peticiones con clave de API.
         - Validaciones consumidas por mes.
         - Estado actual del servicio Banxico CEP.
       operationId: getApiUsage
@@ -6421,7 +6492,7 @@ paths:
                         resets_at: '2025-04-01T00:00:00Z'
                     meta:
                       version: 1.51.0
-                      request_id: f7a8b9c0d1e2
+                      request_id: f7a8b9c0d1e22e1d0c9b8a7f
                 new_user:
                   summary: Usuario nuevo — sin actividad
                   x-translations:
@@ -6439,7 +6510,7 @@ paths:
                         resets_at: '2025-04-01T00:00:00Z'
                     meta:
                       version: 1.51.0
-                      request_id: a8b9c0d1e2f3
+                      request_id: a8b9c0d1e2f33f2e1d0c9b8a
         '401':
           $ref: '#/components/responses/Unauthorized'
       x-translations:
@@ -6448,9 +6519,9 @@ paths:
           description: |-
             Returns the authenticated user's API usage metrics:
 
-            - API requests today and this month.
+            - API key requests today and this month.
             - Quota of the plan in force.
-            - Most recent API requests.
+            - The 15 most recent API key requests.
             - Validations consumed per month.
             - Current Banxico CEP service status.
       security:
@@ -6468,7 +6539,7 @@ paths:
       description: |-
         Devuelve los contadores agregados del usuario: el total histórico, el total
         del mes UTC en curso, las validaciones con veredicto `valid`, el contador
-        mensual de los estados `pending` y `processing`, el monto promedio y la
+        mensual de los estados `queued` y `processing`, el monto promedio y la
         tasa de éxito. Incluye también la cantidad de beneficiarios activos.
 
         `relationships.recent_validations` contiene las validaciones no retiradas
@@ -6519,7 +6590,7 @@ paths:
           description: |-
             Returns the user's aggregate counters: the lifetime total, the current
             UTC-month total, validations with verdict `valid`, the monthly count of
-            the `pending` and `processing` states, the average amount, and the
+            the `queued` and `processing` states, the average amount, and the
             success rate. It also includes the active beneficiary count.
 
             `relationships.recent_validations` contains the latest validations that
@@ -6591,7 +6662,7 @@ paths:
                           - cep_unavailable
                     meta:
                       version: 1.51.0
-                      request_id: b3c4d5e6f7a8
+                      request_id: b3c4d5e6f7a8b3c4d5e6f7a8
                 disabled_policy:
                   summary: Política desactivada explícitamente
                   x-translations:
@@ -6602,13 +6673,12 @@ paths:
                       type: retry_policy
                       attributes:
                         enabled: false
-                        max_retries: 1
-                        interval_seconds: 600
-                        outcomes:
-                          - not_found
+                        max_retries: 0
+                        interval_seconds: 0
+                        outcomes: []
                     meta:
                       version: 1.51.0
-                      request_id: c4d5e6f7a8b9
+                      request_id: c4d5e6f7a8b9c4d5e6f7a8b9
         '401':
           $ref: '#/components/responses/Unauthorized'
       x-translations:
@@ -6768,7 +6838,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: b0c1d2e3f4a5
+                      request_id: b0c1d2e3f4a5b0c1d2e3f4a5
                 invalid_json:
                   summary: JSON mal formado
                   x-translations:
@@ -6782,7 +6852,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: c1d2e3f4a5b6
+                      request_id: c1d2e3f4a5b6c1d2e3f4a5b6
         '401':
           $ref: '#/components/responses/Unauthorized'
         '413':
@@ -6902,10 +6972,11 @@ paths:
                         message: El servicio de verificación está operando normalmente.
                         last_verified_at: '2026-04-11T15:30:00Z'
                         estimated_recovery_at: null
+                        check_interval_seconds: 300
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: a1b2c3d4e5f6
+                      request_id: a1b2c3d4e5f66f5e4d3c2b1a
                 degraded:
                   summary: Servicio de verificación de Banxico degradado — respuestas lentas
                   x-translations:
@@ -6921,10 +6992,11 @@ paths:
                         message: Las verificaciones están respondiendo más lento de lo habitual.
                         last_verified_at: '2026-04-11T16:00:00Z'
                         estimated_recovery_at: '2026-04-11T17:00:00Z'
+                        check_interval_seconds: 300
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: b2c3d4e5f6a7
+                      request_id: b2c3d4e5f6a77a6f5e4d3c2b
                 down:
                   summary: Servicio de verificación de Banxico inaccesible
                   x-translations:
@@ -6940,10 +7012,11 @@ paths:
                         message: El servicio de verificación de Banxico no está disponible. Estamos monitoreando.
                         last_verified_at: '2026-04-11T18:00:00Z'
                         estimated_recovery_at: null
+                        check_interval_seconds: 300
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: c3d4e5f6a7b8
+                      request_id: c3d4e5f6a7b88b7a6f5e4d3c
         '401':
           $ref: '#/components/responses/Unauthorized'
       x-translations:
@@ -7097,7 +7170,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: f6e5d4c3b2a1
+                      request_id: f6e5d4c3b2a11a2b3c4d5e6f
                 verdict_7d:
                   summary: Distribución de veredictos sobre 7 días
                   x-translations:
@@ -7122,7 +7195,7 @@ paths:
                     meta:
                       version: 1.47.0
                       api_version: v1
-                      request_id: a7b8c9d0e1f2
+                      request_id: a7b8c9d0e1f22f1e0d9c8b7a
         '401':
           $ref: '#/components/responses/Unauthorized'
       x-translations:
@@ -7231,7 +7304,7 @@ paths:
 
         Cada endpoint puede suscribirse a diferentes eventos, entre ellos:
 
-        - Eventos `validation.*`: Esperan cualquier estado terminal de una validación para notificar ese estado mediante el webhook (p. ej: `validation.completed`, `validation.error`, etc).
+        - Eventos `validation.*`: Avisan de cada veredicto de una validación y de cada paso de sus reintentos automáticos (p. ej: `validation.completed`, `validation.error`, etc).
         - Evento `validation.returned`: avisa cuando una validación que ya había salido `valid` pasa después a `returned` porque Banxico reportó la devolución; no se emite al crear la validación, donde el evento es `validation.completed`. Para recibirlo hay que suscribirse a él además de a `validation.completed`.
         - Eventos `billing.*`: No producen entregas hasta que haya algún movimiento en la suscripción del usuario (p. ej: `billing.subscription_canceled`, `billing.payment_succeeded`, cuotas de uso, etc).
 
@@ -7352,7 +7425,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: e6f7a2b3c4d5
+                      request_id: e6f7a2b3c4d55d4c3b2a7f6e
                 invalid_json:
                   summary: JSON mal formado
                   x-translations:
@@ -7366,7 +7439,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: f7a2b3c4d5e6
+                      request_id: f7a2b3c4d5e66e5d4c3b2a7f
                 url_dns_failed:
                   summary: El dominio no resuelve
                   x-translations:
@@ -7380,7 +7453,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: d4e5f6a1b2c4
+                      request_id: d4e5f6a1b2c44c2b1a6f5e4d
                 url_ssrf_blocked:
                   summary: La URL apunta a una red no pública
                   x-translations:
@@ -7394,7 +7467,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: d4e5f6a1b2c5
+                      request_id: d4e5f6a1b2c55c2b1a6f5e4d
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -7467,7 +7540,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: b4c5d6e7f8a9
+                      request_id: b4c5d6e7f8a99a8f7e6d5c4b
                 url_required:
                   summary: Falta la URL
                   x-translations:
@@ -7483,7 +7556,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: a1b2c3d4e5f6
+                      request_id: a1b2c3d4e5f66f5e4d3c2b1a
                 url_too_long:
                   summary: URL de más de 2 048 caracteres
                   x-translations:
@@ -7499,7 +7572,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: b2c3d4e5f6a1
+                      request_id: b2c3d4e5f6a11a6f5e4d3c2b
                 url_invalid_format:
                   summary: URL mal formada
                   x-translations:
@@ -7515,7 +7588,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: c3d4e5f6a1b2
+                      request_id: c3d4e5f6a1b22b1a6f5e4d3c
                 url_not_https:
                   summary: URL sin HTTPS
                   x-translations:
@@ -7531,7 +7604,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: d4e5f6a1b2c3
+                      request_id: d4e5f6a1b2c33c2b1a6f5e4d
                 events_required:
                   summary: Lista de eventos vacía
                   x-translations:
@@ -7547,7 +7620,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: a2b3c4d5e6f7
+                      request_id: a2b3c4d5e6f77f6e5d4c3b2a
                 events_too_many:
                   summary: Más de 10 eventos
                   x-translations:
@@ -7563,7 +7636,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: b3c4d5e6f7a2
+                      request_id: b3c4d5e6f7a22a7f6e5d4c3b
                 event_invalid:
                   summary: Evento desconocido
                   x-translations:
@@ -7579,7 +7652,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: c4d5e6f7a2b3
+                      request_id: c4d5e6f7a2b33b2a7f6e5d4c
                 limit_reached:
                   summary: Tope de endpoints alcanzado
                   x-translations:
@@ -7593,7 +7666,7 @@ paths:
                     meta:
                       version: 1.57.0
                       api_version: v1
-                      request_id: d5e6f7a2b3c4
+                      request_id: d5e6f7a2b3c44c3b2a7f6e5d
                 description_too_long:
                   summary: description mayor a 255 caracteres
                   x-translations:
@@ -7609,7 +7682,7 @@ paths:
                     meta:
                       version: 1.59.1
                       api_version: v1
-                      request_id: e6f7a2b3c4d5
+                      request_id: e6f7a2b3c4d55d4c3b2a7f6e
         '429':
           $ref: '#/components/responses/RateLimited'
       x-related:
@@ -7626,7 +7699,7 @@ paths:
 
             Each endpoint can subscribe to different events, among them:
 
-            - `validation.*` events: they await any terminal state of a validation to report that state through the webhook (e.g. `validation.completed`, `validation.error`, and so on).
+            - `validation.*` events: they report each verdict of a validation and each step of its automatic retries (e.g. `validation.completed`, `validation.error`, and so on).
             - `validation.returned` event: it fires when a validation that had already come out `valid` later moves to `returned` because Banxico reported the return; it is not emitted when the validation is created, where the event is `validation.completed`. To receive it, subscribe to it in addition to `validation.completed`.
             - `billing.*` events: they produce no delivery until something moves in the user's subscription (e.g. `billing.subscription_canceled`, `billing.payment_succeeded`, usage quotas, and so on).
 
@@ -7780,7 +7853,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: c4d5e6f7a8b9
+                      request_id: c4d5e6f7a8b99b8a7f6e5d4c
                 invalid_json:
                   summary: JSON mal formado
                   x-translations:
@@ -7794,7 +7867,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: d5e6f7a8b9c0
+                      request_id: d5e6f7a8b9c00c9b8a7f6e5d
                 url_dns_failed:
                   summary: El dominio no resuelve
                   x-translations:
@@ -7808,7 +7881,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: d4e5f6a1b2c4
+                      request_id: d4e5f6a1b2c44c2b1a6f5e4d
                 url_ssrf_blocked:
                   summary: La URL apunta a una red no pública
                   x-translations:
@@ -7822,7 +7895,7 @@ paths:
                     meta:
                       version: 1.58.0
                       api_version: v1
-                      request_id: d4e5f6a1b2c5
+                      request_id: d4e5f6a1b2c55c2b1a6f5e4d
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8358,7 +8431,7 @@ paths:
       description: |-
         Devuelve una vista consolidada de las entregas hechas a los endpoints webhook del usuario autenticado.
 
-        Se puede filtrar por endpoint, estado y tipo de evento.
+        Se puede buscar por texto con `q` y filtrar por endpoint, estado, tipo de evento, validación, código HTTP, rango de fechas, número de intento y tiempo de respuesta.
       operationId: listAllDeliveries
       externalDocs:
         url: https://docs.veriko.mx/how-to/set-up-webhooks
@@ -8389,58 +8462,152 @@ paths:
           example: 50
         - name: endpoint_id
           in: query
-          description: Filtro — Identificador único del endpoint webhook (UUID v4).
+          style: form
+          explode: false
+          description: Filtro — Identificador único del endpoint webhook (UUID v4). Hasta 20, separados por comas.
           x-translations:
             en:
-              description: Filter — unique identifier of the webhook endpoint (UUID v4).
+              description: Filter — unique identifier of the webhook endpoint (UUID v4). Up to 20, comma-separated.
           schema:
-            type: string
-            format: uuid
-            example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
-          example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              format: uuid
+          example:
+            - 7c9e6679-7425-40de-944b-e07fc1f90ae7
         - name: status
           in: query
+          style: form
+          explode: false
           schema:
-            type: string
-            enum:
-              - success
-              - failed
-              - retrying
-              - pending
-          example: failed
-          description: Filtro — Estado de la entrega. `success` llegó. `failed` es el resultado del último intento; Messenger puede programar otro si el fallo es recuperable. `retrying` se pospuso por el límite de salida y Messenger la reintentará. `pending` todavía no se ha intentado.
+            type: array
+            items:
+              type: string
+              enum:
+                - success
+                - failed
+                - retrying
+                - pending
+          example:
+            - failed
+          description: Filtro — Estado de la entrega. `success` llegó. `failed` es el resultado del último intento; Messenger puede programar otro si el fallo es recuperable. `retrying` se pospuso por el límite de salida y Messenger la reintentará. `pending` todavía no se ha intentado. Varios estados, separados por comas.
           x-translations:
             en:
-              description: Delivery state. `success` arrived. `failed` is the latest attempt's outcome; Messenger can schedule another one for a recoverable failure. `retrying` was deferred by the outbound limit and Messenger will retry it. `pending` has not been attempted yet.
+              description: Delivery state. `success` arrived. `failed` is the latest attempt's outcome; Messenger can schedule another one for a recoverable failure. `retrying` was deferred by the outbound limit and Messenger will retry it. `pending` has not been attempted yet. Several states, comma-separated.
         - name: event_type
           in: query
+          style: form
+          explode: false
           schema:
-            type: string
-            enum:
-              - validation.completed
-              - validation.failed
-              - validation.error
-              - validation.retry.scheduled
-              - validation.retry.resolved
-              - validation.retry.exhausted
-              - validation.returned
-              - billing.payment_succeeded
-              - billing.payment_failed
-              - billing.trial_will_end
-              - billing.subscription_canceled
-              - billing.invoice_upcoming
-              - test
-          example: validation.completed
+            type: array
+            items:
+              type: string
+              enum:
+                - validation.completed
+                - validation.failed
+                - validation.error
+                - validation.retry.scheduled
+                - validation.retry.resolved
+                - validation.retry.exhausted
+                - validation.returned
+                - billing.payment_succeeded
+                - billing.payment_failed
+                - billing.trial_will_end
+                - billing.subscription_canceled
+                - billing.invoice_upcoming
+                - test
+          example:
+            - validation.completed
           description: |-
-            Filtro — Tipo de evento que originó la entrega. **De validaciones**: `validation.completed` cuando termina bien, `validation.failed` cuando termina mal y `validation.error` cuando hay un error del servicio. **De los reintentos automáticos:** `validation.retry.scheduled` al programar un reintento automático, `validation.retry.resolved` cuando un reintento automático encuentra el CEP, y `validation.retry.exhausted` cuando los reintentos se agotan sin encontrar el CEP. **De la revisión posterior de un `valid`:** `validation.returned` cuando una validación que había salido `valid` pasa a `returned` porque Banxico reportó la devolución.\
-            **De la suscripción:** `billing.payment_succeeded` y `billing.payment_failed` por cada cobro, `billing.invoice_upcoming` antes de la siguiente factura, `billing.trial_will_end` antes de que acabe la prueba gratuita, y `billing.subscription_canceled` al cancelar la suscripción. Las entregas sintéticas (envío de prueba) se marcan como `test`.
+            Filtro — Tipo de evento que originó la entrega. **De validaciones**: `validation.completed` cuando hay veredicto de Banxico, sea cual sea (también inválida o no encontrada, y aunque se abran reintentos), `validation.failed` cuando la entrada se rechaza y `validation.error` ante cualquier otro fallo. **De los reintentos automáticos:** `validation.retry.scheduled` al programar un reintento automático, `validation.retry.resolved` cuando un reintento automático encuentra el CEP, y `validation.retry.exhausted` cuando los reintentos se agotan sin encontrar el CEP. **De la revisión posterior de un `valid`:** `validation.returned` cuando una validación que había salido `valid` pasa a `returned` porque Banxico reportó la devolución.\
+            **De la suscripción:** `billing.payment_succeeded` y `billing.payment_failed` por cada cobro, `billing.invoice_upcoming` antes de la siguiente factura, `billing.trial_will_end` antes de que acabe la prueba gratuita, y `billing.subscription_canceled` al cancelar la suscripción. Las entregas sintéticas (envío de prueba) se marcan como `test`. Varios tipos, separados por comas.
           x-translations:
             en:
               description: |-
                 Type of event that produced the delivery.
-                From a validation's lifecycle: `validation.completed` when it ends well, `validation.failed` when it ends badly, and `validation.error` when it fails on the service side. From its automatic retries: `validation.retry.scheduled` when one is scheduled, `validation.retry.resolved` when a retry ends up finding the receipt, and `validation.retry.exhausted` when they run out without success. From the follow-up check of a `valid`: `validation.returned` when a validation that had come out `valid` moves to `returned` because Banxico reported the return.
+                From a validation's lifecycle: `validation.completed` when Banxico returns a verdict, whatever it is (also invalid or not found, and even if retries open), `validation.failed` when the input is rejected, and `validation.error` on any other failure. From its automatic retries: `validation.retry.scheduled` when one is scheduled, `validation.retry.resolved` when a retry ends up finding the receipt, and `validation.retry.exhausted` when they run out without success. From the follow-up check of a `valid`: `validation.returned` when a validation that had come out `valid` moves to `returned` because Banxico reported the return.
                 From the subscription: `billing.payment_succeeded` and `billing.payment_failed` for each charge, `billing.invoice_upcoming` before the next invoice, `billing.trial_will_end` before the trial runs out, and `billing.subscription_canceled` when it is cancelled.
-                `test` marks the synthetic deliveries from the test send.
+                `test` marks the synthetic deliveries from the test send. Several types, comma-separated.
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+          example: webhook.example.com
+          description: Filtro — Busca en el identificador de la entrega, el identificador, la URL y la descripción del endpoint, el tipo de evento, el identificador de la validación y el código HTTP de la respuesta. No distingue mayúsculas; `%` y `_` se buscan tal cual. Más de 100 caracteres se recortan.
+          x-translations:
+            en:
+              description: Searches the delivery id, the endpoint's id, URL and description, the event type, the validation id and the response's HTTP code. Case-insensitive; `%` and `_` are matched literally. Anything past 100 characters is cut.
+        - name: validation_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+          description: Filtro — Sólo las entregas de esta validación (UUID v4).
+          x-translations:
+            en:
+              description: Only the deliveries of this validation (UUID v4).
+        - name: response_status
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              pattern: ^([1-5][0-9]{2}|[1-5]xx|none)$
+          example:
+            - 5xx
+            - none
+          description: Filtro — Código HTTP con que respondió el receptor, separados por comas. Vale un código exacto (`404`), una familia (`2xx`, `4xx`, `5xx`) o `none` para las que no tuvieron respuesta (tiempo agotado, conexión rechazada o todavía sin intentar). Varios valores suman resultados.
+          x-translations:
+            en:
+              description: HTTP code the receiver answered with, comma-separated. An exact code (`404`), a family (`2xx`, `4xx`, `5xx`) or `none` for deliveries that got no response (timeout, refused connection or not attempted yet). Several values add up.
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: '2026-10-01T00:00:00Z'
+          description: Filtro — Entregas creadas desde este momento, incluido. Acepta fecha (`2026-10-01`, medianoche UTC) o fecha y hora ISO 8601 con zona.
+          x-translations:
+            en:
+              description: Deliveries created from this moment on, inclusive. Takes a date (`2026-10-01`, UTC midnight) or an ISO 8601 date-time with its offset.
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: '2026-10-15T23:59:59Z'
+          description: Filtro — Entregas creadas hasta este momento, incluido. Una fecha sola llega al final de ese día en UTC.
+          x-translations:
+            en:
+              description: Deliveries created up to this moment, inclusive. A bare date reaches the end of that day in UTC.
+        - name: min_attempt
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 255
+          example: 2
+          description: Filtro — Sólo las entregas cuyo número de intento es al menos este. Con `2` quedan las que se reintentaron.
+          x-translations:
+            en:
+              description: Only deliveries whose attempt number is at least this. `2` leaves the ones that were retried.
+        - name: min_response_time_ms
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 600000
+          example: 3000
+          description: Filtro — Sólo las entregas cuyo receptor tardó al menos estos milisegundos en responder.
+          x-translations:
+            en:
+              description: Only deliveries whose receiver took at least this many milliseconds to answer.
       x-codeSamples:
         - lang: curl
           label: Shell
@@ -8493,8 +8660,10 @@ paths:
           summary: List deliveries across all endpoints
           description: |-
             Consolidated view of the authenticated user's webhook deliveries, across
-            all their endpoints at once. It can be filtered by endpoint, status, and
-            event type.
+            all their endpoints at once.
+
+            It takes a text search (`q`) and filters by endpoint, status, event type,
+            validation, HTTP code, date range, attempt number and response time.
       security:
         - ApiKeyAuth: []
   /webhooks/deliveries/export:
@@ -8511,8 +8680,7 @@ paths:
       summary: Exportar todas las entregas webhook como CSV o XLSX
       description: |-
         Descarga el historial de entregas de **todos** los endpoints de la cuenta de usuario en
-        un archivo, con los mismos filtros que el listado: endpoint, estado y tipo de
-        evento.
+        un archivo, con los mismos filtros y la misma búsqueda (`q`) que el listado.
 
         {% concept slug="exports-and-formats" %}El formato se elige{% /concept %} con `?format` —`csv` por defecto, `xlsx` como
         alternativa— y el tope es de 100 000 filas, que `?limit` puede bajar.
@@ -8526,63 +8694,155 @@ paths:
       parameters:
         - name: endpoint_id
           in: query
-          description: |-
-
-            Filtro — Identificador único del endpoint webhook (UUID v4).
+          style: form
+          explode: false
+          description: Filtro — Identificador único del endpoint webhook (UUID v4). Hasta 20, separados por comas.
           x-translations:
             en:
-              description: Filter — unique identifier of the webhook endpoint (UUID v4).
+              description: Filter — unique identifier of the webhook endpoint (UUID v4). Up to 20, comma-separated.
           schema:
-            type: string
-            format: uuid
-            example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
-          example: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              format: uuid
+          example:
+            - 7c9e6679-7425-40de-944b-e07fc1f90ae7
         - name: status
           in: query
+          style: form
+          explode: false
           schema:
-            type: string
-            enum:
-              - success
-              - failed
-              - retrying
-              - pending
-          example: failed
+            type: array
+            items:
+              type: string
+              enum:
+                - success
+                - failed
+                - retrying
+                - pending
+          example:
+            - failed
           description: |-
             \
-            Filtro — Estado de la entrega. `success` llegó. `failed` es el resultado del último intento; Messenger puede programar otro si el fallo es recuperable. `retrying` se pospuso por el límite de salida y Messenger la reintentará. `pending` todavía no se ha intentado.
+            Filtro — Estado de la entrega. `success` llegó. `failed` es el resultado del último intento; Messenger puede programar otro si el fallo es recuperable. `retrying` se pospuso por el límite de salida y Messenger la reintentará. `pending` todavía no se ha intentado. Varios estados, separados por comas.
           x-translations:
             en:
-              description: Delivery state. `success` arrived. `failed` is the latest attempt's outcome; Messenger can schedule another one for a recoverable failure. `retrying` was deferred by the outbound limit and Messenger will retry it. `pending` has not been attempted yet.
+              description: Delivery state. `success` arrived. `failed` is the latest attempt's outcome; Messenger can schedule another one for a recoverable failure. `retrying` was deferred by the outbound limit and Messenger will retry it. `pending` has not been attempted yet. Several states, comma-separated.
         - name: event_type
           in: query
+          style: form
+          explode: false
           schema:
-            type: string
-            enum:
-              - validation.completed
-              - validation.failed
-              - validation.error
-              - validation.retry.scheduled
-              - validation.retry.resolved
-              - validation.retry.exhausted
-              - validation.returned
-              - billing.payment_succeeded
-              - billing.payment_failed
-              - billing.trial_will_end
-              - billing.subscription_canceled
-              - billing.invoice_upcoming
-              - test
-          example: validation.completed
+            type: array
+            items:
+              type: string
+              enum:
+                - validation.completed
+                - validation.failed
+                - validation.error
+                - validation.retry.scheduled
+                - validation.retry.resolved
+                - validation.retry.exhausted
+                - validation.returned
+                - billing.payment_succeeded
+                - billing.payment_failed
+                - billing.trial_will_end
+                - billing.subscription_canceled
+                - billing.invoice_upcoming
+                - test
+          example:
+            - validation.completed
           description: |-
 
-            Filtro — Tipo de evento que originó la entrega. **De validaciones**: `validation.completed` cuando termina bien, `validation.failed` cuando termina mal y `validation.error` cuando hay un error del servicio. **De los reintentos automáticos:** `validation.retry.scheduled` al programar un reintento automático, `validation.retry.resolved` cuando un reintento automático encuentra el CEP, y `validation.retry.exhausted` cuando los reintentos se agotan sin encontrar el CEP. **De la revisión posterior de un `valid`:** `validation.returned` cuando una validación que había salido `valid` pasa a `returned` porque Banxico reportó la devolución.\
-            **De la suscripción:** `billing.payment_succeeded` y `billing.payment_failed` por cada cobro, `billing.invoice_upcoming` antes de la siguiente factura, `billing.trial_will_end` antes de que acabe la prueba gratuita, y `billing.subscription_canceled` al cancelar la suscripción. Las entregas sintéticas (envío de prueba) se marcan como `test`.
+            Filtro — Tipo de evento que originó la entrega. **De validaciones**: `validation.completed` cuando hay veredicto de Banxico, sea cual sea (también inválida o no encontrada, y aunque se abran reintentos), `validation.failed` cuando la entrada se rechaza y `validation.error` ante cualquier otro fallo. **De los reintentos automáticos:** `validation.retry.scheduled` al programar un reintento automático, `validation.retry.resolved` cuando un reintento automático encuentra el CEP, y `validation.retry.exhausted` cuando los reintentos se agotan sin encontrar el CEP. **De la revisión posterior de un `valid`:** `validation.returned` cuando una validación que había salido `valid` pasa a `returned` porque Banxico reportó la devolución.\
+            **De la suscripción:** `billing.payment_succeeded` y `billing.payment_failed` por cada cobro, `billing.invoice_upcoming` antes de la siguiente factura, `billing.trial_will_end` antes de que acabe la prueba gratuita, y `billing.subscription_canceled` al cancelar la suscripción. Las entregas sintéticas (envío de prueba) se marcan como `test`. Varios tipos, separados por comas.
           x-translations:
             en:
               description: |-
                 Type of event that produced the delivery.
-                From a validation's lifecycle: `validation.completed` when it ends well, `validation.failed` when it ends badly, and `validation.error` when it fails on the service side. From its automatic retries: `validation.retry.scheduled` when one is scheduled, `validation.retry.resolved` when a retry ends up finding the receipt, and `validation.retry.exhausted` when they run out without success. From the follow-up check of a `valid`: `validation.returned` when a validation that had come out `valid` moves to `returned` because Banxico reported the return.
+                From a validation's lifecycle: `validation.completed` when Banxico returns a verdict, whatever it is (also invalid or not found, and even if retries open), `validation.failed` when the input is rejected, and `validation.error` on any other failure. From its automatic retries: `validation.retry.scheduled` when one is scheduled, `validation.retry.resolved` when a retry ends up finding the receipt, and `validation.retry.exhausted` when they run out without success. From the follow-up check of a `valid`: `validation.returned` when a validation that had come out `valid` moves to `returned` because Banxico reported the return.
                 From the subscription: `billing.payment_succeeded` and `billing.payment_failed` for each charge, `billing.invoice_upcoming` before the next invoice, `billing.trial_will_end` before the trial runs out, and `billing.subscription_canceled` when it is cancelled.
-                `test` marks the synthetic deliveries from the test send.
+                `test` marks the synthetic deliveries from the test send. Several types, comma-separated.
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+          example: webhook.example.com
+          description: Filtro — Busca en el identificador de la entrega, el identificador, la URL y la descripción del endpoint, el tipo de evento, el identificador de la validación y el código HTTP de la respuesta. No distingue mayúsculas; `%` y `_` se buscan tal cual. Más de 100 caracteres se recortan.
+          x-translations:
+            en:
+              description: Searches the delivery id, the endpoint's id, URL and description, the event type, the validation id and the response's HTTP code. Case-insensitive; `%` and `_` are matched literally. Anything past 100 characters is cut.
+        - name: validation_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+          description: Filtro — Sólo las entregas de esta validación (UUID v4).
+          x-translations:
+            en:
+              description: Only the deliveries of this validation (UUID v4).
+        - name: response_status
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            maxItems: 20
+            items:
+              type: string
+              pattern: ^([1-5][0-9]{2}|[1-5]xx|none)$
+          example:
+            - 5xx
+            - none
+          description: Filtro — Código HTTP con que respondió el receptor, separados por comas. Vale un código exacto (`404`), una familia (`2xx`, `4xx`, `5xx`) o `none` para las que no tuvieron respuesta (tiempo agotado, conexión rechazada o todavía sin intentar). Varios valores suman resultados.
+          x-translations:
+            en:
+              description: HTTP code the receiver answered with, comma-separated. An exact code (`404`), a family (`2xx`, `4xx`, `5xx`) or `none` for deliveries that got no response (timeout, refused connection or not attempted yet). Several values add up.
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: '2026-10-01T00:00:00Z'
+          description: Filtro — Entregas creadas desde este momento, incluido. Acepta fecha (`2026-10-01`, medianoche UTC) o fecha y hora ISO 8601 con zona.
+          x-translations:
+            en:
+              description: Deliveries created from this moment on, inclusive. Takes a date (`2026-10-01`, UTC midnight) or an ISO 8601 date-time with its offset.
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+          example: '2026-10-15T23:59:59Z'
+          description: Filtro — Entregas creadas hasta este momento, incluido. Una fecha sola llega al final de ese día en UTC.
+          x-translations:
+            en:
+              description: Deliveries created up to this moment, inclusive. A bare date reaches the end of that day in UTC.
+        - name: min_attempt
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 255
+          example: 2
+          description: Filtro — Sólo las entregas cuyo número de intento es al menos este. Con `2` quedan las que se reintentaron.
+          x-translations:
+            en:
+              description: Only deliveries whose attempt number is at least this. `2` leaves the ones that were retried.
+        - name: min_response_time_ms
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 600000
+          example: 3000
+          description: Filtro — Sólo las entregas cuyo receptor tardó al menos estos milisegundos en responder.
+          x-translations:
+            en:
+              description: Only deliveries whose receiver took at least this many milliseconds to answer.
         - name: format
           in: query
           required: false
@@ -8643,8 +8903,7 @@ paths:
           summary: Export all deliveries as CSV or XLSX
           description: |-
             Downloads the delivery history of **every** endpoint on the account as a
-            file, under the same filters as the list: endpoint, status, and event
-            type.
+            file, under the same filters and text search (`q`) as the list.
 
             {% concept slug="exports-and-formats" %}The format is
             chosen{% /concept %} with `?format`: `csv` by default, `xlsx` as the
@@ -8729,10 +8988,10 @@ paths:
                 $ref: '#/components/schemas/ListPublicPlansResponse'
               examples:
                 catalog:
-                  summary: Catálogo con plan gratuito + plan Pro
+                  summary: Catálogo con plan gratuito + plan Personal
                   x-translations:
                     en:
-                      summary: Catalog with free + Pro plan
+                      summary: Catalog with free + Personal plan
                   value:
                     data:
                       - type: plan
@@ -8741,43 +9000,43 @@ paths:
                           slug: free
                           name: Gratis
                           billing_model: free
-                          monthly_validation_limit: 50
-                          included_validations: 50
+                          monthly_validation_limit: 25
+                          included_validations: 25
                           trial_days: 0
                           is_default: true
                           sort_order: 0
                           prices: []
                           features:
-                            - text_es: 50 validaciones al mes
-                              text_en: 50 validations per month
+                            - text_es: 25 validaciones al mes
+                              text_en: 25 validations per month
                               icon: check
                               sort_order: 10
                               is_active: true
                       - type: plan
-                        id: pro
+                        id: personal
                         attributes:
-                          slug: pro
-                          name: Pro
+                          slug: personal
+                          name: Personal
                           billing_model: hybrid
-                          monthly_validation_limit: 10000
-                          included_validations: 500
-                          trial_days: 14
+                          monthly_validation_limit: 6000
+                          included_validations: 300
+                          trial_days: 0
                           is_default: false
-                          sort_order: 2
+                          sort_order: 1
                           prices:
                             - currency: MXN
                               billing_interval: month
                               kind: base
-                              unit_amount: 49900
+                              unit_amount: 8900
                               tax_behavior: inclusive
                             - currency: MXN
                               billing_interval: month
                               kind: metered_overage
-                              unit_amount: 100
+                              unit_amount: 45
                               tax_behavior: inclusive
                           features:
-                            - text_es: 500 validaciones incluidas + overage opcional
-                              text_en: 500 included validations + optional overage
+                            - text_es: 300 validaciones incluidas + overage opcional
+                              text_en: 300 included validations + optional overage
                               icon: check
                               sort_order: 10
                               is_active: true
@@ -8969,7 +9228,7 @@ paths:
                         next_reset_at: '2025-03-01T00:00:00Z'
                     meta:
                       version: 1.51.0
-                      request_id: f8a9b0c1d2e3
+                      request_id: f8a9b0c1d2e33e2d1c0b9a8f
                 near_limit:
                   summary: Cerca del límite — tono danger (92 % consumido)
                   x-translations:
@@ -8990,7 +9249,7 @@ paths:
                         next_reset_at: '2025-03-01T00:00:00Z'
                     meta:
                       version: 1.51.0
-                      request_id: a9b0c1d2e3f4
+                      request_id: a9b0c1d2e3f44f3e2d1c0b9a
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -9035,8 +9294,9 @@ paths:
         - Usage
       summary: Consultar índices de consumo mes a mes
       description: |-
-        Devuelve el consumo mensual de validaciones del usuario autenticado en los
-        últimos `months` meses, de más reciente a más antiguo.
+        Devuelve el consumo mensual de validaciones del usuario autenticado en hasta
+        `months` meses con consumo, de más reciente a más antiguo. Los meses sin
+        consumo no aparecen.
 
         {% callout type="warning" %}
         El límite que acompaña a cada fila es el de hoy, no el que regía aquel mes:
@@ -9085,8 +9345,9 @@ paths:
         en:
           summary: Monthly usage history
           description: |-
-            Returns the authenticated user's monthly validation usage over the last
-            `months` months, most recent first.
+            Returns the authenticated user's monthly validation usage for up to
+            `months` months with usage, most recent first. Months without usage
+            are omitted.
 
             {% callout type="warning" %}
             The limit shown on each row is today's, not the one that applied that
@@ -9107,7 +9368,7 @@ paths:
         - Usage
       summary: Desglosar consumo por operación
       description: |-
-        Desglosa el consumo del periodo indicado por tipo de operación contabilizada (`validation`, `validation_ocr`, etc.).
+        Desglosa el consumo del periodo indicado por tipo de operación contabilizada (`validation` y `sms_2fa`).
 
         El parámetro `period` acepta `current` para el mes en curso o una cadena `YYYY-MM` para un mes específico.
       operationId: getUsageBreakdown
@@ -9161,7 +9422,7 @@ paths:
           summary: Usage breakdown by operation
           description: |-
             Breaks down the indicated period's usage by billable operation type
-            (`validation`, `validation_ocr`, etc.).
+            (`validation` and `sms_2fa`).
 
             The `period` parameter accepts `current` for the running month or
             `YYYY-MM` for a specific month.
@@ -10800,17 +11061,17 @@ paths:
                 $ref: '#/components/schemas/BillingSubscriptionResponse'
               examples:
                 stripe_subscription:
-                  summary: Suscripción Stripe activa — plan Pro
+                  summary: Suscripción Stripe activa — plan Personal
                   x-translations:
                     en:
-                      summary: Active Stripe subscription — Pro plan
+                      summary: Active Stripe subscription — Personal plan
                   value:
                     data:
                       type: billing_subscription
                       id: '4218'
                       attributes:
-                        plan_slug: pro
-                        plan_name: Pro
+                        plan_slug: personal
+                        plan_name: Personal
                         billing_model: hybrid
                         source: stripe
                         status: active
@@ -10819,9 +11080,9 @@ paths:
                         currency: MXN
                         billing_interval: month
                         overage_enabled: false
-                        included_validations: 500
-                        monthly_validation_limit: 10000
-                        effective_limit: 500
+                        included_validations: 300
+                        monthly_validation_limit: 6000
+                        effective_limit: 300
                         is_stripe: true
                         stripe_subscription_id: sub_1OaBcDeFgHiJk2
                         grant_reason: null
@@ -10831,14 +11092,24 @@ paths:
                         trial_start: null
                         trial_end: null
                     meta:
-                      effective_plan_slug: pro
+                      effective_plan_slug: personal
                       has_subscription: true
                       quota:
-                        plan: pro
-                        used: 420
-                        limit: 500
+                        plan_slug: personal
+                        plan_name: Personal
+                        billing_model: hybrid
+                        source: stripe
+                        overage_enabled: false
+                        overage_available: true
+                        monthly_limit_override: null
+                        included_validations: 300
+                        monthly_validation_limit: 6000
+                        used: 220
+                        limit: 300
                         remaining: 80
                         resets_at: '2026-05-01T00:00:00Z'
+                        quota_kind: cycle
+                        renews: true
                 system_default:
                   summary: Plan gratuito por defecto — sin Stripe
                   x-translations:
@@ -10874,11 +11145,21 @@ paths:
                       effective_plan_slug: free
                       has_subscription: true
                       quota:
-                        plan: free
+                        plan_slug: free
+                        plan_name: Gratis
+                        billing_model: free
+                        source: system_default
+                        overage_enabled: false
+                        overage_available: false
+                        monthly_limit_override: null
+                        included_validations: 25
+                        monthly_validation_limit: 25
                         used: 5
                         limit: 25
                         remaining: 20
                         resets_at: '2026-05-01T00:00:00Z'
+                        quota_kind: cycle
+                        renews: true
         '401':
           $ref: '#/components/responses/Unauthorized'
       security:
@@ -11088,7 +11369,7 @@ components:
             request_id:
               type: string
               description: Identificador único de la petición (hex).
-              example: a1b2c3d4e5f6
+              example: a1b2c3d4e5f66f5e4d3c2b1a
               x-translations:
                 en:
                   description: Unique request identifier (hex).
@@ -11142,11 +11423,11 @@ components:
                   description: API version that processed the request.
             request_id:
               type: string
-              description: Identificador único de la petición (UUID hex).
-              example: a1b2c3d4e5f6
+              description: Identificador único de la petición (24 caracteres hex).
+              example: a1b2c3d4e5f66f5e4d3c2b1a
               x-translations:
                 en:
-                  description: Unique request identifier (hex UUID).
+                  description: Unique request identifier (24 hex characters).
       required:
         - errors
     SuccessEnvelope:
@@ -11192,7 +11473,7 @@ components:
             request_id:
               type: string
               description: Identificador único de la petición (hex).
-              example: a1b2c3d4e5f6
+              example: a1b2c3d4e5f66f5e4d3c2b1a
               x-translations:
                 en:
                   description: Unique request identifier (hex).
@@ -11286,22 +11567,21 @@ components:
             - owner
             - admin
             - user
-            - viewer
-          description: 'Rol de la cuenta de usuario en la organización. Decide qué permisos tienen sus sesiones — `owner`: Es la titular; `admin`: La administra; `user`: La usa; `viewer`: Solo lee.'
+          description: 'Rol de la cuenta de usuario en la organización. Decide qué permisos tienen sus sesiones — `owner`: Es la titular; `admin`: La administra; `user`: La usa.'
           x-translations:
             en:
-              description: 'The user account''s role in the organization. It decides what permissions its sessions carry — `owner`: It owns the account; `admin`: It administers it; `user`: It uses it; `viewer`: Read-only.'
+              description: 'The user account''s role in the organization. It decides what permissions its sessions carry — `owner`: It owns the account; `admin`: It administers it; `user`: It uses it.'
           example: user
         status:
           type: string
           enum:
             - active
             - suspended
-            - pending_verification
-          description: 'Estado de la cuenta de usuario — `active`: Permite operar con normalidad; `suspended`: Cuenta suspendida; `pending_verification`: Falta verificación de correo electrónico.'
+            - revoked
+          description: 'Estado de la cuenta de usuario — `active`: Permite operar con normalidad; `suspended`: Cuenta suspendida; `revoked`: Eliminada por el usuario.'
           x-translations:
             en:
-              description: 'Account status. Only `active` allows API operations. `suspended`: Account suspended; `pending_verification`: The email is still unverified.'
+              description: 'Account status. Only `active` allows API operations. `suspended`: Account suspended; `revoked`: Deleted by the user.'
           example: active
         timezone:
           type: string
@@ -11356,7 +11636,7 @@ components:
               x-translations:
                 en:
                   description: First 8 characters of the API key, which identify it without revealing it.
-              example: veriko_a1b2
+              example: veriko_
             last_4:
               type:
                 - string
@@ -11459,10 +11739,10 @@ components:
                 - sms
                 - email
                 - null
-              description: 'Canal por el que se entrega el código de autenticación (OTP) — `sms`: Por mensaje de texto; `email`: Por correo electrónico; `null`: La autenticación de 2 factores (2FA) está desactivada.'
+              description: 'Canal por el que se entrega el código de autenticación (OTP) — `sms`: Por mensaje de texto; `email`: Por correo electrónico; `null`: La cuenta de usuario nunca lo ha configurado. Al desactivar la 2FA se conserva el último canal usado.'
               x-translations:
                 en:
-                  description: 'Channel the authentication code (OTP) is delivered through — `sms`: By text message; `email`: By email; `null`: 2FA is disabled.'
+                  description: 'Channel the authentication code (OTP) is delivered through — `sms`: By text message; `email`: By email; `null`: The user account never configured it. Disabling 2FA keeps the last channel used.'
               example: sms
             last_used_at:
               type:
@@ -11644,11 +11924,11 @@ components:
           type: string
           minLength: 1
           maxLength: 30
-          description: Clave de rastreo de la transferencia (entre 1 a 30 caracteres). Acepta letras, números, guiones, diagonales y espacios. Se recorta y se le quitan caracteres invisibles de ancho cero antes de validarse, para que la misma clave copiada y pegada compare igual en toda la plataforma. Requerida si `referencia_numerica` no es enviada; ambas pueden incluirse simultáneamente para mayor precisión de búsqueda.
+          description: Clave de rastreo de la transferencia (entre 1 a 30 caracteres). Acepta letras, números, espacios y los signos de puntuación que admite Banxico (como guiones, diagonales, puntos, comas, `#`, `@` o `_`), pero no `<`, `>` ni la barra invertida. Se recorta y se le quitan caracteres invisibles de ancho cero antes de validarse, para que la misma clave copiada y pegada compare igual en toda la plataforma. Requerida si `referencia_numerica` no es enviada. Si vienen las dos, la consulta a Banxico se hace sólo por la clave.
           example: MXBA20250315001234
           x-translations:
             en:
-              description: Transfer tracking key, between 1 and 30 characters. Accepts letters, numbers, hyphens, slashes, and spaces. It is trimmed and stripped of zero-width invisible characters before validation, so the same copy-pasted key compares equal everywhere in the platform. Required when `referencia_numerica` is not sent; both can be included for a more precise search.
+              description: Transfer tracking key, between 1 and 30 characters. Accepts letters, numbers, spaces, and the punctuation marks Banxico allows (such as hyphens, slashes, periods, commas, `#`, `@`, or `_`), but not `<`, `>`, or the backslash. It is trimmed and stripped of zero-width invisible characters before validation, so the same copy-pasted key compares equal everywhere in the platform. Required when `referencia_numerica` is not sent. If both are sent, the Banxico query uses only the key.
           x-invalid-examples:
             - ''
             - MXBA202503150012345678901234567890
@@ -11657,11 +11937,11 @@ components:
           type: string
           minLength: 1
           pattern: '^(?: *\d){1,7} *$'
-          description: Referencia numérica de la transferencia (entre 1 y 7 dígitos). Acepta solo números y espacios. Requerida si `clave_rastreo` no es enviada; ambas pueden incluirse simultáneamente para mayor precisión de búsqueda.
+          description: 'Referencia numérica de la transferencia (entre 1 y 7 dígitos). Acepta solo números y espacios. Requerida si `clave_rastreo` no es enviada. Si viene `clave_rastreo`, la consulta se hace sólo por la clave, y una referencia mal formada no se rechaza: se ignora y se deja un aviso.'
           example: '1234567'
           x-translations:
             en:
-              description: Numeric transfer reference, between 1 and 7 digits. Accepts only numbers and spaces. Required when `clave_rastreo` is not sent; both can be included for a more precise search.
+              description: 'Numeric transfer reference, between 1 and 7 digits. Accepts only numbers and spaces. Required when `clave_rastreo` is not sent. When `clave_rastreo` is sent, the query uses only the key, and a malformed reference is not rejected: it is ignored and a warning is left.'
           x-invalid-examples:
             - '12345678'
             - ABC1234
@@ -11762,26 +12042,30 @@ components:
     ValidationErrorCode:
       type: string
       description: |
-        Código estable del fallo de una validación.
-      enum:
-        - network
-        - captcha
-        - max_retries_exceeded
-        - ttl_expired
-        - preflight_failed
-        - rate_limit_exhausted
-        - dispatch_failed
-        - bank_code_unresolvable_for_phone
-        - intra_bank_no_cep
-        - not_found_identity
-        - not_found_account
-        - not_found_amount
-        - not_found_account_and_amount
-        - not_found_account_or_amount
+        Código estable del fallo de una validación. La lista no es cerrada: un fallo inesperado trae `internal_error` y otros fallos pueden traer el código de su causa, así que trata un valor desconocido como un fallo genérico.
+      anyOf:
+        - type: string
+          enum:
+            - network
+            - captcha
+            - max_retries_exceeded
+            - ttl_expired
+            - preflight_failed
+            - rate_limit_exhausted
+            - dispatch_failed
+            - bank_code_unresolvable_for_phone
+            - intra_bank_no_cep
+            - not_found_identity
+            - not_found_account
+            - not_found_amount
+            - not_found_account_and_amount
+            - not_found_account_or_amount
+            - internal_error
+        - type: string
       x-translations:
         en:
           description: |
-            Stable code for a validation failure.
+            Stable code for a validation failure. The list is not closed: an unexpected failure carries `internal_error` and other failures may carry the code of their cause, so treat an unknown value as a generic failure.
     RetryStateFull:
       type: object
       description: |
@@ -11793,11 +12077,11 @@ components:
       properties:
         enabled:
           type: boolean
-          description: '`true` cuando existe un ciclo de reintentos activo.'
+          description: '`true` cuando la validación tiene reintentos configurados, aunque su ciclo ya haya terminado (`terminal_state`).'
           example: true
           x-translations:
             en:
-              description: '`true` when an active retry cycle exists.'
+              description: '`true` when the validation has retries configured, even if its cycle has already ended (`terminal_state`).'
         max_retries:
           type:
             - integer
@@ -12062,10 +12346,10 @@ components:
                     - string
                     - 'null'
                   format: date-time
-                  description: Fecha y hora, en ISO 8601 UTC, de expiración para validaciones en cola. Tras esta marca, la validación pasa a `failed`.
+                  description: Fecha y hora, en ISO 8601 UTC, de expiración para validaciones en cola. Tras esta marca, la validación pasa a `error` con `error_code` `ttl_expired`.
                   x-translations:
                     en:
-                      description: Expiration timestamp for queued validations in ISO 8601 UTC. After this, the validation moves to `failed`.
+                      description: Expiration timestamp for queued validations in ISO 8601 UTC. After this, the validation moves to `error` with `error_code` `ttl_expired`.
                   example: '2026-04-30T10:15:00Z'
                 etag_version:
                   type:
@@ -12084,7 +12368,7 @@ components:
                   x-translations:
                     en:
                       description: 'Relative reference to the receipt, image or PDF, only when `validation_type` is `ocr`. It is not published when the file is not kept: see `image_retained`.'
-                  example: comprobantes/12345.jpg
+                  example: comprobantes/3fa85f64-5717-4562-b3fc-2c963f66afa6.jpg
                 image_retained:
                   type: boolean
                   description: |-
@@ -12146,10 +12430,10 @@ components:
                     - object
                     - 'null'
                   additionalProperties: true
-                  description: Campos normalizados después de la extracción OCR (solo si `validation_type` es del tipo `ocr`).
+                  description: Campos normalizados después de la extracción OCR (si `validation_type` es del tipo `ocr`), o la cuenta ganadora en `cuenta_beneficiaria` cuando una validación directa envió `cuentas_candidatas`. Una lápida conserva aquí solo el monto.
                   x-translations:
                     en:
-                      description: Fields normalized after OCR, only when `validation_type` is `ocr`.
+                      description: Fields normalized after OCR (when `validation_type` is `ocr`), or the winning account in `cuenta_beneficiaria` when a direct validation sent `cuentas_candidatas`. A tombstone keeps only the amount here.
                 normalization_warnings:
                   type:
                     - array
@@ -12518,20 +12802,20 @@ components:
                   type:
                     - string
                     - 'null'
-                  description: URL del CEP en formato XML. `null` cuando `status` no es `valid`, o es `returned` sin comprobante (la operación se devolvió antes de emitirse un CEP).
+                  description: URL del CEP en formato XML. Solo aparece cuando `banxico_status` es `valid`, o es `returned` con comprobante, y la validación no se purgó; si no, se omite el objeto `links`.
                   x-translations:
                     en:
-                      description: URL of the CEP in XML format. `null` when `status` is not `valid`, or is `returned` with no receipt (the transfer was returned before a CEP was ever issued).
-                  example: /v1/validations/a1b2c3d4-e5f6-7890-abcd-ef0123456789/cep.xml
+                      description: URL of the CEP in XML format. It only appears when `banxico_status` is `valid`, or is `returned` with a receipt, and the validation was not purged; otherwise the `links` object is omitted.
+                  example: /v1/validations/a1b2c3d4-e5f6-4890-abcd-ef0123456789/cep?format=xml
                 cep_pdf:
                   type:
                     - string
                     - 'null'
-                  description: URL del CEP en formato PDF. `null` cuando `status` no es `valid`, o es `returned` sin comprobante (la operación se devolvió antes de emitirse un CEP).
+                  description: URL del CEP en formato PDF. Solo aparece cuando `banxico_status` es `valid`, o es `returned` con comprobante, y la validación no se purgó; si no, se omite el objeto `links`.
                   x-translations:
                     en:
-                      description: URL of the CEP in PDF format. `null` when `status` is not `valid`, or is `returned` with no receipt (the transfer was returned before a CEP was ever issued).
-                  example: /v1/validations/a1b2c3d4-e5f6-7890-abcd-ef0123456789/cep.pdf
+                      description: URL of the CEP in PDF format. It only appears when `banxico_status` is `valid`, or is `returned` with a receipt, and the validation was not purged; otherwise the `links` object is omitted.
+                  example: /v1/validations/a1b2c3d4-e5f6-4890-abcd-ef0123456789/cep?format=pdf
     ValidationQueued:
       type: object
       description: |
@@ -12669,20 +12953,20 @@ components:
         image:
           type: string
           format: byte
-          description: 'Comprobante codificado en base64, en imagen o en PDF. Si también se proporciona `image_url`, solo se considera `image`. Formatos aceptados: JPEG, PNG, WebP o PDF de 1 a 3 páginas. Tamaño máximo: `12 MB`. Dimensiones máximas de una imagen: `12000px` por lado. Admite el prefijo `data:image/...;base64,` o `data:application/pdf;base64,`.'
+          description: 'Comprobante codificado en base64, en imagen o en PDF. Si también se proporciona `image_url`, solo se considera `image_url`. Formatos aceptados: JPEG, PNG, WebP o PDF de 1 a 3 páginas. Tamaño máximo: `12 MB`. Dimensiones máximas de una imagen: `12000px` por lado. Admite el prefijo `data:image/...;base64,` o `data:application/pdf;base64,`.'
           x-translations:
             en:
-              description: 'Receipt encoded in base64, as an image or a PDF. If `image_url` is also provided, only `image` is considered. Accepted formats: JPEG, PNG, WebP, or a PDF of 1 to 3 pages. Maximum size: `12 MB`. Maximum dimensions of an image: `12000px` per side. Accepts the `data:image/...;base64,` or `data:application/pdf;base64,` prefix.'
+              description: 'Receipt encoded in base64, as an image or a PDF. If `image_url` is also provided, only `image_url` is considered. Accepted formats: JPEG, PNG, WebP, or a PDF of 1 to 3 pages. Maximum size: `12 MB`. Maximum dimensions of an image: `12000px` per side. Accepts the `data:image/...;base64,` or `data:application/pdf;base64,` prefix.'
           example: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==
         image_url:
           type: string
           format: uri
-          description: 'URL pública (HTTPS) del comprobante. Sigue los mismos límites de formato y tamaño que `image`: JPEG, PNG, WebP o PDF de 1 a 3 páginas, con un máximo de `12 MB`.'
+          description: 'URL pública (HTTPS) del comprobante. Sigue los mismos límites de formato y tamaño que `image`: JPEG, PNG, WebP o PDF de 1 a 3 páginas, con un máximo de `12 MB`. Una URL `http` responde un estado HTTP `422` (con `invalid_url_scheme` en el cuerpo), y una redirección hacia `http` no se sigue.'
           example: https://storage.example.com/receipts/comprobante-2025-03.jpg
           x-translations:
             en:
               description: |
-                Public HTTP or HTTPS URL of the receipt. The file is fetched when the request arrives and follows the same format and size limits as `image`: JPEG, PNG, WebP, or a PDF of 1 to 3 pages, up to `12 MB`.
+                Public HTTPS URL of the receipt. The file is fetched when the request arrives and follows the same format and size limits as `image`: JPEG, PNG, WebP, or a PDF of 1 to 3 pages, up to `12 MB`. An `http` URL returns HTTP status `422` (with `invalid_url_scheme` in the body), and a redirect to `http` is not followed.
         cuenta_beneficiaria:
           type: string
           pattern: ^(\d{10}|\d{16}|\d{18})$
@@ -12789,11 +13073,11 @@ components:
       properties:
         enabled:
           type: boolean
-          description: '`true` cuando existe un ciclo de reintentos activo.'
+          description: '`true` cuando la validación tiene reintentos configurados, aunque su ciclo ya haya terminado (`terminal_state`).'
           example: true
           x-translations:
             en:
-              description: '`true` when an active retry cycle exists.'
+              description: '`true` when the validation has retries configured, even if its cycle has already ended (`terminal_state`).'
         max_retries:
           type:
             - integer
@@ -12917,10 +13201,10 @@ components:
           properties:
             bank_name:
               type: string
-              description: Nombre del banco de la contraparte. Prioriza `receptor_name` o `emisor_name` guardado; si falta, intenta resolver el código de receptor o emisor. Si tampoco puede resolverlo, devuelve ese código o `Banco no identificado`.
+              description: Nombre del banco de la contraparte. Prioriza `receptor_name` o `emisor_name` guardado; si falta, intenta resolver el código de receptor o emisor. Si tampoco puede resolverlo, devuelve el valor guardado cuando no es una clave numérica, o `Banco no identificado` (en inglés, `Unidentified bank`).
               x-translations:
                 en:
-                  description: Counterparty bank name. It first uses the stored `receptor_name` or `emisor_name`; if absent, it tries to resolve the receiver or sender code. If resolution also fails, it returns that code or `Banco no identificado`.
+                  description: Counterparty bank name. It first uses the stored `receptor_name` or `emisor_name`; if absent, it tries to resolve the receiver or sender code. If resolution also fails, it returns the stored value when it is not a numeric code, or `Unidentified bank` (in Spanish, `Banco no identificado`).
             bank_code:
               type:
                 - string
@@ -13972,11 +14256,11 @@ components:
                       description: The 6-8 digit BIN that matched in the lookup (same value as `id`).
                 bank_name:
                   type: string
-                  description: Nombre oficial del banco, resuelto a partir de su `bank_code`.
+                  description: Nombre del banco registrado para ese BIN.
                   example: BBVA MEXICO
                   x-translations:
                     en:
-                      description: Official name of the bank, resolved from its `bank_code`.
+                      description: Name of the bank registered for that BIN.
                 banxico_code:
                   type:
                     - string
@@ -14577,10 +14861,10 @@ components:
         file:
           type: string
           format: binary
-          description: 'Archivo a importar. Formatos aceptados: CSV, XLS, XLSX, TXT o PDF. Tamaño máximo: 20 MB.'
+          description: 'Archivo a importar. Formatos aceptados: CSV, XLS, XLSX, TXT, JSON o PDF. Tamaño máximo: 20 MB.'
           x-translations:
             en:
-              description: 'File to import. Accepted formats: CSV, XLS, XLSX, TXT or PDF. Maximum size: 20 MB.'
+              description: 'File to import. Accepted formats: CSV, XLS, XLSX, TXT, JSON or PDF. Maximum size: 20 MB.'
           example: beneficiarios-marzo.csv
         parse_mode:
           type: string
@@ -14716,12 +15000,13 @@ components:
                     - xls
                     - xlsx
                     - txt
+                    - json
                     - pdf
-                  description: 'Formato del archivo subido. Aceptados: `csv`, `xls`, `xlsx`, `txt` o `pdf`.'
+                  description: 'Formato del archivo subido. Aceptados: `csv`, `xls`, `xlsx`, `txt`, `json` o `pdf`.'
                   example: csv
                   x-translations:
                     en:
-                      description: 'Format of the uploaded file. Accepted: `csv`, `xls`, `xlsx`, `txt` or `pdf`.'
+                      description: 'Format of the uploaded file. Accepted: `csv`, `xls`, `xlsx`, `txt`, `json` or `pdf`.'
                 parse_mode:
                   type: string
                   enum:
@@ -14799,11 +15084,11 @@ components:
                   type:
                     - string
                     - 'null'
-                  description: Código estable del fallo del trabajo. `null` cuando no terminó en `failed`. Por ejemplo, `file_corrupt` o `plan_cap_exceeded`.
+                  description: Código estable del fallo del trabajo. `null` cuando no terminó en `failed`. Por ejemplo, `file_corrupt` o `empty_file`.
                   example: null
                   x-translations:
                     en:
-                      description: Stable code of the job failure. `null` when it did not end in `failed`. For example, `file_corrupt` or `plan_cap_exceeded`.
+                      description: Stable code of the job failure. `null` when it did not end in `failed`. For example, `file_corrupt` or `empty_file`.
                 error_summary:
                   type:
                     - string
@@ -14996,11 +15281,11 @@ components:
                 raw_preview:
                   type: object
                   additionalProperties: true
-                  description: Fragmento del archivo original para diagnóstico. Los dígitos de 6 o más caracteres consecutivos aparecen enmascarados (`••••`) para evitar exposición de números de tarjeta en los cuerpos de depuración.
+                  description: Fragmento del archivo original para diagnóstico. Las series de 13 a 19 dígitos que no son una CLABE (18 dígitos) aparecen enmascaradas (`••••` y los últimos cuatro), igual que un número de celular de 10 dígitos cuando lo precede una etiqueta como «cuenta» o «celular», para evitar exposición de números de tarjeta en los cuerpos de depuración.
                   example: {}
                   x-translations:
                     en:
-                      description: Snippet of the original file for diagnostic purposes. Sequences of 6 or more consecutive digits are masked (`••••`) to prevent PAN exposure in debug payloads.
+                      description: Snippet of the original file for diagnostic purposes. Runs of 13 to 19 digits that are not a CLABE (18 digits) are masked (`••••` plus the last four), as is a 10-digit phone number when a label such as "account" or "phone" precedes it, to prevent PAN exposure in debug payloads.
                 created_beneficiary_id:
                   type:
                     - integer
@@ -15283,28 +15568,28 @@ components:
         requests_today:
           type: integer
           minimum: 0
-          description: Cantidad de peticiones a la API del usuario en el día calendario actual (UTC).
+          description: Cantidad de peticiones del usuario con clave de API en el día calendario actual (UTC).
           example: 42
           x-translations:
             en:
-              description: Number of API requests on the current calendar day (UTC).
+              description: Number of the user's API key requests on the current calendar day (UTC).
         requests_month:
           type: integer
           minimum: 0
-          description: Cantidad de peticiones a la API del usuario en el mes calendario actual (UTC).
+          description: Cantidad de peticiones del usuario con clave de API en el mes calendario actual (UTC).
           example: 580
           x-translations:
             en:
-              description: Number of API requests in the current calendar month (UTC).
+              description: Number of the user's API key requests in the current calendar month (UTC).
         quota:
           $ref: '#/components/schemas/PlanQuotaState'
         recent_requests:
           type: array
-          description: Últimas peticiones a la API del usuario, de la más reciente a la más antigua.
+          description: Últimas 15 peticiones del usuario con clave de API, de la más reciente a la más antigua.
           x-translations:
             en:
               description: |
-                User's most recent API requests, from most to least recent.
+                User's 15 most recent API key requests, from most to least recent.
           items:
             type: object
             description: Entrada del registro de actividad reciente de la API del usuario.
@@ -15444,10 +15729,10 @@ components:
             pending_month:
               type: integer
               minimum: 0
-              description: Cantidad de validaciones no retiradas del mes UTC en curso cuyo estado almacenado es `pending` o `processing`.
+              description: Cantidad de validaciones no retiradas del mes UTC en curso cuyo estado almacenado es `queued` o `processing`.
               x-translations:
                 en:
-                  description: Number of non-withdrawn validations in the current UTC month whose stored state is `pending` or `processing`.
+                  description: Number of non-withdrawn validations in the current UTC month whose stored state is `queued` or `processing`.
               example: 3
             valid_validations:
               type: integer
@@ -15473,7 +15758,7 @@ components:
               x-translations:
                 en:
                   description: 'Success rate from `0` to `100`: `valid_validations` divided by `total_validations`, rounded to one decimal place. It uses the same lifetime population, including withdrawn and playground validations; returns `0` when the total is `0`.'
-              example: 0
+              example: 90.3
             beneficiaries_count:
               type: integer
               minimum: 0
@@ -15539,7 +15824,7 @@ components:
                                 description: Unique identifier of the validation (UUID v4).
                             type: string
                             format: uuid
-                            example: a1b2c3d4-e5f6-7890-abcd-ef0123456789
+                            example: a1b2c3d4-e5f6-4890-abcd-ef0123456789
                           attributes:
                             type: object
                             description: Datos resumidos de la validación reciente mostrados en el panel.
@@ -15707,6 +15992,60 @@ components:
               description: Outcomes eligible for automatic retries.
           items:
             type: string
+    SavedRetryPolicy:
+      type: object
+      description: 'Política de reintentos guardada de la cuenta: activación, límite, intervalo y resultados elegibles. Desactivada o sin configurar, trae `enabled=false`, `max_retries=0`, `interval_seconds=0` y `outcomes` vacío.'
+      x-translations:
+        en:
+          description: |
+            The account's saved retry policy: activation, limit, interval, and eligible outcomes. Disabled or not configured, it carries `enabled=false`, `max_retries=0`, `interval_seconds=0` and empty `outcomes`.
+      properties:
+        enabled:
+          type: boolean
+          description: '`true` cuando el ciclo de reintentos está activo. Si es `false`, los demás campos pueden ser ignorados.'
+          example: true
+          x-translations:
+            en:
+              description: '`true` when the retry cycle is active. With `false`, the other fields are ignored.'
+        max_retries:
+          type: integer
+          minimum: 0
+          description: Número máximo de reintentos automáticos. Una vez alcanzado, el ciclo pasa al estado terminal `exhausted`.
+          example: 3
+          x-translations:
+            en:
+              description: |
+                Maximum number of automatic retries. Once reached, the cycle enters the `exhausted` terminal state. The allowed limit depends on the plan.
+        interval_seconds:
+          type: integer
+          minimum: 0
+          maximum: 86400
+          description: 'Segundos de espera entre cada reintento. Valores válidos: 300–86400 (5 min a 24h).'
+          example: 600
+          x-translations:
+            en:
+              description: |
+                Seconds to wait between each retry (300–86400, i.e., 5 minutes to 24 hours).
+        outcomes:
+          type: array
+          minItems: 0
+          uniqueItems: true
+          description: |
+            Resultados que originan un reintento. De forma predeterminada son `not_found`, `cep_unavailable` y `error`; la combinación `["not_found", "cep_unavailable"]` excluye `error`.
+          items:
+            type: string
+            enum:
+              - not_found
+              - cep_unavailable
+              - error
+          example:
+            - not_found
+            - cep_unavailable
+            - error
+          x-translations:
+            en:
+              description: |
+                Outcomes that trigger a retry. By default, they are `not_found`, `cep_unavailable`, and `error`; the combination `["not_found", "cep_unavailable"]` excludes `error`.
     UserRetryPolicyResponse:
       allOf:
         - $ref: '#/components/schemas/SuccessEnvelope'
@@ -15733,7 +16072,7 @@ components:
                   enum:
                     - retry_policy
                 attributes:
-                  $ref: '#/components/schemas/RetryPolicy'
+                  $ref: '#/components/schemas/SavedRetryPolicy'
     UpdateUserRetryPolicyRequest:
       type: object
       description: Cuerpo de la petición para actualizar la política de reintentos por defecto del usuario (aplica a futuras validaciones).
@@ -16150,10 +16489,10 @@ components:
           type: string
           format: uri
           maxLength: 2048
-          description: URL receptora del webhook. En producción se rechaza si no usa HTTPS, si resuelve a una dirección privada o si pasa de 2048 caracteres.
+          description: URL receptora del webhook. Se rechaza si resuelve a una dirección privada o si pasa de 2048 caracteres y, en producción, también si no usa HTTPS.
           x-translations:
             en:
-              description: URL that receives the webhook. In production it is rejected if it does not use HTTPS, if it resolves to a private address, or if it is longer than 2048 characters.
+              description: URL that receives the webhook. It is rejected if it resolves to a private address or is longer than 2048 characters and, in production, also if it does not use HTTPS.
           example: https://example.com/webhooks/entregas
         events:
           type: array
@@ -16196,10 +16535,10 @@ components:
           type: string
           format: uri
           maxLength: 2048
-          description: Nueva URL receptora del webhook. En producción se rechaza si no usa HTTPS, si no resuelve a una dirección pública o si supera 2048 caracteres.
+          description: Nueva URL receptora del webhook. Se rechaza si no resuelve a una dirección pública o si supera 2048 caracteres y, en producción, también si no usa HTTPS.
           x-translations:
             en:
-              description: New receiver URL. In production it is rejected if it does not use HTTPS, if it does not resolve to a public address, or if it is longer than 2048 characters.
+              description: New receiver URL. It is rejected if it does not resolve to a public address or is longer than 2048 characters and, in production, also if it does not use HTTPS.
           example: https://example.com/webhooks/entregas
         events:
           type: array
@@ -16934,12 +17273,11 @@ components:
         used_percent:
           type: number
           minimum: 0
-          maximum: 100
-          description: Porcentaje del límite consumido en el ciclo actual, redondeado a 2 decimales.
+          description: Porcentaje del límite consumido en el ciclo actual, redondeado a 2 decimales. Puede pasar de 100 si hay excedente.
           example: 70.5
           x-translations:
             en:
-              description: Percentage of the limit consumed in the current cycle, rounded to 2 decimals.
+              description: Percentage of the limit consumed in the current cycle, rounded to 2 decimals. It can exceed 100 when there is overage.
         tone:
           type: string
           enum:
@@ -16951,7 +17289,7 @@ components:
             en:
               description: |
                 `ok` (<70%), `warn` (70-89%), `danger` (≥90% or exhausted quota).
-          example: ok
+          example: warn
         resets_at:
           $ref: '#/components/schemas/TimestampUTC'
         next_reset_at:
@@ -17282,19 +17620,19 @@ components:
                     type: integer
                     minimum: 0
                     maximum: 6
-                    description: Día de la semana (0 = domingo … 6 = sábado).
+                    description: Día de la semana en UTC (0 = domingo … 6 = sábado).
                     x-translations:
                       en:
-                        description: Day of week (0 = Sunday … 6 = Saturday).
+                        description: Day of week in UTC (0 = Sunday … 6 = Saturday).
                     example: 0
                   hour_of_day:
                     type: integer
                     minimum: 0
                     maximum: 23
-                    description: Hora del día (0–23), hora del servidor.
+                    description: Hora del día (0–23), en UTC.
                     x-translations:
                       en:
-                        description: Hour of day (0-23), server time.
+                        description: Hour of day (0-23), in UTC.
                     example: 0
                   count:
                     type: integer
@@ -17681,20 +18019,18 @@ components:
                   description: Month in `YYYY-MM` format.
             from_utc:
               type: string
-              format: date-time
-              description: Inicio del mes en UTC (ISO 8601).
-              example: '2026-04-01T06:00:00Z'
+              description: Inicio del mes en UTC, con formato `YYYY-MM-DD HH:MM:SS`.
+              example: '2026-04-01 06:00:00'
               x-translations:
                 en:
-                  description: Start of the month in UTC (ISO 8601).
+                  description: Start of the month in UTC, in `YYYY-MM-DD HH:MM:SS` format.
             to_utc:
               type: string
-              format: date-time
-              description: Fin del mes en UTC (ISO 8601, exclusivo).
-              example: '2026-05-01T06:00:00Z'
+              description: Fin del mes en UTC (exclusivo), con formato `YYYY-MM-DD HH:MM:SS`.
+              example: '2026-05-01 06:00:00'
               x-translations:
                 en:
-                  description: End of the month in UTC (ISO 8601, exclusive).
+                  description: End of the month in UTC (exclusive), in `YYYY-MM-DD HH:MM:SS` format.
         counts:
           type: object
           description: Conteos de validaciones por veredicto, más retiros mediante borrado lógico del periodo (informativo).
@@ -17705,11 +18041,11 @@ components:
             total:
               type: integer
               minimum: 0
-              description: Cantidad de validaciones completadas en el periodo (excluyendo las validaciones con estado `pending`).
+              description: Cantidad de validaciones del periodo, incluidas las que tienen estado `pending`.
               example: 287
               x-translations:
                 en:
-                  description: Number of validations completed in the period (excluding validations with `pending` status).
+                  description: Number of validations in the period, including those with `pending` status.
             valid:
               type: integer
               minimum: 0
@@ -17848,12 +18184,12 @@ components:
           minimum: 0
           maximum: 100
           description: |
-            Tasa de éxito: porcentaje de validaciones con resultado `valid` sobre el total completado, expresado de 0 a 100.
+            Tasa de éxito: porcentaje de validaciones con resultado `valid` sobre `counts.total`, expresado de 0 a 100.
           example: 79.4
           x-translations:
             en:
               description: |
-                Success rate: percentage of validations with `valid` result out of all completed, expressed from 0 to 100.
+                Success rate: percentage of validations with `valid` result out of `counts.total`, expressed from 0 to 100.
         avg_processing_ms:
           type: integer
           minimum: 0
@@ -18141,9 +18477,20 @@ components:
                 type: string
               example:
                 - Fecha
-                - Monto
+                - Folio plataforma
+                - Tipo
                 - Clave de rastreo
-                - Estado
+                - Fecha operación
+                - Monto
+                - Banco emisor
+                - CLABE emisora
+                - Banco receptor
+                - CLABE receptora
+                - Beneficiario
+                - Veredicto Banxico
+                - CEP disponible
+                - Folio CEP
+                - Tiempo (ms)
             rows:
               type: array
               maxItems: 20
@@ -18156,10 +18503,21 @@ components:
                 items:
                   type: string
               example:
-                - - '2026-04-15'
-                  - '15000.50'
+                - - '2026-04-15 10:32:00'
+                  - c3d4e5f6-a7b8-9012-cdef-123456789012
+                  - direct
                   - MXBA20260415001234
+                  - '2026-04-15'
+                  - '15000.50'
+                  - BBVA MEXICO
+                  - '012180001234567891'
+                  - BANORTE
+                  - '072180009876543210'
+                  - Comercializadora Ejemplo SA de CV
                   - valid
+                  - Sí
+                  - ''
+                  - '412'
     FinancePreviewResponse:
       type: object
       description: |
@@ -18193,7 +18551,7 @@ components:
         plan_name:
           type: string
           description: Nombre del plan que muestran las interfaces.
-          example: Pro
+          example: Personal
           x-translations:
             en:
               description: Plan name shown in the interfaces.
@@ -18431,29 +18789,103 @@ components:
           description: |
             Quota summary for the active cycle. Returned at `meta.quota` by `GET /v1/billing/subscription`.
       properties:
-        plan:
+        plan_slug:
           type: string
           description: Identificador único y legible del plan. Coincide con `data.attributes.plan_slug`.
-          example: pro
+          example: personal
           x-translations:
             en:
               description: Unique, human-readable plan identifier. It matches `data.attributes.plan_slug`.
+        plan_name:
+          type: string
+          description: Nombre del plan que muestran las interfaces.
+          example: Personal
+          x-translations:
+            en:
+              description: Plan name shown in the interfaces.
+        billing_model:
+          type: string
+          enum:
+            - free
+            - tiered
+            - metered
+            - hybrid
+          description: 'Modelo de facturación del plan — `free`: Sin cobro; `tiered`: Cuota fija; `metered`: Cobro por consumo; `hybrid`: Cuota fija más consumo.'
+          example: hybrid
+          x-translations:
+            en:
+              description: 'Plan billing model. `free`: No charge; `tiered`: Flat fee; `metered`: Charged by usage; `hybrid`: Flat fee plus usage.'
+        source:
+          type: string
+          enum:
+            - stripe
+            - admin_granted
+            - system_default
+          description: 'Origen de la suscripción — `stripe`: Pago mediante Stripe; `admin_granted`: Concesión administrativa; `system_default`: Plan asignado por el sistema.'
+          example: stripe
+          x-translations:
+            en:
+              description: 'Subscription source — `stripe`: Payment through Stripe; `admin_granted`: Admin grant; `system_default`: Plan assigned by the system.'
+        overage_enabled:
+          type: boolean
+          description: |
+            `true` cuando el usuario aceptó cobro por excedente en un plan `hybrid`. En ese caso, `effective_limit` salta de `included_validations` a `monthly_validation_limit`.
+          example: false
+          x-translations:
+            en:
+              description: |
+                `true` when the user has opted into overage billing on a `hybrid` plan. When so, `effective_limit` jumps from `included_validations` to `monthly_validation_limit`.
+        overage_available:
+          type: boolean
+          description: '`true` cuando el plan es `hybrid` y el cobro por excedente todavía no está activo: el usuario puede activarlo.'
+          example: false
+          x-translations:
+            en:
+              description: '`true` when the plan is `hybrid` and overage billing is not active yet: the user can turn it on.'
+        monthly_limit_override:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+          description: Límite del ciclo fijado por un administrador para esta suscripción. Cuando existe, manda sobre el del plan. `null` sin ajuste.
+          example: null
+          x-translations:
+            en:
+              description: Cycle limit set by an administrator for this subscription. When present, it overrides the plan's. `null` without an override.
+        included_validations:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+          description: Validaciones incluidas en la cuota base antes del cobro por excedentes. `null` cuando el plan no tiene cuota base.
+          example: 500
+          x-translations:
+            en:
+              description: Validations included in the base quota before overage charges. `null` when the plan has no base quota.
+        monthly_validation_limit:
+          type: integer
+          minimum: 0
+          description: Tope de validaciones por ciclo de la suscripción. `0` no permite validaciones. En planes `hybrid`, es el tope duro cuando `overage_enabled` es `true`; cuando es `false`, `effective_limit` usa `included_validations`. En los demás modelos, es el límite efectivo salvo que exista un ajuste administrativo.
+          example: 10000
+          x-translations:
+            en:
+              description: Validation cap per subscription cycle. `0` allows no validations. On `hybrid` plans, it is the hard cap when `overage_enabled` is `true`; when it is `false`, `effective_limit` uses `included_validations`. On other models, it is the effective limit unless an admin override applies.
         used:
           type: integer
           minimum: 0
           description: Validaciones consumidas en el ciclo actual.
-          example: 420
+          example: 220
           x-translations:
             en:
               description: Validations consumed in the current cycle.
         limit:
           type: integer
           minimum: 0
-          description: Límite efectivo de validaciones para el ciclo actual. Tiene el mismo valor que `data.attributes.effective_limit`.
-          example: 500
+          description: 'Límite efectivo de validaciones para el ciclo actual. Tiene el mismo valor que `data.attributes.effective_limit`, salvo con `quota_kind=trial`: entonces es la asignación de prueba.'
+          example: 300
           x-translations:
             en:
-              description: Effective validation limit for the current cycle. Same value as `data.attributes.effective_limit`.
+              description: 'Effective validation limit for the current cycle. Same value as `data.attributes.effective_limit`, except with `quota_kind=trial`: then it is the trial allowance.'
         remaining:
           type: integer
           description: Validaciones disponibles en el ciclo actual (`max(0, limit - used)`).
@@ -18537,7 +18969,7 @@ components:
                 detail: El cuerpo de la petición es demasiado grande.
             meta:
               version: 1.51.0
-              request_id: 1a2b3c4d5e6f
+              request_id: 1a2b3c4d5e6ff6e5d4c3b2a1
     BodyEmpty:
       description: El cuerpo de la petición llegó vacío cuando la operación necesita datos (`body_empty`).
       x-translations:
@@ -18557,7 +18989,7 @@ components:
                 detail: El cuerpo de la petición está vacío.
             meta:
               version: 1.51.0
-              request_id: 2b3c4d5e6f7a
+              request_id: 2b3c4d5e6f7aa7f6e5d4c3b2
     Unauthorized:
       description: Se requiere autenticación o las credenciales son inválidas
       x-translations:
@@ -18577,7 +19009,7 @@ components:
                 detail: Credenciales de autenticación ausentes o inválidas.
             meta:
               version: 1.51.0
-              request_id: c4d5e6f7a8b9
+              request_id: c4d5e6f7a8b99b8a7f6e5d4c
     RateLimited:
       description: Límite de tasa excedido
       x-translations:
@@ -18640,7 +19072,7 @@ components:
                 detail: Límite de peticiones excedido. Inténtalo de nuevo en 45 segundos.
             meta:
               version: 1.51.0
-              request_id: f7a8b9c0d1e2
+              request_id: f7a8b9c0d1e22e1d0c9b8a7f
               retry_after: 45
     ValidationQueuedAccepted:
       description: Validación asíncrona aceptada. Se debe sondear `GET /v1/validations/{id}` hasta uno de los estados terminales (`valid`, `not_found`, `cep_unavailable`, `invalid`, `returned`, `failed`, `error`). `meta.next_poll_after_seconds` indica el intervalo recomendado para el primer sondeo.
@@ -18690,7 +19122,7 @@ components:
                 detail: Formato de Idempotency-Key inválido. Se admiten A-Z a-z 0-9 _ - (de 1 a 255 caracteres).
             meta:
               version: 1.51.0
-              request_id: 3c4d5e6f7a8b
+              request_id: 3c4d5e6f7a8bb8a7f6e5d4c3
     IdempotencyKeyInProgress:
       description: Una petición con la misma `Idempotency-Key` aún se está procesando. Se debe reintentar después de los segundos que indica la cabecera `Retry-After`.
       x-translations:
@@ -18720,7 +19152,7 @@ components:
                 detail: Una petición con esta Idempotency-Key sigue en proceso.
             meta:
               version: 1.51.0
-              request_id: 2b3c4d5e6f7a
+              request_id: 2b3c4d5e6f7aa7f6e5d4c3b2
     ValidationNotModified:
       description: |
         El `etag_version` y `status` no cambiaron desde el `If-None-Match` enviado. La respuesta no tiene cuerpo.
@@ -18755,7 +19187,7 @@ components:
                 detail: No tienes permiso para acceder a este recurso.
             meta:
               version: 1.51.0
-              request_id: d5e6f7a8b9c0
+              request_id: d5e6f7a8b9c00c9b8a7f6e5d
     ValidationPurged:
       description: La validación se purgó y este recurso ya no existe (`validation_purged`).
       x-translations:
@@ -18775,7 +19207,7 @@ components:
                 detail: La validación se purgó y este recurso ya no existe.
             meta:
               version: 1.61.0
-              request_id: 1a2b3c4d5e6f
+              request_id: 1a2b3c4d5e6ff6e5d4c3b2a1
     NotFound:
       description: El recurso no existe o no es visible para el cliente
       x-translations:
@@ -18806,7 +19238,7 @@ components:
                   pointer: /data/attributes/fecha
             meta:
               version: 1.51.0
-              request_id: e6f7a8b9c0d1
+              request_id: e6f7a8b9c0d11d0c9b8a7f6e
     InvalidMonth:
       description: Parámetro `month` inválido o ausente
       x-translations:
@@ -18826,4 +19258,4 @@ components:
                 detail: '''month'' es obligatorio y debe tener el formato YYYY-MM.'
             meta:
               version: 1.51.0
-              request_id: d5e6f7a8b9c1
+              request_id: d5e6f7a8b9c11c9b8a7f6e5d
