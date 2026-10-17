@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.79.0
+  version: 1.80.1
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -6902,7 +6902,8 @@ paths:
 
         - `operational`: Todos los chequeos pasan y la latencia es normal.
         - `degraded`: Problemas parciales — latencia elevada o errores
-          intermitentes.
+          intermitentes. Un aviso preventivo que no afecta las consultas (por
+          ejemplo, un certificado próximo a vencer) no produce `degraded`.
         - `down`: El servicio es por el momento inaccesible.
         - `unknown`: No hay datos de salud vigentes: aún no se ha ejecutado ningún
           chequeo, o el último es más viejo que tres veces `check_interval_seconds`
@@ -7029,7 +7030,9 @@ paths:
             The status can be:
 
             - `operational`: All checks pass and latency is normal.
-            - `degraded`: Partial issues — high latency or intermittent errors.
+            - `degraded`: Partial issues — high latency or intermittent errors. A
+              preventive warning that does not affect queries (for example, a
+              certificate close to expiry) does not produce `degraded`.
             - `down`: The service is unreachable for now.
             - `unknown`: There is no current health data: no check has run yet,
               or the last one is more than three times `check_interval_seconds`
@@ -16117,11 +16120,11 @@ components:
             - degraded
             - down
             - unknown
-          description: 'Estado agregado del servicio de verificación de Banxico — `operational`: Todas las pruebas pasan y la latencia es normal; `degraded`: Problemas parciales (latencia elevada o errores intermitentes); `down`: Servicio inaccesible; `unknown`: no hay datos de salud vigentes, porque aún no se ha ejecutado ningún chequeo o porque el último tiene más de tres veces `check_interval_seconds` de antigüedad (el chequeo automático dejó de correr).'
+          description: 'Estado agregado del servicio de verificación de Banxico — `operational`: Todas las pruebas pasan y la latencia es normal; `degraded`: Problemas parciales (latencia elevada o errores intermitentes). Un aviso preventivo que no afecta las consultas —por ejemplo, un certificado próximo a vencer— no produce `degraded`: el servicio sigue operando con normalidad; `down`: Servicio inaccesible; `unknown`: no hay datos de salud vigentes, porque aún no se ha ejecutado ningún chequeo o porque el último tiene más de tres veces `check_interval_seconds` de antigüedad (el chequeo automático dejó de correr).'
           example: operational
           x-translations:
             en:
-              description: 'Aggregated service status — `operational`: all checks pass and latency is normal; `degraded`: partial issues (high latency or intermittent errors); `down`: service unreachable; `unknown`: no current health data, because no check has run yet or because the last one is more than three times `check_interval_seconds` old (the automated check stopped running).'
+              description: 'Aggregated service status — `operational`: all checks pass and latency is normal; `degraded`: partial issues (high latency or intermittent errors). A preventive warning that does not affect queries — for example, a certificate close to expiry — does not produce `degraded`: the service keeps operating normally; `down`: service unreachable; `unknown`: no current health data, because no check has run yet or because the last one is more than three times `check_interval_seconds` old (the automated check stopped running).'
         status_label:
           type: string
           description: Etiqueta legible del estado actual (resuelta según idioma de la llamada).
