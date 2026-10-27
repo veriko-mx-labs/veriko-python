@@ -7,6 +7,20 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 Sin cambios todavía.
 
+## [0.6.0] — 2026-10-27
+
+### Cambiado
+
+- `account.my_profile()` sigue el contrato público `1.111.0`. El diccionario ya no incluye `role`, y
+  `permissions` lista los permisos efectivos con claves como `validations.records.read` en lugar de
+  pares `resource:action`. Si tu integración leía `role`, usa `roles`.
+
+### Añadido
+
+- `platform_access` en el perfil: `True` cuando la cuenta puede entrar al panel de administración.
+- `roles` en el perfil: los roles vigentes de la cuenta, cada uno con `key`, `scope_type` (`platform`
+  u `organization`) y `scope_id`.
+
 ## [0.5.9] — 2026-10-15
 
 ### Añadido

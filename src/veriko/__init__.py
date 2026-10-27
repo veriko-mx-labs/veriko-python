@@ -23,7 +23,7 @@ Documentación de la API: https://docs.veriko.mx
 
 from __future__ import annotations
 
-__version__ = "0.5.9"
+__version__ = "0.6.0"
 
 from ._http import RetryConfig
 from .client import (
