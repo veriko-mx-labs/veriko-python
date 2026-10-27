@@ -11,7 +11,7 @@ permissions:
 jobs:
   test:
     name: Pruebas (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Python 3.9 ya no está en ubuntu-latest (26.04)
     strategy:
       fail-fast: false
       matrix:
