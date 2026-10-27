@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": "attachment; filename=\"actividad_api_2026-05-16.csv\""
+  },
+  "body_base64": "ZmVjaGEsaG9yYSxtZXRvZG8scnV0YSxlc3RhZG8sdGllbXBvX21zCjIwMjYtMDUtMTYsMTA6MDAsUE9TVCwvdjEvdmFsaWRhdGUsMjAwLDEzMjAK"
+}

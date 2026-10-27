@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": "attachment; filename=\"comprobante-f47ac10b-58cc-4372-a567-0e02b2c3d479.pdf\"",
+    "Content-Security-Policy": "sandbox"
+  },
+  "body_base64": "JVBERi0xLjcKJeLjz9MKJSVFT0YK"
+}

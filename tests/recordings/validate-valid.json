@@ -1,0 +1,57 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Idempotent-Replayed": "false"
+  },
+  "json": {
+    "data": {
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "type": "validation",
+      "attributes": {
+        "validation_type": "direct",
+        "is_playground": false,
+        "status": "valid",
+        "banxico_status": "valid",
+        "processing_time_ms": 1320,
+        "request_data": {
+          "fecha": "2025-03-15",
+          "monto": 15000.5,
+          "clave_rastreo": "MXBA20250315001234",
+          "referencia_numerica": "1234567",
+          "emisor": "BANCO NACIONAL DE MEXICO",
+          "receptor": "BBVA MEXICO",
+          "cuenta_beneficiaria": "012180004412345678"
+        },
+        "created_at": "2025-03-15T14:22:10Z",
+        "completed_at": "2025-03-15T14:22:11Z",
+        "retry_state": {
+          "enabled": false,
+          "max_retries": null,
+          "interval_seconds": null,
+          "outcomes": null,
+          "attempts_completed": 0,
+          "next_attempt_at": null,
+          "resolved_at": null,
+          "exhausted_at": null,
+          "cancelled_at": null,
+          "terminal_state": null
+        }
+      },
+      "links": {
+        "self": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "cep_xml": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=xml",
+        "cep_pdf": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479/cep?format=pdf"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "b3c4d5e6f7a8",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

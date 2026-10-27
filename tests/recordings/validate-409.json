@@ -1,0 +1,24 @@
+{
+  "status": 409,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "409",
+        "code": "idempotency_key_in_progress",
+        "detail": "Una petición con esa clave de idempotencia sigue en curso."
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "f7a8b9c0d1e2",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

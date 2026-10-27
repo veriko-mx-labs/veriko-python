@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/zip",
+    "Content-Disposition": "attachment; filename=\"finance-ceps.zip\""
+  },
+  "body_base64": "UEsDBGV4YW1wbGU="
+}

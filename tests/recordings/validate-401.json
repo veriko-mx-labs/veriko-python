@@ -1,0 +1,24 @@
+{
+  "status": 401,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "401",
+        "code": "unauthorized",
+        "detail": "La clave de API no es válida."
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "a8b9c0d1e2f3",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "status": 404,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "404",
+        "code": "spei_calendar_year_not_covered",
+        "detail": "No tenemos el calendario de 2030. Los años disponibles van de 2024 a 2026."
+      }
+    ],
+    "meta": {
+      "version": "1.63.0",
+      "request_id": "c1d2e3f4a5b6",
+      "covered_years": [2024, 2025, 2026]
+    }
+  }
+}

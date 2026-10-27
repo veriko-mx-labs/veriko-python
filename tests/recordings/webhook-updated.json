@@ -1,0 +1,32 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "webhook_endpoint",
+      "id": "9f8e7d6c-5b4a-3210-fedc-ba9876543210",
+      "attributes": {
+        "url": "https://miapp.example.com/hooks/pagos",
+        "events": ["validation.completed", "validation.failed"],
+        "description": "Pagos de contado",
+        "status": "active",
+        "consecutive_failures": 0,
+        "last_delivery_at": null,
+        "created_at": "2025-02-01T12:00:00Z",
+        "updated_at": "2025-03-01T09:30:00Z",
+        "secret_hint": "...b6c7"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "ff22aa33bb44",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

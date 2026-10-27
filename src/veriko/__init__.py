@@ -1,0 +1,191 @@
+"""SDK oficial de Veriko para Python.
+
+Veriko valida transferencias SPEI mexicanas contra el CEP (Comprobante
+Electrónico de Pago) que emite el Banco de México, y devuelve un veredicto.
+
+    from veriko import Veriko
+
+    client = Veriko()  # lee VERIKO_API_KEY del entorno
+
+    validation = client.validate_transfer(
+        fecha="2025-03-15",
+        monto=15000.50,
+        clave_rastreo="MXBA20250315001234",
+        cuenta_beneficiaria="012180004412345678",
+    )
+
+    if validation.status == "valid":
+        cep = client.get_cep(validation.id, format="pdf")
+        cep.write_to(cep.filename)
+
+Documentación de la API: https://docs.veriko.mx
+"""
+
+from __future__ import annotations
+
+__version__ = "0.5.9"
+
+from ._http import RetryConfig
+from .client import (
+    API_KEY_ENV_VAR,
+    BASE_URL_ENV_VAR,
+    CEP_FORMATS,
+    DEFAULT_BASE_URL,
+    Veriko,
+)
+from .errors import (
+    APIError,
+    AuthenticationError,
+    ConfigurationError,
+    ConflictError,
+    ConnectionError,
+    ForbiddenError,
+    InvalidRequestError,
+    NotFoundError,
+    RateLimitError,
+    ServerError,
+    SignatureVerificationError,
+    VerikoError,
+)
+from .models import (
+    IMPORT_TERMINAL_STATUSES,
+    RETRYABLE_OUTCOMES,
+    TERMINAL_STATUSES,
+    AccountConflict,
+    Bank,
+    BankList,
+    BanxicoConfirmed,
+    Beneficiary,
+    BeneficiaryImportJob,
+    BeneficiaryImportRow,
+    BeneficiaryLookup,
+    CandidateMatch,
+    CepDocument,
+    Document,
+    DuplicateOf,
+    PaymentStatus,
+    PurgePreparation,
+    PurgeResult,
+    QueuedValidation,
+    RecheckResult,
+    RetryAttempt,
+    RetryPolicy,
+    RetryState,
+    SpeiCalendar,
+    UsageSummary,
+    Validation,
+    ValidationSummary,
+    WebhookDelivery,
+    WebhookEndpoint,
+    WebhookEvent,
+    WebhookTestResult,
+)
+from .pagination import Page
+from .resources import (
+    EXPORT_FORMATS,
+    TEMPLATE_FORMATS,
+    Account,
+    Beneficiaries,
+    Billing,
+    Catalog,
+    Dashboard,
+    Finance,
+    Insights,
+    Plans,
+    Usage,
+    Validations,
+    Webhooks,
+)
+from .webhooks import (
+    DEFAULT_TOLERANCE_SECONDS,
+    DELIVERY_ID_HEADER,
+    EVENT_HEADER,
+    SIGNATURE_HEADER,
+    TIMESTAMP_HEADER,
+    TIMESTAMPED_SIGNATURE_HEADER,
+    compute_signature,
+    parse_webhook,
+    signature_from_headers,
+    timestamped_signature_from_headers,
+    verify_webhook,
+    verify_webhook_timestamped,
+)
+
+__all__ = [
+    "API_KEY_ENV_VAR",
+    "BASE_URL_ENV_VAR",
+    "CEP_FORMATS",
+    "DEFAULT_BASE_URL",
+    "DEFAULT_TOLERANCE_SECONDS",
+    "DELIVERY_ID_HEADER",
+    "EVENT_HEADER",
+    "EXPORT_FORMATS",
+    "IMPORT_TERMINAL_STATUSES",
+    "RETRYABLE_OUTCOMES",
+    "SIGNATURE_HEADER",
+    "TEMPLATE_FORMATS",
+    "TERMINAL_STATUSES",
+    "TIMESTAMPED_SIGNATURE_HEADER",
+    "TIMESTAMP_HEADER",
+    "APIError",
+    "Account",
+    "AccountConflict",
+    "AuthenticationError",
+    "Bank",
+    "BankList",
+    "BanxicoConfirmed",
+    "Beneficiaries",
+    "Beneficiary",
+    "BeneficiaryImportJob",
+    "BeneficiaryImportRow",
+    "BeneficiaryLookup",
+    "Billing",
+    "CandidateMatch",
+    "Catalog",
+    "CepDocument",
+    "ConfigurationError",
+    "ConflictError",
+    "ConnectionError",
+    "Dashboard",
+    "Document",
+    "DuplicateOf",
+    "Finance",
+    "ForbiddenError",
+    "Insights",
+    "InvalidRequestError",
+    "NotFoundError",
+    "Page",
+    "PaymentStatus",
+    "Plans",
+    "PurgePreparation",
+    "PurgeResult",
+    "QueuedValidation",
+    "RateLimitError",
+    "RecheckResult",
+    "RetryAttempt",
+    "RetryConfig",
+    "RetryPolicy",
+    "RetryState",
+    "ServerError",
+    "SignatureVerificationError",
+    "SpeiCalendar",
+    "Usage",
+    "UsageSummary",
+    "Validation",
+    "ValidationSummary",
+    "Validations",
+    "Veriko",
+    "VerikoError",
+    "WebhookDelivery",
+    "WebhookEndpoint",
+    "WebhookEvent",
+    "WebhookTestResult",
+    "Webhooks",
+    "__version__",
+    "compute_signature",
+    "parse_webhook",
+    "signature_from_headers",
+    "timestamped_signature_from_headers",
+    "verify_webhook",
+    "verify_webhook_timestamped",
+]

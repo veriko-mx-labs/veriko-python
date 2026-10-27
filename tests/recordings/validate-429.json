@@ -1,0 +1,28 @@
+{
+  "status": 429,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Retry-After": "7",
+    "X-RateLimit-Limit": "80",
+    "X-RateLimit-Remaining": "0",
+    "X-RateLimit-Reset": "1742048400"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "429",
+        "code": "rate_limit_exceeded",
+        "detail": "Se superó el límite de peticiones."
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "e6f7a8b9c0d1",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

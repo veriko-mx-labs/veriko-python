@@ -1,0 +1,36 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "insights_overview",
+      "attributes": {
+        "total": 1240,
+        "today": 37,
+        "yesterday": 42,
+        "success_rate": 94.2,
+        "avg_latency_ms": 810,
+        "by_banxico_7d": {
+          "valid": 210,
+          "invalid": 8,
+          "not_found": 3,
+          "cep_unavailable": 2,
+          "returned": 1
+        },
+        "scope": "self"
+      }
+    },
+    "meta": {
+      "version": "1.47.0",
+      "api_version": "v1",
+      "request_id": "a1b2c3d4e5f6",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    },
+    "links": {}
+  }
+}

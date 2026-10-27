@@ -1,0 +1,53 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "dashboard_summary",
+      "attributes": {
+        "total_validations": 1284,
+        "monthly_validations": 96,
+        "pending_month": 3,
+        "valid_validations": 1160,
+        "avg_ticket": 4302.32,
+        "success_rate_percent": 0,
+        "beneficiaries_count": 12,
+        "comenzar_milestones_completed": 0
+      },
+      "relationships": {
+        "recent_validations": {
+          "data": [
+            {
+              "type": "dashboard_validation",
+              "id": "a1b2c3d4-e5f6-7890-abcd-ef0123456789",
+              "attributes": {
+                "bank_name": "BBVA MEXICO",
+                "beneficiary_label": "Proveedor Norte",
+                "amount": 15000.5,
+                "tracking_key": "MXBA20250315001234",
+                "referencia_numerica": "1234567",
+                "beneficiary_account": "012180004412345678",
+                "status": "queued",
+                "banxico_status": "valid",
+                "validation_type": "direct",
+                "created_at": "2026-05-01T05:14:38Z"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "meta": {
+      "version": "1.47.0",
+      "api_version": "v1",
+      "request_id": "a1b2c3d4e5f6",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    },
+    "links": {}
+  }
+}

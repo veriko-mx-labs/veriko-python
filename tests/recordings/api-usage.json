@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "requests_today": 42,
+      "requests_month": 580,
+      "quota": {
+        "plan_slug": "basic",
+        "limit": 1000,
+        "used": 420,
+        "remaining": 580,
+        "resets_at": "2025-04-01T00:00:00Z"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "f019a020b021"
+    }
+  }
+}

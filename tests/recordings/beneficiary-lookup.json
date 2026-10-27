@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "beneficiary_lookup",
+      "attributes": {
+        "account_number": "012180004412345678",
+        "account_type": "clabe",
+        "bank_code": "40012",
+        "bank_name": "BBVA MEXICO",
+        "label": "Proveedor ABC"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "f005a006b007"
+    }
+  }
+}

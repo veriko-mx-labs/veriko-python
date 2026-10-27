@@ -1,0 +1,32 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "usage_limits",
+      "attributes": {
+        "rate_limits": {
+          "api": {
+            "ip_per_minute": 60
+          },
+          "login": {
+            "ip_per_minute": 10,
+            "ip_per_hour": 120,
+            "email_per_minute": 5,
+            "email_per_hour": 60
+          }
+        },
+        "notes": [
+          "Al superar un límite, la operación responde 429 con Retry-After."
+        ]
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "d017e018f019"
+    }
+  }
+}

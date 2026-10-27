@@ -1,0 +1,49 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": [
+      {
+        "type": "webhook_endpoint",
+        "id": "9f8e7d6c-5b4a-3210-fedc-ba9876543210",
+        "attributes": {
+          "url": "https://miapp.example.com/hooks/pagos",
+          "events": ["validation.completed"],
+          "description": "Pagos de contado",
+          "status": "active",
+          "consecutive_failures": 0,
+          "last_delivery_at": null,
+          "created_at": "2025-02-01T12:00:00Z",
+          "updated_at": "2025-02-01T12:00:00Z",
+          "secret_hint": "...b6c7"
+        }
+      },
+      {
+        "type": "webhook_endpoint",
+        "id": "1a2b3c4d-5e6f-4789-8abc-def012345678",
+        "attributes": {
+          "url": "https://miapp.example.com/hooks/lotes",
+          "events": ["validation.completed"],
+          "description": null,
+          "status": "auto_disabled",
+          "consecutive_failures": 3,
+          "last_delivery_at": "2025-03-15T14:25:12Z",
+          "created_at": "2025-02-01T12:00:00Z",
+          "updated_at": "2025-02-01T12:00:00Z",
+          "secret_hint": "...0f9e"
+        }
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "ee11ff22aa33",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

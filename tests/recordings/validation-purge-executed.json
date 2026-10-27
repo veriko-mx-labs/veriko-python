@@ -1,0 +1,34 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "validation_purge",
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "attributes": {
+        "purged_at": "2026-10-02T09:30:00Z",
+        "file_removal": "complete",
+        "deleted": {
+          "image": true,
+          "cep_pdf": true,
+          "retry_cycle_cancelled": false,
+          "retry_attempts": 0,
+          "probe_attempts": 0,
+          "webhook_deliveries": 1,
+          "notification_deliveries": 0,
+          "notifications": 0,
+          "idempotency_responses": 1,
+          "import_rows": 0,
+          "audit_log_rows": 2,
+          "security_events_rows": 1
+        }
+      }
+    },
+    "meta": {
+      "version": "1.61.0",
+      "request_id": "c4d5e6f7a8b9"
+    }
+  }
+}

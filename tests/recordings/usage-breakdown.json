@@ -1,0 +1,31 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "usage_breakdown",
+      "attributes": {
+        "period": "2026-04",
+        "operations": [
+          {
+            "operation": "validation",
+            "used": 380,
+            "limit": 0
+          },
+          {
+            "operation": "validation_ocr",
+            "used": 40,
+            "limit": 0
+          }
+        ]
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "c016d017e018"
+    }
+  }
+}

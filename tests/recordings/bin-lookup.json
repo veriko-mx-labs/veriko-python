@@ -1,0 +1,30 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "bin_lookup",
+      "id": "455632",
+      "attributes": {
+        "bin": "455632",
+        "bank_name": "BBVA MEXICO",
+        "banxico_code": "40012",
+        "card_brand": "VISA",
+        "card_type": "DEBIT",
+        "card_level": "CLASSIC",
+        "country_iso": "MX"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "ff88aa99bb00",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

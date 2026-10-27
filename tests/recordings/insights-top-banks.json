@@ -1,0 +1,34 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "insights_top_banks",
+      "attributes": {
+        "metric": "volume",
+        "scope": "self",
+        "banks": [
+          {
+            "bank_code": "40012",
+            "bank_name": "BBVA",
+            "total": 180,
+            "valid": 175,
+            "error_rate": 2.78
+          }
+        ]
+      }
+    },
+    "meta": {
+      "version": "1.47.0",
+      "api_version": "v1",
+      "request_id": "a1b2c3d4e5f6",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    },
+    "links": {}
+  }
+}

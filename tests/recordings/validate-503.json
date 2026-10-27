@@ -1,0 +1,24 @@
+{
+  "status": 503,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "503",
+        "code": "banxico_rate_limit_exhausted",
+        "detail": "El servicio de Banxico no está disponible por el momento."
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "b9c0d1e2f3a4",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

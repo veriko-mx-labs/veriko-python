@@ -1,0 +1,65 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "plan_comparison",
+      "attributes": {
+        "plans": [
+          {
+            "slug": "free",
+            "name": "Free",
+            "is_default": true
+          },
+          {
+            "slug": "basic",
+            "name": "Basic",
+            "is_default": false
+          }
+        ],
+        "rows": [
+          {
+            "key": "validations_included",
+            "label_es": "Validaciones incluidas por mes",
+            "label_en": "Validations included per month",
+            "cells": {
+              "free": {
+                "type": "text",
+                "value": null,
+                "text_es": "50 al mes",
+                "text_en": "50 per month"
+              },
+              "basic": {
+                "type": "text",
+                "value": null,
+                "text_es": "500 + uso extra",
+                "text_en": "500 + overage"
+              }
+            }
+          },
+          {
+            "key": "manual_ocr",
+            "label_es": "Validación manual y con foto (OCR)",
+            "label_en": "Manual and photo (OCR) validation",
+            "cells": {
+              "free": {
+                "type": "bool",
+                "value": true,
+                "text_es": null,
+                "text_en": null
+              },
+              "basic": {
+                "type": "bool",
+                "value": true,
+                "text_es": null,
+                "text_en": null
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "usage_history",
+      "attributes": {
+        "months": 6,
+        "history": [
+          {
+            "period": "2026-04",
+            "used": 420,
+            "limit_at_time": 1000,
+            "limit_is_current_snapshot": true
+          },
+          {
+            "period": "2026-03",
+            "used": 380,
+            "limit_at_time": 1000,
+            "limit_is_current_snapshot": true
+          }
+        ]
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "b015c016d017"
+    }
+  }
+}
