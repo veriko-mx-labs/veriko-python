@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.111.0
+  version: 1.118.1
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -6554,7 +6554,7 @@ paths:
         más recientes. La cantidad se controla con `?limit=`, entre `1` y `10`;
         el valor predeterminado es `5`.
 
-        `comenzar_milestones_completed` indica el progreso del wizard `/comenzar`.
+        `onboarding_milestones_completed` indica el progreso del wizard `/comenzar`.
       operationId: getDashboardSummary
       parameters:
         - name: limit
@@ -6605,7 +6605,7 @@ paths:
             have not been withdrawn. Its size is controlled by `?limit=`, from `1`
             to `10`; the default is `5`.
 
-            `comenzar_milestones_completed` indicates progress through the
+            `onboarding_milestones_completed` indicates progress through the
             `/comenzar` wizard.
       security:
         - ApiKeyAuth: []
@@ -12629,7 +12629,9 @@ components:
                     `cutoff_18h`: La clave no incrusta fecha y el comprobante indica una hora cercana al corte de las 18:00,
                     así que se probó el día siguiente;
                     `dia_operacion`: La clave incrusta la fecha enviada, porque el comprobante trae la de operación,
-                    y se probó un día anterior hasta el día hábil previo.
+                    y se probó un día anterior hasta el día hábil previo;
+                    `future_date`: El comprobante trae el siguiente día hábil (el banco lo imprime así cuando el pago fue en día inhábil o fuera de horario),
+                    y se probaron los días anteriores hasta hoy.
                     El veredicto sigue siendo el de Banxico, y `request_data.fecha` conserva la fecha enviada.
                   x-translations:
                     en:
@@ -12656,7 +12658,9 @@ components:
                         `cutoff_18h`: The key embeds no date and the receipt shows a time close to the 18:00 cutoff,
                         so the next day was tried;
                         `dia_operacion`: The key embeds the date sent, because the receipt carries the operation date,
-                        and an earlier day was tried back to the previous business day.
+                        and an earlier day was tried back to the previous business day;
+                        `future_date`: The receipt shows the next business day (banks print it when the payment was made on a non-business day or after hours),
+                        so the earlier days were tried back to today.
                         The verdict is still Banxico's, and `request_data.fecha` keeps the date sent.
                   properties:
                     operationDate:
@@ -15833,7 +15837,7 @@ components:
                 en:
                   description: Count of the user's active beneficiaries.
               example: 12
-            comenzar_milestones_completed:
+            onboarding_milestones_completed:
               type: integer
               minimum: 0
               maximum: 4
