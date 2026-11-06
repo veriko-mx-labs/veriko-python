@@ -51,7 +51,7 @@ validación pasa a `returned`.
 
 ## Las familias de operaciones
 
-El cliente agrupa las 70 operaciones M2M de la API en once familias:
+El cliente agrupa las 74 operaciones M2M de la API en once familias:
 
 | familia | qué cubre |
 | --- | --- |
@@ -673,11 +673,11 @@ limites = client.usage.limits()
 
 ## Superficie M2M
 
-El SDK cubre exactamente las 70 operaciones del spec público: `security: []` para las públicas y
+El SDK cubre exactamente las 74 operaciones del spec público: `security: []` para las públicas y
 `ApiKeyAuth` para las autenticadas.
 
 Entre ellas están el perfil y su política de reintentos, el resumen del panel, los dos endpoints
-públicos de planes, las cuatro vistas de insights, las siete operaciones financieras y la
+públicos de planes, las cuatro vistas de insights, las once operaciones financieras y la
 suscripción. Por ejemplo:
 
 ```python

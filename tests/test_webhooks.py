@@ -121,6 +121,29 @@ def test_parse_webhook_devuelve_el_evento_interpretado() -> None:
     assert evento.validation.id == "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 
 
+def test_parse_webhook_lee_el_motivo_de_una_validacion_no_confirmada() -> None:
+    payload = cuerpo("webhook-validation-completed-not-found")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.validation is not None
+    assert evento.validation.status == "not_found"
+    assert evento.validation.error_code == "not_found_amount"
+    assert evento.validation.error_message == (
+        "Banxico encontró la operación con un importe distinto."
+    )
+
+
+def test_parse_webhook_sin_motivo_deja_los_campos_en_none() -> None:
+    payload = cuerpo("webhook-validation-completed")
+
+    evento = parse_webhook(payload, firmar(payload), SECRET)
+
+    assert evento.validation is not None
+    assert evento.validation.error_code is None
+    assert evento.validation.error_message is None
+
+
 def test_parse_webhook_lee_el_ciclo_de_reintentos() -> None:
     payload = cuerpo("webhook-retry-resolved")
 

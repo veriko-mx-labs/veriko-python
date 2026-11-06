@@ -16,6 +16,7 @@
         "last_delivery_at": null,
         "created_at": "2025-02-01T12:00:00Z",
         "updated_at": "2025-03-01T09:30:00Z",
+        "previous_secret_expires_at": null,
         "secret_hint": "...b6c7"
       }
     },

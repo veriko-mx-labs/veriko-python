@@ -1,4 +1,4 @@
-"""Las 70 operaciones M2M que cubre el SDK, contra el spec público.
+"""Las 74 operaciones M2M que cubre el SDK, contra el spec público.
 
 Cada caso llama a un método con todos sus argumentos opcionales y comprueba que lo
 que llegó al servidor existe en el spec: el método y la ruta, los parámetros de
@@ -561,6 +561,29 @@ CASOS = [
         todos_los_parametros=True,
     ),
     Caso(
+        "createFinanceCepExport",
+        "finance-cep-export-queued",
+        lambda c: c.finance.create_cep_export(
+            from_="2026-04-01", to="2026-04-30", user_id=ID, idempotency_key="pedido-6"
+        ),
+        todo_el_cuerpo=True,
+    ),
+    Caso(
+        "listFinanceCepExports",
+        "finance-cep-exports",
+        lambda c: c.finance.list_cep_exports(),
+    ),
+    Caso(
+        "getFinanceCepExport",
+        "finance-cep-export-ready",
+        lambda c: c.finance.get_cep_export(ID),
+    ),
+    Caso(
+        "downloadFinanceCepExport",
+        "finance-ceps",
+        lambda c: c.finance.download_cep_export(ID),
+    ),
+    Caso(
         "billingGetSubscription",
         "billing-subscription",
         lambda c: c.billing.get_subscription(),
@@ -638,6 +661,10 @@ IMPLEMENTED_OPERATIONS = {
     "getFinanceByBank",
     "getFinanceAccounting",
     "getFinanceCeps",
+    "createFinanceCepExport",
+    "listFinanceCepExports",
+    "getFinanceCepExport",
+    "downloadFinanceCepExport",
     "billingGetSubscription",
 }
 
@@ -713,10 +740,10 @@ def test_lo_que_el_sdk_envia_existe_en_el_spec(
             assert campos == sorted(set(propiedades) - caso.sin_campos)
 
 
-def test_cubre_exactamente_las_70_operaciones_del_contrato_sin_familias_parciales() -> None:
+def test_cubre_exactamente_las_74_operaciones_del_contrato_sin_familias_parciales() -> None:
     cubiertas = {caso.operacion for caso in CASOS}
 
-    assert len(IMPLEMENTED_OPERATIONS) == 70
+    assert len(IMPLEMENTED_OPERATIONS) == 74
     assert cubiertas == IMPLEMENTED_OPERATIONS
     assert coverage_errors(m2m_operation_ids(), IMPLEMENTED_OPERATIONS, KNOWN_GAPS) == []
 

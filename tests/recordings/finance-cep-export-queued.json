@@ -1,0 +1,32 @@
+{
+  "status": 202,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "Location": "/v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479"
+  },
+  "json": {
+    "data": {
+      "type": "cep_archive",
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "attributes": {
+        "status": "queued",
+        "from": "2026-04-01",
+        "to": "2026-04-30",
+        "item_count": null,
+        "size_bytes": null,
+        "error_code": null,
+        "created_at": "2026-05-01T15:00:00Z",
+        "completed_at": null,
+        "expires_at": null
+      },
+      "links": {
+        "self": "/v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      }
+    },
+    "meta": {
+      "version": "1.163.5",
+      "api_version": "v1",
+      "request_id": "c0e1f2a3b4d5"
+    }
+  }
+}

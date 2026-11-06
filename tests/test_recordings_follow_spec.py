@@ -31,6 +31,9 @@ OPERATION_RECORDINGS = {
     "getFinanceByBank": ("finance-by-bank",),
     "getFinanceAccounting": ("finance-accounting",),
     "getFinanceCeps": ("finance-ceps",),
+    "createFinanceCepExport": ("finance-cep-export-queued",),
+    "listFinanceCepExports": ("finance-cep-exports",),
+    "getFinanceCepExport": ("finance-cep-export-ready",),
     "billingGetSubscription": ("billing-subscription",),
     "exportApiUsage": ("api-usage-export-csv",),
     "getApiUsage": ("api-usage",),
@@ -111,6 +114,7 @@ NON_RESPONSE_RECORDINGS = {
     "webhook-validation-completed",
     "webhook-validation-completed-banxico-confirmed",
     "webhook-validation-completed-client-ref",
+    "webhook-validation-completed-not-found",
     "webhook-validation-returned",
 }
 

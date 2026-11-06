@@ -1771,6 +1771,65 @@ class Finance(_Resource):
     def ceps(self, **kwargs: Any) -> Document:
         return self.get_ceps(**kwargs)
 
+    def create_cep_export(
+        self,
+        *,
+        from_: str,
+        to: str,
+        user_id: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Pide el ZIP de CEP de un rango para armarlo en segundo plano.
+
+        `POST /v1/finance/ceps/exports`. Devuelve el recurso `data` de la
+        exportación, con `id`, `attributes.status` en `queued` y `links.self`.
+        Si ya hay una exportación en curso del mismo rango, devuelve esa.
+        """
+        response = self._transport.request(
+            "POST",
+            "/finance/ceps/exports",
+            json_body=_clean({"from": from_, "to": to, "user_id": user_id}),
+            extra_headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
+        )
+        return _data_resource(response)
+
+    def list_cep_exports(self) -> list[dict[str, Any]]:
+        """Las exportaciones recientes de CEP, la más reciente primero.
+
+        `GET /v1/finance/ceps/exports`.
+        """
+        response = self._transport.request("GET", "/finance/ceps/exports")
+        datos = response.json().get("data")
+        if not isinstance(datos, list):
+            return []
+        return [item for item in datos if isinstance(item, dict)]
+
+    def get_cep_export(self, export_id: str) -> dict[str, Any]:
+        """El estado de una exportación de CEP.
+
+        `GET /v1/finance/ceps/exports/{id}`. `attributes.status` es terminal en
+        `ready`, `failed` o `expired`; con `ready`, `links.download` trae la ruta
+        del archivo.
+        """
+        response = self._transport.request(
+            "GET", "/finance/ceps/exports/" + _path_segment(export_id)
+        )
+        return _data_resource(response)
+
+    def download_cep_export(self, export_id: str) -> Document:
+        """El ZIP de una exportación de CEP en estado `ready`.
+
+        `GET /v1/finance/ceps/exports/{id}/download`.
+        """
+        return _finance_file(
+            self._transport,
+            "/finance/ceps/exports/" + _path_segment(export_id) + "/download",
+            {},
+            "zip",
+            "ceps",
+            include_format=False,
+        )
+
 
 class Billing(_Resource):
     """Suscripción activa de la cuenta autenticada."""
@@ -1824,6 +1883,12 @@ def _data_attributes(response: Response) -> dict[str, Any]:
         return {}
     attributes = data.get("attributes")
     return attributes if isinstance(attributes, dict) else {}
+
+
+def _data_resource(response: Response) -> dict[str, Any]:
+    """El objeto `data` de una respuesta, o vacío si no está."""
+    data = response.json().get("data")
+    return data if isinstance(data, dict) else {}
 
 
 def _document(response: Response, fallback: str, accept: str) -> Document:
