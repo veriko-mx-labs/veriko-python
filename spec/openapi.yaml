@@ -9,7 +9,7 @@ info:
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
-  version: 1.136.4
+  version: 1.163.5
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -3589,6 +3589,8 @@ paths:
         El atributo `code` identifica a cada institución bancaria.
 
         La lista es cacheable: incluye la cabecera `ETag`, que puede enviarse en otra petición como `If-None-Match`; si el catálogo no ha cambiado, responde con un estado HTTP `304` (sin cuerpo).
+
+        La comparación de `If-None-Match` sigue el estándar HTTP (RFC 9110): acepta una lista de firmas separadas por comas y el valor `*`, y trata como iguales la firma fuerte y su variante débil (`W/"…"`). Así el `304` también funciona cuando Cloudflare o el servidor comprimen la respuesta y modifican el `ETag` (por ejemplo, `W/"…"` o `"…-gzip"`). Las peticiones sin `If-None-Match` reciben siempre el catálogo completo.
       operationId: listBanks
       x-codeSamples:
         - lang: curl
@@ -3632,10 +3634,10 @@ paths:
               schema:
                 type: string
                 example: '"a1b2c3d4e5f6..."'
-              description: Firma de la petición actual. Pasar como `If-None-Match` en peticiones posteriores.
+              description: 'Firma fuerte del contenido del catálogo: no cambia mientras los bancos y sus alias sean los mismos. Pasar como `If-None-Match` en peticiones posteriores. Una intermediaria puede devolverla como débil (`W/"…"`) o con el sufijo `-gzip` al comprimir; ambas formas siguen dando `304`.'
               x-translations:
                 en:
-                  description: Fingerprint of the current request. Pass as `If-None-Match` on subsequent requests.
+                  description: 'Strong fingerprint of the catalog contents: it does not change while the banks and their aliases are the same. Pass as `If-None-Match` on subsequent requests. An intermediary may return it as weak (`W/"…"`) or with the `-gzip` suffix when compressing; both forms still yield `304`.'
             Cache-Control:
               schema:
                 type: string
@@ -3681,27 +3683,27 @@ paths:
                       api_version: v1
                       request_id: e7f8a9b0c1d22d1c0b9a8f7e
         '304':
-          description: No modificado — los datos no han cambiado según el ETag enviado.
+          description: 'No modificado: el catálogo no ha cambiado respecto de la firma enviada en `If-None-Match`. No incluye cuerpo.'
           x-translations:
             en:
-              description: Not modified — the data has not changed per the sent ETag.
+              description: 'Not modified: the catalog has not changed with respect to the signature sent in `If-None-Match`. It has no body.'
           headers:
             ETag:
               schema:
                 type: string
                 example: '"a1b2c3d4e5f6..."'
-              description: ETag actual de la instantánea.
+              description: Firma actual del catálogo, la misma que llevaría la respuesta 200.
               x-translations:
                 en:
-                  description: Current snapshot ETag.
+                  description: Current catalog signature, the same one the 200 response would carry.
             Cache-Control:
               schema:
                 type: string
                 example: private, max-age=3600
-              description: TTL de caché en el cliente.
+              description: TTL de caché en el cliente (1 h), igual que en la respuesta 200.
               x-translations:
                 en:
-                  description: Client cache TTL.
+                  description: Client cache TTL (1 h), same as in the 200 response.
       x-translations:
         en:
           summary: Codes and list of participant banks
@@ -3711,6 +3713,8 @@ paths:
             The `code` identifies each banking institution participating in the SPEI system.
 
             The response is cacheable: it includes the `ETag` header, which can be sent in another request as `If-None-Match`; if the catalog has not changed, it returns `304` (no body).
+
+            The `If-None-Match` comparison follows the HTTP standard (RFC 9110): it accepts a comma-separated list of signatures and the value `*`, and treats the strong signature and its weak variant (`W/"…"`) as equal. This way `304` also works when Cloudflare or the server compress the response and modify the `ETag` (for example, `W/"…"` or `"…-gzip"`). Requests without `If-None-Match` always receive the full catalog.
       security: []
   /public/bin-lookup/{bin}:
     get:
@@ -8356,8 +8360,10 @@ paths:
       description: |-
         Rota el secreto con el que se firman las entregas de un endpoint webhook. El secreto nuevo viaja **una sola vez**, en esta respuesta, y no hay forma de volver a consultarlo.
 
-        {% callout type="danger" %}
-        **El secreto anterior queda invalidado en el acto**: Un receptor que valide firmas dejará de validar las entregas siguientes hasta que se le configure el secreto nuevo.
+        Durante las **24 horas** siguientes, cada entrega lleva además la firma con el secreto anterior en la cabecera `X-Webhook-Signature-Old` (mismo formato que `X-Webhook-Signature-Timestamped`). Así, las entregas en cola o en reintento no se rechazan mientras actualizas tu receptor: acepta la firma vigente o la anterior hasta la hora de `previous_secret_expires_at`.
+
+        {% callout type="warning" %}
+        **Si el secreto anterior se expuso, no esperes la gracia**: envía `{"immediate": true}` y el anterior deja de firmar en el acto. Un receptor que aún no tenga el secreto nuevo rechazará las entregas siguientes hasta que lo configures.
 
         {% /callout %}
       operationId: regenerateWebhookSecret
@@ -8382,7 +8388,22 @@ paths:
           source: |-
             curl -X POST 'https://api.veriko.mx/v1/webhooks/{id}/regenerate-secret' \
               -H 'Authorization: Bearer veriko_••••' \
-              -H 'Content-Type: application/json'
+              -H 'Content-Type: application/json' \
+              -d '{
+                "immediate": false
+              }'
+      requestBody:
+        required: false
+        description: Opcional. Sin cuerpo, la regeneración deja 24 horas de gracia al secreto anterior.
+        x-translations:
+          en:
+            description: Optional. Without a body, the regeneration leaves the previous secret a 24-hour grace period.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegenerateWebhookSecretRequest'
+            example:
+              immediate: false
       responses:
         '200':
           description: Nuevo secret generado. Solo se devuelve en esta respuesta.
@@ -8398,6 +8419,15 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/WebhookEndpoint'
+        '400':
+          description: '`body_empty` o `invalid_json`: se envió un cuerpo que no es JSON válido. El cuerpo es opcional; si no hace falta `immediate`, omítelo.'
+          x-translations:
+            en:
+              description: '`body_empty` or `invalid_json`: a body was sent that is not valid JSON. The body is optional; if `immediate` is not needed, omit it.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -8407,6 +8437,17 @@ paths:
           x-translations:
             en:
               description: '`not_found`: Endpoint does not exist or does not belong to the user.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: '`webhook_immediate_invalid_type`: `immediate` no es un booleano.'
+          x-translations:
+            en:
+              description: '`webhook_immediate_invalid_type`: `immediate` is not a boolean.'
           content:
             application/json:
               schema:
@@ -8421,10 +8462,20 @@ paths:
             secret travels **exactly once**, in this response, and there is no way to
             read it again.
 
-            The previous one is invalidated at once: there is no overlap window. A
-            receiver validating signatures will stop validating the following
-            deliveries until the new secret is configured on it, so the rotation is
-            worth coordinating with that deployment.
+            For the next **24 hours**, every delivery also carries the signature
+            made with the previous secret in the `X-Webhook-Signature-Old` header
+            (same format as `X-Webhook-Signature-Timestamped`). Queued or retrying
+            deliveries are therefore not rejected while you update your receiver:
+            accept the current or the previous signature until the time in
+            `previous_secret_expires_at`.
+
+            {% callout type="warning" %}
+            **If the previous secret was exposed, do not wait for the grace
+            period**: send `{"immediate": true}` and the previous one stops signing
+            at once. A receiver that does not have the new secret yet will reject
+            the following deliveries until you configure it.
+
+            {% /callout %}
       security:
         - ApiKeyAuth: []
   /webhooks/deliveries:
@@ -10847,7 +10898,9 @@ paths:
       x-related:
         - GET /v1/finance/accounting
         - GET /v1/finance/by-bank
+        - GET /v1/finance/ceps/exports
         - GET /v1/finance/counterparties
+        - POST /v1/finance/ceps/exports
         - GET /v1/finance/monthly
         - GET /v1/finance/statement
         - GET /v1/finance/summary
@@ -11008,6 +11061,454 @@ paths:
             the month's statement without the files, `GET /v1/finance/statement`.
 
             {% /callout %}
+      security:
+        - ApiKeyAuth: []
+  /finance/ceps/exports:
+    post:
+      x-related:
+        - GET /v1/finance/ceps
+        - GET /v1/finance/ceps/exports
+        - GET /v1/finance/ceps/exports/{id}
+        - GET /v1/finance/ceps/exports/{id}/download
+        - GET /v1/finance/statement
+      tags:
+        - Finance
+      summary: Pedir el archivo de comprobantes en segundo plano
+      description: |-
+        Encola la preparación del ZIP de CEP de un rango de fechas y responde de inmediato con un estado HTTP `202`. Es la alternativa asíncrona de `GET /v1/finance/ceps` para rangos grandes: el archivo se arma en segundo plano, sin mantener la conexión abierta.
+
+        La respuesta trae la exportación en estado `queued` y su ubicación en la cabecera `Location`. Consulta `GET /v1/finance/ceps/exports/{id}` hasta que `status` sea terminal (`ready`, `failed` o `expired`) y descarga el archivo con `GET /v1/finance/ceps/exports/{id}/download`. Cuando termina, el servicio también avisa por correo electrónico y dentro de la app, con un enlace (nunca con el archivo adjunto).
+
+        El archivo es el mismo ZIP que entrega `GET /v1/finance/ceps`. Una vez listo se puede descargar durante **24 horas**; después se borra y hay que pedirlo de nuevo.
+
+        Antes de encolar, el servicio cuenta los CEP del rango:
+
+        - Sin comprobantes, responde con un estado HTTP `404` (con `no_ceps` en el cuerpo), igual que el ZIP síncrono.
+        - Con más de **10 000** comprobantes, responde con un estado HTTP `422` (con `range_too_large` en el cuerpo). Divide el rango en periodos más cortos.
+
+        Si ya existe una exportación en curso del mismo rango, devuelve esa en lugar de crear otra. Cada cuenta puede tener **2** exportaciones en curso a la vez (`429`, con `export_limit_reached`) y la plataforma admite **5** en total (`503`, con `exports_busy`).
+
+        La operación admite `Idempotency-Key`.
+      operationId: createFinanceCepExport
+      externalDocs:
+        url: https://docs.veriko.mx/how-to/generate-finance-report
+        description: Export financial statements and CEP archives
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCepArchiveRequest'
+            example:
+              from: '2026-04-01'
+              to: '2026-04-30'
+      x-codeSamples:
+        - lang: curl
+          label: Shell
+          source: |-
+            curl -X POST 'https://api.veriko.mx/v1/finance/ceps/exports' \
+              -H 'Authorization: Bearer veriko_••••' \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "from": "2026-04-01",
+                "to": "2026-04-30"
+              }'
+      responses:
+        '202':
+          description: La exportación quedó en cola (`queued`), o es la que ya estaba en curso para ese rango.
+          x-translations:
+            en:
+              description: The export was queued (`queued`), or it is the one already in progress for that range.
+          headers:
+            Location:
+              description: Ruta de la exportación, para consultar su estado.
+              x-translations:
+                en:
+                  description: Path of the export, to check its state.
+              schema:
+                type: string
+                example: /v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CepArchiveResponse'
+              examples:
+                queued:
+                  summary: Exportación en cola
+                  x-translations:
+                    en:
+                      summary: Export queued
+                  value:
+                    data:
+                      type: cep_archive
+                      id: f47ac10b-58cc-4372-a567-0e02b2c3d479
+                      attributes:
+                        status: queued
+                        from: '2026-04-01'
+                        to: '2026-04-30'
+                        item_count: null
+                        size_bytes: null
+                        error_code: null
+                        created_at: '2026-05-01T15:00:00Z'
+                        completed_at: null
+                        expires_at: null
+                      links:
+                        self: /v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479
+        '400':
+          description: '`invalid_range`: Fechas mal formadas o `to < from`.'
+          x-translations:
+            en:
+              description: '`invalid_range`: Malformed dates or `to < from`.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`no_ceps`: El rango no contiene ningún CEP disponible.'
+          x-translations:
+            en:
+              description: '`no_ceps`: No CEPs available in the specified range.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          description: '`range_too_large`: El rango supera el máximo de CEP por exportación (10 000).'
+          x-translations:
+            en:
+              description: '`range_too_large`: The range exceeds the maximum CEPs per export (10,000).'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: '`export_limit_reached`: La cuenta ya tiene el máximo de exportaciones en curso. Consultar `Retry-After`.'
+          x-translations:
+            en:
+              description: '`export_limit_reached`: The account already has the maximum number of exports in progress. Check `Retry-After`.'
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                example: 60
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: '`exports_busy`: Hay demasiadas exportaciones en curso en la plataforma, o `dispatch_failed`: no se pudo encolar. Consultar `Retry-After` cuando viene.'
+          x-translations:
+            en:
+              description: '`exports_busy`: Too many exports are in progress on the platform, or `dispatch_failed`: it could not be queued. Check `Retry-After` when present.'
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+                example: 60
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-translations:
+        en:
+          summary: Request the CEP archive in the background
+          description: |-
+            Queues the preparation of the CEP ZIP for a date range and responds immediately with an HTTP status `202`. It is the asynchronous alternative to `GET /v1/finance/ceps` for large ranges: the archive is built in the background, without holding the connection open.
+
+            The response carries the export in state `queued` and its location in the `Location` header. Poll `GET /v1/finance/ceps/exports/{id}` until `status` is terminal (`ready`, `failed` or `expired`) and download the archive with `GET /v1/finance/ceps/exports/{id}/download`. When it finishes, the service also notifies by email and inside the app, with a link (never with the archive attached).
+
+            The archive is the same ZIP that `GET /v1/finance/ceps` delivers. Once ready it can be downloaded for **24 hours**; after that it is deleted and must be requested again.
+
+            Before queuing, the service counts the CEPs in the range:
+
+            - With no receipts, it responds with an HTTP status `404` (with `no_ceps` in the body), like the synchronous ZIP.
+            - With more than **10,000** receipts, it responds with an HTTP status `422` (with `range_too_large` in the body). Split the range into shorter periods.
+
+            If an export of the same range is already in progress, it returns that one instead of creating another. Each account can have **2** exports in progress at a time (`429`, with `export_limit_reached`) and the platform allows **5** in total (`503`, with `exports_busy`).
+
+            The operation supports `Idempotency-Key`.
+      security:
+        - ApiKeyAuth: []
+    get:
+      x-related:
+        - GET /v1/finance/ceps
+        - GET /v1/finance/ceps/exports/{id}
+        - GET /v1/finance/ceps/exports/{id}/download
+        - GET /v1/finance/statement
+        - POST /v1/finance/ceps/exports
+      tags:
+        - Finance
+      summary: Listar las exportaciones recientes de comprobantes
+      description: |-
+        Devuelve las últimas 20 exportaciones asíncronas de CEP que pidió quien consulta, la más reciente primero, con su estado, tamaño y vencimiento.
+
+        Incluye las `ready`, las `failed` y las `expired` (estas últimas se conservan 30 días para explicar qué pasó). Una exportación que pidió otra persona no aparece.
+      operationId: listFinanceCepExports
+      externalDocs:
+        url: https://docs.veriko.mx/how-to/generate-finance-report
+        description: Export financial statements and CEP archives
+      x-codeSamples:
+        - lang: curl
+          label: Shell
+          source: |-
+            curl -X GET 'https://api.veriko.mx/v1/finance/ceps/exports' \
+              -H 'Authorization: Bearer veriko_••••'
+      responses:
+        '200':
+          description: Las exportaciones recientes, la más reciente primero.
+          x-translations:
+            en:
+              description: The recent exports, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CepArchiveListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-translations:
+        en:
+          summary: List recent CEP exports
+          description: |-
+            Returns the last 20 asynchronous CEP exports requested by the caller, newest first, with their state, size and expiry.
+
+            It includes `ready`, `failed` and `expired` ones (the latter are kept for 30 days to explain what happened). An export requested by someone else does not appear.
+      security:
+        - ApiKeyAuth: []
+  /finance/ceps/exports/{id}:
+    get:
+      x-related:
+        - GET /v1/finance/ceps
+        - GET /v1/finance/ceps/exports
+        - GET /v1/finance/ceps/exports/{id}/download
+        - GET /v1/finance/statement
+        - POST /v1/finance/ceps/exports
+      tags:
+        - Finance
+      summary: Consultar el estado de una exportación de comprobantes
+      description: |-
+        Devuelve el estado de una exportación asíncrona de CEP. Mientras `status` sea `queued` o `building`, vuelve a consultar con una pausa de unos segundos; `ready`, `failed` y `expired` son terminales.
+
+        Con `ready`, el recurso trae `item_count`, `size_bytes` y `expires_at`, y el enlace `links.download`. Con `failed`, `error_code` dice la causa.
+
+        Una exportación que no existe o que pidió otra persona responde con un estado HTTP `404` (con `export_not_found` en el cuerpo).
+      operationId: getFinanceCepExport
+      externalDocs:
+        url: https://docs.veriko.mx/how-to/generate-finance-report
+        description: Export financial statements and CEP archives
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID de la exportación.
+          x-translations:
+            en:
+              description: Export UUID.
+      x-codeSamples:
+        - lang: curl
+          label: Shell
+          source: |-
+            curl -X GET 'https://api.veriko.mx/v1/finance/ceps/exports/{id}' \
+              -H 'Authorization: Bearer veriko_••••'
+      responses:
+        '200':
+          description: Estado de la exportación.
+          x-translations:
+            en:
+              description: State of the export.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CepArchiveResponse'
+              examples:
+                ready:
+                  summary: Archivo listo
+                  x-translations:
+                    en:
+                      summary: Archive ready
+                  value:
+                    data:
+                      type: cep_archive
+                      id: f47ac10b-58cc-4372-a567-0e02b2c3d479
+                      attributes:
+                        status: ready
+                        from: '2026-04-01'
+                        to: '2026-04-30'
+                        item_count: 42
+                        size_bytes: 1638400
+                        error_code: null
+                        created_at: '2026-05-01T15:00:00Z'
+                        completed_at: '2026-05-01T15:00:20Z'
+                        expires_at: '2026-05-02T15:00:20Z'
+                      links:
+                        self: /v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479
+                        download: /v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479/download
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`export_not_found`: La exportación no existe o la pidió otra persona.'
+          x-translations:
+            en:
+              description: '`export_not_found`: The export does not exist or was requested by someone else.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-translations:
+        en:
+          summary: Check the state of a CEP export
+          description: |-
+            Returns the state of an asynchronous CEP export. While `status` is `queued` or `building`, poll again after a pause of a few seconds; `ready`, `failed` and `expired` are terminal.
+
+            With `ready`, the resource carries `item_count`, `size_bytes` and `expires_at`, and the `links.download` link. With `failed`, `error_code` gives the cause.
+
+            An export that does not exist or was requested by someone else responds with an HTTP status `404` (with `export_not_found` in the body).
+      security:
+        - ApiKeyAuth: []
+  /finance/ceps/exports/{id}/download:
+    get:
+      x-related:
+        - GET /v1/finance/ceps
+        - GET /v1/finance/ceps/exports
+        - GET /v1/finance/ceps/exports/{id}
+        - GET /v1/finance/statement
+        - POST /v1/finance/ceps/exports
+      tags:
+        - Finance
+      summary: Descargar el archivo de una exportación de comprobantes
+      description: |-
+        Entrega el ZIP de una exportación asíncrona de CEP que está `ready`. Es el mismo archivo que `GET /v1/finance/ceps`: los XML y PDF bajo `ceps/` y los manifiestos `manifest.csv` y `manifest.xlsx`.
+
+        - Si la exportación todavía está en curso o falló, responde con un estado HTTP `409` (con `export_not_ready` en el cuerpo).
+        - Si el archivo venció (24 horas después de quedar listo), responde con un estado HTTP `410` (con `export_expired` en el cuerpo). Pide la exportación de nuevo.
+        - Si no existe o la pidió otra persona, responde con un estado HTTP `404` (con `export_not_found` en el cuerpo).
+
+        Mientras no venza, se puede descargar las veces que haga falta.
+      operationId: downloadFinanceCepExport
+      externalDocs:
+        url: https://docs.veriko.mx/how-to/generate-finance-report
+        description: Export financial statements and CEP archives
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID de la exportación.
+          x-translations:
+            en:
+              description: Export UUID.
+      x-codeSamples:
+        - lang: curl
+          label: Shell
+          source: |-
+            curl -X GET 'https://api.veriko.mx/v1/finance/ceps/exports/{id}/download' \
+              -H 'Authorization: Bearer veriko_••••'
+      responses:
+        '200':
+          description: ZIP con los XML/PDF de CEP y los manifiestos CSV + XLSX.
+          x-translations:
+            en:
+              description: ZIP archive containing CEP XML/PDF files and CSV + XLSX manifests.
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                enum:
+                  - application/zip
+            Content-Disposition:
+              description: Nombre de archivo sugerido para la descarga.
+              x-translations:
+                en:
+                  description: Suggested filename for the download.
+              schema:
+                type: string
+                example: attachment; filename="platform_ceps_2026-04-01_a_2026-04-30.zip"
+            Content-Length:
+              description: Tamaño exacto del ZIP en bytes.
+              x-translations:
+                en:
+                  description: Exact size of the ZIP archive in bytes.
+              schema:
+                type: integer
+            X-Finance-Items:
+              description: Número de CEPs incluidos en el ZIP.
+              x-translations:
+                en:
+                  description: Number of CEPs included in the ZIP archive.
+              schema:
+                type: integer
+                example: 42
+            Cache-Control:
+              schema:
+                type: string
+                example: no-cache, no-store, must-revalidate
+              description: Deshabilita el almacenamiento en caché por parte de intermediarios durante la descarga.
+              x-translations:
+                en:
+                  description: Disables intermediary caching of the download.
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: '`export_not_found`: La exportación no existe o la pidió otra persona.'
+          x-translations:
+            en:
+              description: '`export_not_found`: The export does not exist or was requested by someone else.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: '`export_not_ready`: La exportación sigue en curso o falló.'
+          x-translations:
+            en:
+              description: '`export_not_ready`: The export is still in progress or failed.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '410':
+          description: '`export_expired`: El archivo venció y se borró. Pedir la exportación de nuevo.'
+          x-translations:
+            en:
+              description: '`export_expired`: The archive expired and was deleted. Request the export again.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-translations:
+        en:
+          summary: Download the archive of a CEP export
+          description: |-
+            Delivers the ZIP of an asynchronous CEP export that is `ready`. It is the same archive as `GET /v1/finance/ceps`: the XML and PDF files under `ceps/` and the `manifest.csv` and `manifest.xlsx` manifests.
+
+            - If the export is still in progress or failed, it responds with an HTTP status `409` (with `export_not_ready` in the body).
+            - If the archive expired (24 hours after becoming ready), it responds with an HTTP status `410` (with `export_expired` in the body). Request the export again.
+            - If it does not exist or was requested by someone else, it responds with an HTTP status `404` (with `export_not_found` in the body).
+
+            While it has not expired, it can be downloaded as many times as needed.
       security:
         - ApiKeyAuth: []
   /billing/subscription:
@@ -11185,60 +11686,6 @@ components:
       x-translations:
         en:
           description: 'API key for programmatic (M2M) access. Send `Authorization: Bearer veriko_<64 hex>`. API keys are minted from the user dashboard.'
-  parameters:
-    IdempotencyKeyHeader:
-      name: Idempotency-Key
-      in: header
-      required: false
-      schema:
-        type: string
-        pattern: ^[A-Za-z0-9_\-]{1,255}$
-        example: 11111111-2222-3333-4444-555555555555
-      description: 'Llave opcional que garantiza que la petición se procese **exactamente una vez** dentro de un TTL de 24 horas. Los reintentos con la misma llave y el mismo cuerpo devuelven la respuesta cacheada con la cabecera `Idempotent-Replayed: true` (sin re-disparar webhooks) y sin crear una nueva validación.'
-      x-translations:
-        en:
-          description: |
-            Optional client-generated key (Stripe-style) that guarantees the request is processed **exactly once** within a 24-hour TTL. The scope is `(user_id, endpoint, key)`. Retries with the same key and the same body return the byte-for-byte cached response with the `Idempotent-Replayed: true` header, without consuming rate-limit quota, without re-firing webhooks, and without creating a new `validations` row. Same key with a different body → 422 `idempotency_key_reused`. Same key with an in-flight request → 409 `idempotency_key_in_progress`. 5xx responses are not cached (retries with the same key are processed for real). Format: 1–255 characters, alphanumeric + `_` + `-`.
-    AsyncQueryParam:
-      name: async
-      in: query
-      required: false
-      schema:
-        type: string
-        enum:
-          - '0'
-          - '1'
-          - 'true'
-          - 'false'
-          - 'yes'
-        default: '0'
-      description: 'Cuando es `1`/`true`/`yes`: Procesa la validación en segundo plano y responde un estado HTTP 202 inmediato con `validation_id`. Sin el flag o con `0`, la respuesta es síncrona y devuelve el resultado final.'
-      x-translations:
-        en:
-          description: |
-            When `1`/`true`/`yes`, the validation is queued and the server responds 202 immediately with a `validation_id`; the client polls `GET /v1/validations/{id}` until the terminal state. Without the flag or with `0`, the response is synchronous and returns the final result in the same POST.
-    ValidationId:
-      name: id
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-      description: Identificador (UUID) de la validación
-      x-translations:
-        en:
-          description: Validation UUID.
-    IfNoneMatchHeader:
-      name: If-None-Match
-      in: header
-      required: false
-      schema:
-        type: string
-        example: '"9b2d4c7e1f0a3b6d8e5c2a7f4b1d9e0c3a6f8b2d"'
-      description: '**ETag** recibido en una respuesta anterior, tal cual (débil `W/"…"` en una validación, fuerte en los catálogos públicos). Si el recurso no ha cambiado, el server responde `304 Not Modified` (sin cuerpo) y evita mandar los datos de nuevo.'
-      x-translations:
-        en:
-          description: '**ETag** received in a previous response, sent as is (weak `W/"…"` on a validation, strong on the public catalogs). If the resource has not changed, the server responds `304 Not Modified` (no body) and avoids sending the data again.'
   schemas:
     ErrorObject:
       type: object
@@ -11273,6 +11720,25 @@ components:
             en:
               description: |
                 Human-readable error message. Translated per `Accept-Language` (`es` / `en`).
+        hint:
+          type: string
+          description: |
+            El siguiente paso, en una frase y en el idioma de `detail`. Sólo viene en los códigos que tienen uno claro; no ramifiques por su texto.
+          example: Envía la clave en `clave_rastreo` o el número en `referencia_numerica`.
+          x-translations:
+            en:
+              description: |
+                The next step, in one sentence and in the language of `detail`. Only present for codes that have a clear one; do not branch on its text.
+        docs_url:
+          type: string
+          format: uri
+          description: |
+            Página del portal que explica el error, en el idioma de la petición. Sólo viene en los códigos que tienen una.
+          example: https://docs.veriko.mx/es/how-to/validate-ocr
+          x-translations:
+            en:
+              description: |
+                Portal page that explains the error, in the request's language. Only present for codes that have one.
         source:
           type: object
           description: Origen estructurado del error (JSON Pointer al campo que falló).
@@ -11379,11 +11845,11 @@ components:
                   description: API route prefix version (e.g. `v1`).
             request_id:
               type: string
-              description: Identificador único de la petición (hex).
+              description: 'Identificador único de la petición, de 24 caracteres hexadecimales. Guárdalo y cítalo al escribir a soporte: con él se ubica la petición.'
               example: a1b2c3d4e5f66f5e4d3c2b1a
               x-translations:
                 en:
-                  description: Unique request identifier (hex).
+                  description: 'Unique request identifier, 24 hexadecimal characters. Keep it and quote it when you contact support: it locates the request.'
             datetime:
               $ref: '#/components/schemas/DatetimeMeta'
             validation_id:
@@ -11434,11 +11900,11 @@ components:
                   description: API version that processed the request.
             request_id:
               type: string
-              description: Identificador único de la petición (24 caracteres hex).
+              description: 'Identificador único de la petición, de 24 caracteres hexadecimales. Guárdalo y cítalo al escribir a soporte: con él se ubica la petición.'
               example: a1b2c3d4e5f66f5e4d3c2b1a
               x-translations:
                 en:
-                  description: Unique request identifier (24 hex characters).
+                  description: 'Unique request identifier, 24 hexadecimal characters. Keep it and quote it when you contact support: it locates the request.'
       required:
         - errors
     SuccessEnvelope:
@@ -11483,11 +11949,11 @@ components:
                   description: API route prefix version (e.g. `v1`).
             request_id:
               type: string
-              description: Identificador único de la petición (hex).
+              description: 'Identificador único de la petición, de 24 caracteres hexadecimales. Guárdalo y cítalo al escribir a soporte: con él se ubica la petición.'
               example: a1b2c3d4e5f66f5e4d3c2b1a
               x-translations:
                 en:
-                  description: Unique request identifier (hex).
+                  description: 'Unique request identifier, 24 hexadecimal characters. Keep it and quote it when you contact support: it locates the request.'
             datetime:
               $ref: '#/components/schemas/DatetimeMeta'
         links:
@@ -16527,6 +16993,17 @@ components:
                   $ref: '#/components/schemas/TimestampUTC'
                 updated_at:
                   $ref: '#/components/schemas/TimestampUTC'
+                previous_secret_expires_at:
+                  oneOf:
+                    - $ref: '#/components/schemas/TimestampUTC'
+                    - type: 'null'
+                  description: |
+                    Fin del periodo de gracia del secret anterior, en ISO 8601 UTC. Tras regenerar el secret, el anterior sigue firmando las entregas durante 24 horas en la cabecera `X-Webhook-Signature-Old`. `null` cuando no hay una rotación en curso, cuando la gracia ya venció o cuando la regeneración se pidió con `immediate: true`. El secret anterior nunca se devuelve.
+                  x-translations:
+                    en:
+                      description: |
+                        End of the previous secret's grace period, in ISO 8601 UTC. After the secret is regenerated, the previous one keeps signing deliveries for 24 hours in the `X-Webhook-Signature-Old` header. `null` when no rotation is in progress, when the grace period has expired, or when the regeneration was requested with `immediate: true`. The previous secret is never returned.
+                  example: null
               required:
                 - url
                 - events
@@ -16536,6 +17013,7 @@ components:
                 - last_delivery_at
                 - created_at
                 - updated_at
+                - previous_secret_expires_at
               oneOf:
                 - required:
                     - secret
@@ -16873,6 +17351,25 @@ components:
             - type
             - id
             - attributes
+    RegenerateWebhookSecretRequest:
+      type: object
+      description: |
+        Cuerpo opcional de la regeneración del secreto de un endpoint webhook. Sin cuerpo, el secreto anterior conserva 24 horas de gracia.
+      x-translations:
+        en:
+          description: |
+            Optional body for regenerating a webhook endpoint's secret. Without a body, the previous secret keeps a 24-hour grace period.
+      additionalProperties: false
+      properties:
+        immediate:
+          type: boolean
+          default: false
+          description: |
+            `true` revoca el secreto anterior en el acto, sin periodo de gracia. Úsalo si el secreto se expuso.
+          x-translations:
+            en:
+              description: |
+                `true` revokes the previous secret at once, with no grace period. Use it if the secret was exposed.
     PlanFeature:
       type: object
       required:
@@ -18604,6 +19101,217 @@ components:
           properties:
             data:
               $ref: '#/components/schemas/FinancePreviewResource'
+    CepArchiveAttributes:
+      type: object
+      description: Atributos de una exportación asíncrona del archivo de CEP.
+      x-translations:
+        en:
+          description: Attributes of an asynchronous CEP archive export.
+      properties:
+        status:
+          type: string
+          enum:
+            - queued
+            - building
+            - ready
+            - failed
+            - expired
+          x-terminal-values:
+            - ready
+            - failed
+            - expired
+          description: 'Estado de la exportación — `queued`: En cola; `building`: Se está armando el archivo; `ready`: El archivo está listo para descargar; `failed`: No se pudo generar (consultar `error_code`); `expired`: El archivo venció y se borró. Los estados terminales son `ready`, `failed` y `expired`: mientras sea `queued` o `building`, sigue consultando.'
+          example: ready
+          x-translations:
+            en:
+              description: 'Export state — `queued`: Waiting in the queue; `building`: The archive is being built; `ready`: The archive is ready to download; `failed`: It could not be generated (see `error_code`); `expired`: The archive expired and was deleted. The terminal states are `ready`, `failed` and `expired`: while it is `queued` or `building`, keep polling.'
+        from:
+          type: string
+          format: date
+          description: Fecha de inicio del rango (inclusive, `YYYY-MM-DD`).
+          example: '2026-04-01'
+          x-translations:
+            en:
+              description: Start date of the range (inclusive, `YYYY-MM-DD`).
+        to:
+          type: string
+          format: date
+          description: Fecha de fin del rango (inclusive, `YYYY-MM-DD`).
+          example: '2026-04-30'
+          x-translations:
+            en:
+              description: End date of the range (inclusive, `YYYY-MM-DD`).
+        item_count:
+          type:
+            - integer
+            - 'null'
+          description: Número de CEP incluidos en el archivo. `null` hasta que la exportación está `ready`.
+          example: 42
+          x-translations:
+            en:
+              description: Number of CEPs included in the archive. `null` until the export is `ready`.
+        size_bytes:
+          type:
+            - integer
+            - 'null'
+          description: Tamaño del archivo ZIP en bytes. `null` hasta que la exportación está `ready`.
+          example: 1638400
+          x-translations:
+            en:
+              description: Size of the ZIP archive in bytes. `null` until the export is `ready`.
+        error_code:
+          type:
+            - string
+            - 'null'
+          enum:
+            - range_too_large
+            - no_ceps
+            - storage_full
+            - build_failed
+            - null
+          description: 'Causa del fallo cuando `status` es `failed` — `range_too_large`: El rango supera el máximo de CEP por exportación; `no_ceps`: El rango ya no tiene CEP disponibles; `storage_full`: El servicio no tiene espacio para guardar el archivo; `build_failed`: Falló el armado del archivo. `null` en cualquier otro estado.'
+          example: null
+          x-translations:
+            en:
+              description: 'Cause of the failure when `status` is `failed` — `range_too_large`: The range exceeds the maximum CEPs per export; `no_ceps`: The range no longer has CEPs available; `storage_full`: The service has no room to store the archive; `build_failed`: Building the archive failed. `null` in any other state.'
+        created_at:
+          type: string
+          format: date-time
+          description: Momento en que se pidió la exportación, en UTC.
+          example: '2026-05-01T15:00:00Z'
+          x-translations:
+            en:
+              description: Moment the export was requested, in UTC.
+        completed_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: Momento en que terminó (`ready` o `failed`), en UTC. `null` mientras está en curso.
+          example: '2026-05-01T15:00:20Z'
+          x-translations:
+            en:
+              description: Moment it finished (`ready` or `failed`), in UTC. `null` while in progress.
+        expires_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          description: 'Momento a partir del cual el archivo ya no se puede descargar, en UTC: 24 horas después de `completed_at`. `null` hasta que la exportación está `ready`.'
+          example: '2026-05-02T15:00:20Z'
+          x-translations:
+            en:
+              description: 'Moment from which the archive can no longer be downloaded, in UTC: 24 hours after `completed_at`. `null` until the export is `ready`.'
+    CepArchiveResource:
+      type: object
+      description: Recurso JSON:API de una exportación asíncrona del archivo de CEP.
+      x-translations:
+        en:
+          description: JSON:API resource for an asynchronous CEP archive export.
+      allOf:
+        - $ref: '#/components/schemas/JsonApiResourceBase'
+        - type: object
+          properties:
+            type:
+              type: string
+              description: Tipo del recurso JSON:API. Siempre `cep_archive`.
+              example: cep_archive
+              x-translations:
+                en:
+                  description: JSON:API resource type. Always `cep_archive`.
+            id:
+              type: string
+              format: uuid
+              example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+            attributes:
+              $ref: '#/components/schemas/CepArchiveAttributes'
+            links:
+              type: object
+              description: Enlaces de la exportación. `download` aparece solo cuando el estado es `ready`.
+              x-translations:
+                en:
+                  description: Export links. `download` appears only when the state is `ready`.
+              properties:
+                self:
+                  type: string
+                  description: Ruta de esta exportación, para consultar su estado.
+                  x-translations:
+                    en:
+                      description: Path of this export, to check its status.
+                  example: /v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479
+                download:
+                  type: string
+                  description: Ruta de descarga del ZIP. Solo aparece cuando el estado es `ready`.
+                  x-translations:
+                    en:
+                      description: Download path of the ZIP. Present only when the status is `ready`.
+                  example: /v1/finance/ceps/exports/f47ac10b-58cc-4372-a567-0e02b2c3d479/download
+    CepArchiveListResponse:
+      type: object
+      description: Respuesta con las exportaciones recientes del archivo de CEP en `data`, la más reciente primero.
+      x-translations:
+        en:
+          description: Response with the recent CEP archive exports in `data`, newest first.
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/CepArchiveResource'
+    CreateCepArchiveRequest:
+      type: object
+      description: Cuerpo de `POST /v1/finance/ceps/exports`. También se acepta envuelto en `data.attributes`.
+      x-translations:
+        en:
+          description: Body of `POST /v1/finance/ceps/exports`. It is also accepted wrapped in `data.attributes`.
+      required:
+        - from
+        - to
+      properties:
+        from:
+          type: string
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Fecha de inicio (inclusive, `YYYY-MM-DD`).
+          example: '2026-04-01'
+          x-translations:
+            en:
+              description: Start date (inclusive, `YYYY-MM-DD`).
+        to:
+          type: string
+          format: date
+          pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Fecha de fin (inclusive, `YYYY-MM-DD`). Debe ser ≥ `from`.
+          example: '2026-04-30'
+          x-translations:
+            en:
+              description: End date (inclusive, `YYYY-MM-DD`). Must be ≥ `from`.
+        user_id:
+          type: string
+          format: uuid
+          description: Solo para administradores — UUID de la cuenta cuyos CEP se exportan.
+          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+          x-translations:
+            en:
+              description: Administrators only — UUID of the account whose CEPs are exported.
+    CepArchiveResponse:
+      type: object
+      description: Respuesta con una exportación asíncrona del archivo de CEP en `data`.
+      x-translations:
+        en:
+          description: Response with an asynchronous CEP archive export in `data`.
+      allOf:
+        - $ref: '#/components/schemas/SuccessEnvelope'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/CepArchiveResource'
     BillingSubscriptionAttributes:
       type: object
       description: Suscripción activa del usuario, con su origen, estado, ciclo y límites. Cada usuario tiene exactamente una. Los campos `trial_*`, `cancel_*` y `stripe_subscription_id` son nulos cuando no aplican.
@@ -19020,74 +19728,16 @@ components:
                 quota:
                   $ref: '#/components/schemas/BillingSubscriptionQuotaMeta'
   responses:
-    PayloadTooLarge:
-      description: El cuerpo de la petición supera el tamaño máximo admitido (`body_too_large`).
-      x-translations:
-        en:
-          description: The request body exceeds the maximum accepted size (`body_too_large`).
-          example:
-            errors:
-              - detail: The request body is too large.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            errors:
-              - status: '413'
-                code: body_too_large
-                detail: El cuerpo de la petición es demasiado grande.
-            meta:
-              version: 1.51.0
-              request_id: 1a2b3c4d5e6ff6e5d4c3b2a1
-    BodyEmpty:
-      description: El cuerpo de la petición llegó vacío cuando la operación necesita datos (`body_empty`).
-      x-translations:
-        en:
-          description: The request body arrived empty when the operation requires data (`body_empty`).
-          example:
-            errors:
-              - detail: The request body is empty.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            errors:
-              - status: '400'
-                code: body_empty
-                detail: El cuerpo de la petición está vacío.
-            meta:
-              version: 1.51.0
-              request_id: 2b3c4d5e6f7aa7f6e5d4c3b2
-    Unauthorized:
-      description: Se requiere autenticación o las credenciales son inválidas
-      x-translations:
-        en:
-          description: Authentication is required or the provided credentials are invalid.
-          example:
-            errors:
-              - detail: Invalid or missing authentication credentials.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            errors:
-              - status: '401'
-                code: unauthorized
-                detail: Credenciales de autenticación ausentes o inválidas.
-            meta:
-              version: 1.51.0
-              request_id: c4d5e6f7a8b99b8a7f6e5d4c
     RateLimited:
-      description: Límite de tasa excedido
+      description: 'Límite de tasa excedido (`rate_limit_exceeded`: espera unos segundos) o cuota del plan agotada (`quota_exceeded`: espera al siguiente periodo o cambia de plan).'
       x-translations:
         en:
-          description: Rate limit exceeded
+          description: 'Rate limit exceeded (`rate_limit_exceeded`: wait a few seconds) or plan quota used up (`quota_exceeded`: wait for the next period or change plans).'
           example:
             errors:
               - detail: Rate limit exceeded. Try again in 45 seconds.
+                hint: Wait `meta.retry_after` seconds before retrying.
+                docs_url: https://docs.veriko.mx/en/concepts/rate-limits
       headers:
         Retry-After:
           schema:
@@ -19140,10 +19790,92 @@ components:
               - status: '429'
                 code: rate_limit_exceeded
                 detail: Límite de peticiones excedido. Inténtalo de nuevo en 45 segundos.
+                hint: Espera los segundos de `meta.retry_after` antes de reintentar.
+                docs_url: https://docs.veriko.mx/es/concepts/rate-limits
             meta:
               version: 1.51.0
               request_id: f7a8b9c0d1e22e1d0c9b8a7f
               retry_after: 45
+    Unauthorized:
+      description: Se requiere autenticación o las credenciales son inválidas
+      x-translations:
+        en:
+          description: Authentication is required or the provided credentials are invalid.
+          example:
+            errors:
+              - detail: Invalid or missing authentication credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errors:
+              - status: '401'
+                code: unauthorized
+                detail: Credenciales de autenticación ausentes o inválidas.
+            meta:
+              version: 1.51.0
+              request_id: c4d5e6f7a8b99b8a7f6e5d4c
+    Forbidden:
+      description: Permisos insuficientes
+      x-translations:
+        en:
+          description: Insufficient permissions.
+          example:
+            errors:
+              - detail: You do not have permission to access this resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errors:
+              - status: '403'
+                code: permission_denied
+                detail: No tienes permiso para acceder a este recurso.
+            meta:
+              version: 1.51.0
+              request_id: d5e6f7a8b9c00c9b8a7f6e5d
+    PayloadTooLarge:
+      description: El cuerpo de la petición supera el tamaño máximo admitido (`body_too_large`).
+      x-translations:
+        en:
+          description: The request body exceeds the maximum accepted size (`body_too_large`).
+          example:
+            errors:
+              - detail: The request body is too large.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errors:
+              - status: '413'
+                code: body_too_large
+                detail: El cuerpo de la petición es demasiado grande.
+            meta:
+              version: 1.51.0
+              request_id: 1a2b3c4d5e6ff6e5d4c3b2a1
+    BodyEmpty:
+      description: El cuerpo de la petición llegó vacío cuando la operación necesita datos (`body_empty`).
+      x-translations:
+        en:
+          description: The request body arrived empty when the operation requires data (`body_empty`).
+          example:
+            errors:
+              - detail: The request body is empty.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errors:
+              - status: '400'
+                code: body_empty
+                detail: El cuerpo de la petición está vacío.
+            meta:
+              version: 1.51.0
+              request_id: 2b3c4d5e6f7aa7f6e5d4c3b2
     ValidationQueuedAccepted:
       description: Validación asíncrona aceptada. Se debe sondear `GET /v1/validations/{id}` hasta uno de los estados terminales (`valid`, `not_found`, `cep_unavailable`, `invalid`, `returned`, `failed`, `error`). `meta.next_poll_after_seconds` indica el intervalo recomendado para el primer sondeo.
       x-translations:
@@ -19238,26 +19970,6 @@ components:
           x-translations:
             en:
               description: Current ETag of the row (same as the `If-None-Match` received).
-    Forbidden:
-      description: Permisos insuficientes
-      x-translations:
-        en:
-          description: Insufficient permissions.
-          example:
-            errors:
-              - detail: You do not have permission to access this resource.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          example:
-            errors:
-              - status: '403'
-                code: permission_denied
-                detail: No tienes permiso para acceder a este recurso.
-            meta:
-              version: 1.51.0
-              request_id: d5e6f7a8b9c00c9b8a7f6e5d
     ValidationPurged:
       description: La validación se purgó y este recurso ya no existe (`validation_purged`).
       x-translations:
@@ -19329,3 +20041,57 @@ components:
             meta:
               version: 1.51.0
               request_id: d5e6f7a8b9c11c9b8a7f6e5d
+  parameters:
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9_\-]{1,255}$
+        example: 11111111-2222-3333-4444-555555555555
+      description: 'Llave opcional que garantiza que la petición se procese **exactamente una vez** dentro de un TTL de 24 horas. Los reintentos con la misma llave y el mismo cuerpo devuelven la respuesta cacheada con la cabecera `Idempotent-Replayed: true` (sin re-disparar webhooks) y sin crear una nueva validación.'
+      x-translations:
+        en:
+          description: |
+            Optional client-generated key (Stripe-style) that guarantees the request is processed **exactly once** within a 24-hour TTL. The scope is `(user_id, endpoint, key)`. Retries with the same key and the same body return the byte-for-byte cached response with the `Idempotent-Replayed: true` header, without consuming rate-limit quota, without re-firing webhooks, and without creating a new `validations` row. Same key with a different body → 422 `idempotency_key_reused`. Same key with an in-flight request → 409 `idempotency_key_in_progress`. 5xx responses are not cached (retries with the same key are processed for real). Format: 1–255 characters, alphanumeric + `_` + `-`.
+    AsyncQueryParam:
+      name: async
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+          - '0'
+          - '1'
+          - 'true'
+          - 'false'
+          - 'yes'
+        default: '0'
+      description: 'Cuando es `1`/`true`/`yes`: Procesa la validación en segundo plano y responde un estado HTTP 202 inmediato con `validation_id`. Sin el flag o con `0`, la respuesta es síncrona y devuelve el resultado final.'
+      x-translations:
+        en:
+          description: |
+            When `1`/`true`/`yes`, the validation is queued and the server responds 202 immediately with a `validation_id`; the client polls `GET /v1/validations/{id}` until the terminal state. Without the flag or with `0`, the response is synchronous and returns the final result in the same POST.
+    ValidationId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Identificador (UUID) de la validación
+      x-translations:
+        en:
+          description: Validation UUID.
+    IfNoneMatchHeader:
+      name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+        example: '"9b2d4c7e1f0a3b6d8e5c2a7f4b1d9e0c3a6f8b2d"'
+      description: '**ETag** recibido en una respuesta anterior, tal cual (débil `W/"…"` en una validación, fuerte en los catálogos públicos). Si el recurso no ha cambiado, el server responde `304 Not Modified` (sin cuerpo) y evita mandar los datos de nuevo.'
+      x-translations:
+        en:
+          description: '**ETag** received in a previous response, sent as is (weak `W/"…"` on a validation, strong on the public catalogs). If the resource has not changed, the server responds `304 Not Modified` (no body) and avoids sending the data again.'
