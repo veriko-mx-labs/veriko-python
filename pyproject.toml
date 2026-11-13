@@ -37,7 +37,7 @@ Changelog = "https://github.com/veriko-mx-labs/veriko-python/blob/main/CHANGELOG
 
 [project.optional-dependencies]
 dev = [
-  "jsonschema>=4.23",
+  "jsonschema>=4.26.0",
   "mypy>=1.8",
   "pytest>=7.4",
   "pyyaml>=6",
