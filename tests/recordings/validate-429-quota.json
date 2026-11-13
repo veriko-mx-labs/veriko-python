@@ -1,0 +1,28 @@
+{
+  "status": 429,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "X-RateLimit-Limit": "80",
+    "X-RateLimit-Remaining": "0",
+    "X-RateLimit-Reset": "1742048400",
+    "Retry-After": "45"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "429",
+        "code": "quota_exceeded",
+        "detail": "Ya usaste las validaciones de tu plan. Se renuevan en tu siguiente periodo, o puedes cambiar de plan."
+      }
+    ],
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "e6f7a8b9c0d1",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

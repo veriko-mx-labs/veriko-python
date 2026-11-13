@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/pdf",
+    "Content-Disposition": "attachment; filename=\"finance-statement.pdf\""
+  },
+  "body_base64": "JVBERi0xLjQKZXhhbXBsZQo="
+}

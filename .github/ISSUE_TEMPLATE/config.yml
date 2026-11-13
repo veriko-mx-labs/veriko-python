@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://docs.veriko.mx/en
+    about: Guides and the API reference.
+  - name: Report a security vulnerability
+    url: https://github.com/veriko-mx-labs/veriko-python/security/policy
+    about: Report vulnerabilities privately. Do not open a public issue.

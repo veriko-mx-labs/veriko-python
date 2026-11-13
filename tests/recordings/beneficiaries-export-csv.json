@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": "attachment; filename=\"cuentas-2026-05-16.csv\""
+  },
+  "body_base64": "QWxpYXMsQ3VlbnRhLFRpcG8sQmFuY28sQ29kaWdvIEJhbmNvLEVzdGFkbyxGZWNoYSBDcmVhY2lvbgpQcm92ZWVkb3IgQUJDLDAxMjE4MDAwNDQxMjM0NTY3OCxDTEFCRSxCQlZBIE1FWElDTyw0MDAxMixhY3RpdmEsMjAyNi0wNS0xNgo="
+}

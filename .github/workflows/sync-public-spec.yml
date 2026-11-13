@@ -1,0 +1,20 @@
+name: Sync the public spec
+
+on:
+  schedule:
+    - cron: '32 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    uses: veriko-mx-labs/.github/.github/workflows/sync-public-spec.yml@39a6ff721b020af5a33fb370b62a829eaacbeab3
+    with:
+      regenerate_command: 'true'
+      auto_merge: true
+    secrets:
+      app_id: ${{ secrets.VERIKO_LABS_APP_ID }}
+      app_private_key: ${{ secrets.VERIKO_LABS_PRIVATE_KEY }}

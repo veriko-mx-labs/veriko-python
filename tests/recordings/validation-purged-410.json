@@ -1,0 +1,19 @@
+{
+  "status": 410,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "errors": [
+      {
+        "status": "410",
+        "code": "validation_purged",
+        "detail": "The validation was purged and this resource no longer exists."
+      }
+    ],
+    "meta": {
+      "version": "1.61.0",
+      "request_id": "1a2b3c4d5e6f"
+    }
+  }
+}

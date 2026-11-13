@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "validation_stats",
+      "attributes": {
+        "total": 47,
+        "valid": 35,
+        "not_found": 5,
+        "cep_unavailable": 2,
+        "returned": 0,
+        "error": 1,
+        "pending": 1,
+        "deleted": 2,
+        "other": 3,
+        "by_type": {
+          "direct": 30,
+          "ocr": 17
+        },
+        "by_status": {
+          "queued": 2,
+          "processing": 1,
+          "valid": 35,
+          "not_found": 5,
+          "cep_unavailable": 2,
+          "invalid": 1,
+          "returned": 0,
+          "failed": 0,
+          "error": 1
+        }
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "ee55ff66aa77",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

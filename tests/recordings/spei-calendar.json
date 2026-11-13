@@ -1,0 +1,41 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "\"a1b2c3d4e5f6\"",
+    "Cache-Control": "private, max-age=3600"
+  },
+  "json": {
+    "data": {
+      "type": "spei_calendar",
+      "id": "2026",
+      "attributes": {
+        "year": 2026,
+        "non_business_days": [
+          "2026-01-01",
+          "2026-02-02",
+          "2026-03-16",
+          "2026-04-02",
+          "2026-04-03",
+          "2026-05-01",
+          "2026-09-16",
+          "2026-11-02",
+          "2026-11-16",
+          "2026-12-25"
+        ],
+        "source": {
+          "issuer": "CNBV",
+          "published_in": "DOF",
+          "published_on": "2025-12-10",
+          "title": "Disposiciones de carácter general que señalan los días del año 2026 en que las entidades financieras sujetas a la supervisión de la Comisión Nacional Bancaria y de Valores deberán cerrar sus puertas y suspender operaciones"
+        }
+      }
+    },
+    "meta": {
+      "version": "1.63.0",
+      "api_version": "v1",
+      "request_id": "e7f8a9b0c1d2",
+      "covered_years": [2024, 2025, 2026]
+    }
+  }
+}

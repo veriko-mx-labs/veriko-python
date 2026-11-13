@@ -1,0 +1,33 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8",
+    "ETag": "W/\"0-queued\""
+  },
+  "json": {
+    "data": {
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "type": "validation",
+      "attributes": {
+        "validation_type": "direct",
+        "is_playground": false,
+        "status": "queued",
+        "enqueued_at": "2025-03-15T14:22:10Z",
+        "expires_at": "2025-03-15T15:22:10Z",
+        "etag_version": 0
+      },
+      "links": {
+        "self": "/v1/validations/f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "a9b0c1d2e3f4",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}

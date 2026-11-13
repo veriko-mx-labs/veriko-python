@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "beneficiary_import_row",
+      "id": "102",
+      "attributes": {
+        "row_index": 1,
+        "status": "valid",
+        "parsed_account": "5512345678",
+        "parsed_account_type": "phone",
+        "parsed_bank_code": "40012",
+        "parsed_bank_name": "BBVA MEXICO",
+        "parsed_label": null,
+        "error_codes": [],
+        "corrections_applied": {
+          "alias_auto_assigned": "Beneficiario 002"
+        },
+        "user_overrides": {
+          "parsed_account_type": "phone",
+          "parsed_bank_code": "40012",
+          "parsed_bank_name": "BBVA MEXICO"
+        },
+        "raw_preview": {
+          "Alias": "",
+          "Cuenta": "5512345678"
+        },
+        "created_beneficiary_id": null
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "e011f012a013"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": "attachment; filename=\"validaciones-2025-03.csv\""
+  },
+  "body_base64": "aWQsZmVjaGEsbW9udG8sY2xhdmVfcmFzdHJlbyxzdGF0dXMsYmFueGljb19zdGF0dXMsY3JlYXRlZF9hdA0KZjQ3YWMxMGItNThjYy00MzcyLWE1NjctMGUwMmIyYzNkNDc5LDIwMjUtMDMtMTUsMTUwMDAuNTAsTVhCQTIwMjUwMzE1MDAxMjM0LHZhbGlkLHZhbGlkLDIwMjUtMDMtMTVUMTQ6MjI6MTBaDQo="
+}

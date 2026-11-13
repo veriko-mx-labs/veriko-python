@@ -1,0 +1,27 @@
+{
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "usage_summary",
+      "attributes": {
+        "plan_slug": "basic",
+        "plan_name": "Basic",
+        "limit": 1000,
+        "used": 420,
+        "remaining": 580,
+        "used_percent": 42,
+        "tone": "ok",
+        "resets_at": "2025-03-01T00:00:00Z",
+        "next_reset_at": "2025-03-01T00:00:00Z"
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "a014b015c016"
+    }
+  }
+}

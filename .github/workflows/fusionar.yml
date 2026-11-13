@@ -1,0 +1,21 @@
+name: Merge
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number.
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  fusionar:
+    uses: veriko-mx-labs/.github/.github/workflows/fusionar-como-veriko.yml@39a6ff721b020af5a33fb370b62a829eaacbeab3
+    with:
+      pr: ${{ fromJSON(inputs.pr) }}
+    secrets:
+      app_id: ${{ secrets.VERIKO_LABS_APP_ID }}
+      app_private_key: ${{ secrets.VERIKO_LABS_PRIVATE_KEY }}

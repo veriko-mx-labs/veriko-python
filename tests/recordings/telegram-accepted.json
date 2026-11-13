@@ -1,0 +1,24 @@
+{
+  "status": 202,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "json": {
+    "data": {
+      "type": "validation_cep_telegram",
+      "id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "attributes": {
+        "queued": true
+      }
+    },
+    "meta": {
+      "version": "1.59.1",
+      "api_version": "v1",
+      "request_id": "cc99dd00ee11",
+      "datetime": {
+        "timezone": "UTC",
+        "format": "ISO 8601"
+      }
+    }
+  }
+}
