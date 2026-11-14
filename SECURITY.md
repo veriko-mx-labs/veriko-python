@@ -1,8 +1,9 @@
-# Security
+# Seguridad
 
-Report vulnerabilities through a private security advisory on GitHub for this repository. Include a
-reproducible description and the impact, but do not attach API keys, receipts, account numbers or
-customer data.
+Reporta vulnerabilidades mediante un aviso privado de seguridad en GitHub para
+este repositorio. Incluye una descripción reproducible y el impacto, pero no
+adjuntes claves de API, comprobantes, números de cuenta ni datos de clientes.
 
-Do not use public issues for unfixed vulnerabilities. API keys must enter only through
-`VERIKO_API_KEY`; if a key appears in logs or in a report, revoke it before sharing any evidence.
+No uses issues públicos para vulnerabilidades sin corregir. Las claves de API deben
+entrar únicamente por `VERIKO_API_KEY`; si una clave aparece en logs o en un
+reporte, revócala antes de compartir cualquier evidencia.

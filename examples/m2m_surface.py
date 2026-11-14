@@ -1,7 +1,7 @@
-"""Operations of the public M2M surface.
+"""Operaciones de la superficie M2M pública.
 
-Plans are public and do not send the key even if it is configured. For the
-account, insights and finance calls, export VERIKO_API_KEY before running.
+Los planes son públicos y no envían la clave aunque esté configurada. Para las
+llamadas de cuenta, insights y finanzas, exporta VERIKO_API_KEY antes de correr.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ plans = client.plans.list_public()
 print(plans)
 
 if not os.environ.get("VERIKO_API_KEY"):
-    print("Set VERIKO_API_KEY to query account, insights and finance.")
+    print("Define VERIKO_API_KEY para consultar cuenta, métricas y finanzas.")
 else:
     profile = client.account.my_profile()
     trends = client.insights.get_trends(range="30d", metric="latency")

@@ -1,77 +1,77 @@
-name: Bug report
-description: Report something that does not work as documented.
+name: Reporte de error
+description: Reporta algo que no funciona como está documentado.
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Do not paste API keys, receipts, account numbers or customer data. Replace them with placeholders.
-        For a security vulnerability, follow the [security policy](https://github.com/veriko-mx-labs/veriko-python/security/policy) instead.
+        No pegues claves de API, comprobantes, números de cuenta ni datos de clientes. Reemplázalos con valores de ejemplo.
+        Para una vulnerabilidad de seguridad, sigue la [política de seguridad](https://github.com/veriko-mx-labs/veriko-python/security/policy).
   - type: textarea
     id: what-happened
     attributes:
-      label: What happens
-      description: 'Describe the behavior you see.'
+      label: Qué pasa
+      description: 'Describe el comportamiento que ves.'
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: Steps to reproduce
-      description: 'Give the smallest sequence that reproduces it.'
+      label: Pasos para reproducirlo
+      description: 'Da la secuencia más corta que lo reproduce.'
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
-      label: What you expect
-      description: 'Describe the behavior the documentation or the spec leads you to expect.'
+      label: Qué esperas
+      description: 'Describe el comportamiento que la documentación o el spec te hacen esperar.'
     validations:
       required: true
   - type: input
     id: v0
     attributes:
-      label: '`veriko` version'
-      placeholder: '0.8.0'
+      label: 'Versión de `veriko`'
+      placeholder: '0.8.1'
     validations:
       required: true
   - type: input
     id: v1
     attributes:
-      label: 'Python version'
+      label: 'Versión de Python'
     validations:
       required: true
   - type: dropdown
     id: v2
     attributes:
-      label: 'Client'
+      label: 'Cliente'
       options:
-        - 'Veriko (synchronous)'
-        - 'AsyncVeriko (asynchronous)'
+        - 'Veriko (síncrono)'
+        - 'AsyncVeriko (asíncrono)'
     validations:
       required: true
   - type: input
     id: v3
     attributes:
-      label: 'Operating system'
+      label: 'Sistema operativo'
     validations:
       required: true
   - type: input
     id: request-id
     attributes:
       label: 'request_id'
-      description: 'The `request_id` of the error response, when the API answered with an error (`error.request_id` on the raised error).'
+      description: 'El `request_id` de la respuesta de error, cuando la API respondió con un error (`error.request_id` en el error levantado).'
   - type: textarea
     id: output
     attributes:
-      label: Output or logs
-      description: 'Paste the error or the response body. Remove secrets first.'
+      label: Salida o logs
+      description: 'Pega el error o el cuerpo de la respuesta. Quita antes los secretos.'
   - type: checkboxes
     id: confirmation
     attributes:
-      label: Before you submit
+      label: Antes de enviar
       options:
-        - label: I searched the open issues.
+        - label: Busqué entre los issues abiertos.
           required: true
-        - label: I removed API keys and personal data from this report.
+        - label: Quité las claves de API y los datos personales de este reporte.
           required: true

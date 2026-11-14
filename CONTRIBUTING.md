@@ -1,21 +1,21 @@
-# Contributing
+# Contribuir
 
-Issues and pull requests are welcome.
+Los issues y los pull requests son bienvenidos.
 
-## Report a bug or request a change
+## Reporta un error o pide un cambio
 
-Open an issue with the [bug report](https://github.com/veriko-mx-labs/veriko-python/issues/new?template=bug_report.yml) or [feature request](https://github.com/veriko-mx-labs/veriko-python/issues/new?template=feature_request.yml) form. Search the open issues first.
+Abre un issue con el formulario de [reporte de error](https://github.com/veriko-mx-labs/veriko-python/issues/new?template=bug_report.yml) o de [solicitud de mejora](https://github.com/veriko-mx-labs/veriko-python/issues/new?template=feature_request.yml). Antes, busca entre los issues abiertos.
 
-A bug report needs the versions you use, the steps that reproduce it and, when the API answered with an error, its `request_id` (`error.request_id` on the raised error). Remove API keys, receipts, account numbers and customer data from anything you paste.
+Un reporte de error necesita las versiones que usas, los pasos que lo reproducen y, cuando la API respondió con un error, su `request_id` (`error.request_id` en el error levantado). Quita las claves de API, los comprobantes, los números de cuenta y los datos de clientes de todo lo que pegues.
 
-Do not open a public issue for a security vulnerability. Follow [SECURITY.md](SECURITY.md).
+No abras un issue público para una vulnerabilidad de seguridad. Sigue [SECURITY.md](SECURITY.md).
 
-## Propose a change
+## Propón un cambio
 
-1. For anything larger than a fix, open an issue first so the change can be agreed before you write it.
-2. Fork the repository and create a branch from `main`.
-3. Make the change. Add or update the tests in `tests/`.
-4. Run the checks of this repository:
+1. Para algo más grande que una corrección, abre antes un issue y acuerden el cambio antes de que lo escribas.
+2. Haz un fork del repositorio y crea una rama desde `main`.
+3. Haz el cambio. Agrega o actualiza las pruebas en `tests/`.
+4. Corre las verificaciones de este repositorio:
 
    ```bash
    pip install -e ".[dev]"
@@ -26,17 +26,17 @@ Do not open a public issue for a security vulnerability. Follow [SECURITY.md](SE
    pytest
    ```
 
-   `ruff format .` fixes the formatting. The tests never reach the API. Use Python 3.9 or later; CI runs 3.9 to 3.14.
+   `ruff format .` corrige el formato. Las pruebas nunca llegan a la API. Usa Python 3.9 o superior; el CI corre de 3.9 a 3.14.
 
-5. Update README.md and CHANGELOG.md when the behavior that users see changes.
-6. Open a pull request against `main` and fill in the template.
+5. Actualiza README.md y CHANGELOG.md cuando cambie el comportamiento que ven los usuarios.
+6. Abre un pull request contra `main` y llena la plantilla.
 
-Write commit messages in English, in the imperative, and keep one change in each commit.
+Escribe los mensajes de commit en español, en imperativo, y deja un solo cambio en cada commit.
 
-`src/veriko/_async_resources.py` is generated from `src/veriko/resources.py`. After you change a public method, run `python scripts/generate_async.py`. A test fails when the generated file is out of date.
+`src/veriko/_async_resources.py` se genera a partir de `src/veriko/resources.py`. Después de cambiar un método público, corre `python scripts/generate_async.py`. Una prueba falla cuando el archivo generado está desactualizado.
 
-The package has no runtime dependencies. Do not add one without opening an issue first.
+El paquete no tiene dependencias en tiempo de ejecución. No agregues una sin abrir antes un issue.
 
-## The API contract
+## El contrato de la API
 
-The API contract is the public spec at <https://docs.veriko.mx/openapi.yaml>. `spec/openapi.yaml` is a copy that a scheduled workflow syncs. Do not edit it by hand. When the API behaves differently from the spec, open an issue.
+El contrato de la API es el spec público en <https://docs.veriko.mx/openapi.yaml>. `spec/openapi.yaml` es una copia que sincroniza un flujo de trabajo programado. No la edites a mano. Cuando la API se comporte distinto del spec, abre un issue.

@@ -1,7 +1,7 @@
-"""Import beneficiaries in bulk: upload, preview, correct, commit.
+"""Importa beneficiarios en lote: sube el archivo, revisa la vista previa, corrige y confirma.
 
-export VERIKO_API_KEY=veriko_your_key_here
-python examples/bulk_import.py beneficiaries.csv
+export VERIKO_API_KEY=veriko_tu_clave_aqui
+python examples/bulk_import.py beneficiarios.csv
 """
 
 import sys
@@ -12,10 +12,10 @@ client = Veriko()
 
 job = client.beneficiaries.import_start(sys.argv[1])
 job = client.beneficiaries.import_wait(job.id)
-print("Preview ready:", job.status)
+print("Vista previa lista:", job.status)
 
 for row in client.beneficiaries.iter_import_preview(job.id, buckets=["correctable", "fatal"]):
-    print("Needs attention:", row.row_index, row.status, row.error_codes)
+    print("Requiere atención:", row.row_index, row.status, row.error_codes)
 
 job = client.beneficiaries.import_commit(job.id)
-print("Committed:", job.status)
+print("Confirmada:", job.status)

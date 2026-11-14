@@ -1,10 +1,10 @@
-"""Queue validations, register the webhook that collects them, and poll.
+"""Encolar validaciones, registrar el webhook que las recoge, y sondear.
 
-    export VERIKO_API_KEY=veriko_your_key_here
+    export VERIKO_API_KEY=veriko_tu_clave_aqui
     python examples/async_and_webhooks.py
 
-This is the path for volume: the API accepts each request at once and the verdict
-arrives later, by webhook or by polling.
+Es el camino para volumen: la API acepta cada petición al instante y el veredicto
+llega después, por webhook o por sondeo.
 """
 
 import sys
@@ -13,24 +13,24 @@ from veriko import APIError, Veriko
 
 client = Veriko()
 
-# 1. The endpoint that will receive the verdicts. The secret travels only once.
+# 1. El endpoint que va a recibir los veredictos. El secreto viaja una sola vez.
 endpoint = client.webhooks.create(
     url="https://myapp.example.com/hooks/veriko",
     events=["validation.completed", "validation.retry.resolved"],
 )
-print("Endpoint", endpoint.id, "registered")
-print("Signing secret:", endpoint.secret, "- store it now")
+print("Endpoint", endpoint.id, "registrado")
+print("Secreto de firma:", endpoint.secret, "- guárdalo ahora")
 
-# 2. A test event confirms the receiver is reachable before real traffic goes out.
+# 2. Un evento de prueba confirma que el receptor responde antes de mandar tráfico real.
 test = client.webhooks.test(endpoint.id)
 if not test.delivered:
-    print("The receiver did not accept the test event:", test.error)
+    print("El receptor no aceptó el evento de prueba:", test.error)
     sys.exit(1)
-print("Test delivered in", test.response_time_ms, "ms")
+print("Prueba entregada en", test.response_time_ms, "ms")
 
-# 3. The transfers to validate. The idempotency key comes from the order number,
-#    not from a random value: a resend then does not duplicate the charge.
-#    `client_ref` ties the validation to your own order.
+# 3. Las transferencias por validar. La clave de idempotencia sale del número de
+#    pedido, no de un aleatorio: así un reenvío no duplica el cargo. `client_ref`
+#    relaciona la validación con un pedido propio.
 transfers = [
     {
         "send_date": "2025-03-15",
@@ -55,16 +55,16 @@ for transfer in transfers:
     try:
         queued_validations.append(client.validations.enqueue(**transfer))
     except APIError as error:
-        print("Rejected:", error.code, "-", error.detail)
+        print("Rechazada:", error.code, "-", error.detail)
 
-print("Queued", len(queued_validations), "validations")
+print("En cola:", len(queued_validations), "validaciones")
 
-# 4. With the webhook registered, the verdict arrives on its own. Polling is for a
-#    process that needs the result before it continues.
+# 4. Con el webhook registrado, el veredicto llega solo. Sondear sirve para un
+#    proceso que necesita el resultado antes de continuar.
 for queued in queued_validations:
     validation = client.validations.wait_for(queued.id, timeout=120)
     print(validation.id, "->", validation.status)
     if validation.has_cep:
         cep = client.validations.cep(validation.id, format="pdf")
         cep.write_to(cep.filename)
-        print("  receipt at", cep.filename)
+        print("  comprobante en", cep.filename)

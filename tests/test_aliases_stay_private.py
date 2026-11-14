@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import inspect
 import re
 import warnings
@@ -20,11 +21,52 @@ ROOT = Path(__file__).resolve().parent.parent
 NAMES = sorted({*REQUEST_ALIASES, *RESPONSE_ALIASES})
 
 
+def _identifiers(text: str) -> str:
+    """What in `text` is code: backticked text, fenced blocks and `>>>` lines.
+
+    Prose may use words such as "monto" or "fecha"; what cannot appear is an earlier
+    name used as an identifier.
+    """
+    fenced = re.findall(r"```.*?```", text, flags=re.DOTALL)
+    without_fences = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
+    inline = re.findall(r"`([^`\n]+)`", without_fences)
+    prompts = [
+        line for line in without_fences.splitlines() if line.lstrip().startswith((">>>", "..."))
+    ]
+    return "\n".join([*fenced, *inline, *prompts])
+
+
 def _mentions(text: str) -> list[str]:
     """The alias names that appear in `text` as whole identifiers."""
     return [
         name for name in NAMES if re.search(r"(?<![A-Za-z0-9_])" + name + r"(?![A-Za-z0-9_])", text)
     ]
+
+
+def _code_mentions(text: str) -> list[str]:
+    """The alias names that appear as code inside a document or docstring."""
+    return _mentions(_identifiers(text))
+
+
+def _python_names(source: str) -> str:
+    """The identifiers and string keys of a Python file, without the prose."""
+    names: list[str] = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Name):
+            names.append(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.append(node.attr)
+        elif isinstance(node, ast.keyword) and node.arg:
+            names.append(node.arg)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.arg)):
+            names.append(node.name if not isinstance(node, ast.arg) else node.arg)
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", node.value)
+        ):
+            names.append(node.value)
+    return " ".join(names)
 
 
 def _public_callables() -> list[tuple[str, Any]]:
@@ -47,6 +89,17 @@ def _public_callables() -> list[tuple[str, Any]]:
     return found
 
 
+def test_the_scan_reads_identifiers_and_not_prose() -> None:
+    name = NAMES[0]
+    assert _code_mentions("Pass `" + name + "=1` to the method.")
+    assert _code_mentions("```python\nf(" + name + "=1)\n```")
+    assert _code_mentions(">>> f(" + name + "=1)")
+    assert not _code_mentions("The prose may say " + name + " without trouble.")
+    assert "send_date" in _python_names("f(send_date=1)")
+    assert _mentions(_python_names("f(" + name + "=1)"))
+    assert not _mentions(_python_names("print('the " + name + " is prose')"))
+
+
 def test_no_public_signature_or_annotation_names_an_alias() -> None:
     callables = _public_callables()
     assert len(callables) > 100
@@ -57,10 +110,10 @@ def test_no_public_signature_or_annotation_names_an_alias() -> None:
 
 def test_no_public_docstring_names_an_alias() -> None:
     for label, function in _public_callables():
-        assert not _mentions(inspect.getdoc(function) or ""), label
+        assert not _code_mentions(inspect.getdoc(function) or ""), label
     for name in veriko.__all__:
         documented = inspect.getdoc(getattr(veriko, name)) or ""
-        assert not _mentions(documented), name
+        assert not _code_mentions(documented), name
 
 
 def test_the_package_exports_no_alias_and_no_alias_map() -> None:
@@ -97,7 +150,9 @@ def test_documents_and_examples_name_no_alias(path: str) -> None:
     file = ROOT / path
     if file.is_dir() or file.suffix not in {".md", ".py"}:
         pytest.skip("not a text document")
-    assert not _mentions(file.read_text(encoding="utf-8")), path
+    text = file.read_text(encoding="utf-8")
+    found = _python_names(text) if file.suffix == ".py" else _identifiers(text)
+    assert not _mentions(found), path
 
 
 # ── They still work ────────────────────────────────────────────────────────

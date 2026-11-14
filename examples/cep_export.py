@@ -1,6 +1,6 @@
-"""Build a ZIP of CEPs in the background and download it.
+"""Arma en segundo plano un ZIP de CEP y lo descarga.
 
-export VERIKO_API_KEY=veriko_your_key_here
+export VERIKO_API_KEY=veriko_tu_clave_aqui
 python examples/cep_export.py 2026-01-01 2026-01-31
 """
 
@@ -16,6 +16,6 @@ export = client.finance.wait_for_cep_export(export["id"])
 if export["attributes"]["status"] == "ready":
     document = client.finance.download_cep_export(export["id"])
     document.write_to(document.filename)
-    print("Saved", document.filename)
+    print("Guardado en", document.filename)
 else:
-    print("Export ended as", export["attributes"]["status"])
+    print("La exportación terminó en", export["attributes"]["status"])

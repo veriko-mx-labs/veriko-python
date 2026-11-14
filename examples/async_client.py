@@ -1,6 +1,6 @@
-"""Validate several transfers concurrently with the asynchronous client.
+"""Valida varias transferencias al mismo tiempo con el cliente asíncrono.
 
-export VERIKO_API_KEY=veriko_your_key_here
+export VERIKO_API_KEY=veriko_tu_clave_aqui
 python examples/async_client.py
 """
 

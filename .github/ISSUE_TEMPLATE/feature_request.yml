@@ -1,39 +1,39 @@
-name: Feature request
-description: Ask for a change or an addition.
+name: Solicitud de mejora
+description: Pide un cambio o una adición.
 labels: [enhancement]
 body:
   - type: markdown
     attributes:
       value: |
-        Do not paste API keys, receipts, account numbers or customer data.
+        No pegues claves de API, comprobantes, números de cuenta ni datos de clientes.
   - type: textarea
     id: problem
     attributes:
-      label: What you need to do
-      description: 'Describe the task you cannot do today, or do with too much work.'
+      label: Qué necesitas hacer
+      description: 'Describe la tarea que hoy no puedes hacer, o que te cuesta demasiado trabajo.'
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
-      label: What you propose
-      description: 'Describe the change you want to see.'
+      label: Qué propones
+      description: 'Describe el cambio que quieres ver.'
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives
-      description: 'Describe what you use today or considered.'
+      label: Alternativas
+      description: 'Describe lo que usas hoy o lo que consideraste.'
   - type: input
     id: operation
     attributes:
-      label: 'Related operation'
-      description: 'The operation of the API this concerns, for example `POST /v1/validate`.'
+      label: 'Operación relacionada'
+      description: 'La operación de la API a la que se refiere, por ejemplo `POST /v1/validate`.'
   - type: checkboxes
     id: confirmation
     attributes:
-      label: Before you submit
+      label: Antes de enviar
       options:
-        - label: I searched the open issues.
+        - label: Busqué entre los issues abiertos.
           required: true
