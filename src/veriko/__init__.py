@@ -23,7 +23,7 @@ API documentation: https://docs.veriko.mx/en/
 
 from __future__ import annotations
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 from ._base import ApiDict, ApiList, ApiObject
 from ._http import MultipartFile, RateLimitInfo, ResponseInfo, RetryConfig, Transport

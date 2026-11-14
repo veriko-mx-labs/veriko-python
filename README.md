@@ -1,14 +1,14 @@
-# veriko: Python SDK for the Veriko API
+# veriko: SDK de Python para la API de Veriko
 
-Official [Veriko](https://veriko.mx) client for Python. It validates Mexican SPEI transfers against
-the Banco de México CEP, downloads the official receipt and verifies webhook signatures.
+Cliente oficial de [Veriko](https://veriko.mx) para Python. Valida transferencias SPEI mexicanas
+contra el CEP de Banxico, descarga el comprobante oficial y verifica la firma de los webhooks.
 
-No runtime dependencies. Python 3.9 or later.
+Sin dependencias en tiempo de ejecución. Python 3.9 o superior.
 
 ```python
 from veriko import Veriko
 
-client = Veriko()  # reads VERIKO_API_KEY from the environment
+client = Veriko()  # lee VERIKO_API_KEY del entorno
 
 validation = client.validate_transfer(
     send_date="2025-03-15",
@@ -20,153 +20,155 @@ validation = client.validate_transfer(
 print(validation.status)  # 'valid'
 ```
 
-## What the CEP is
+## Qué es el CEP
 
-The **Comprobante Electrónico de Pago (CEP)** is the document the **Banco de México (Banxico)** issues
-for each transfer that goes through SPEI, the Mexican interbank payment system. It carries the digital
-seal and the original string of the receiving institution, so it proves that a transfer happened and
-for what amount.
+El **Comprobante Electrónico de Pago (CEP)** es el documento que expide el **Banco de México
+(Banxico)** por cada transferencia que pasa por el SPEI, el sistema de pagos interbancarios de
+México. Lleva el sello digital y la cadena original de la institución receptora, así que acredita
+que una transferencia ocurrió y por qué monto.
 
-The CEP has no tax effect: it does not replace an invoice.
+El CEP no tiene efectos fiscales: no sustituye a una factura.
 
-Banxico's portal checks one receipt at a time.
+El portal de Banxico consulta un comprobante a la vez.
 
-## What the API does
+## Qué hace la API
 
-The API queries the CEP and returns a verdict in `status`:
+La API consulta el CEP y devuelve un veredicto en `status`:
 
-| verdict | meaning |
+| veredicto | significado |
 | --- | --- |
-| `valid` | Banxico returned a CEP that matches the data sent |
-| `not_found` | Banxico has no CEP with that data. It can be temporary: a CEP takes time to publish |
-| `cep_unavailable` | Banxico could not answer. It says nothing about the transfer |
-| `returned` | The payment settled and the receiving institution returned it afterwards |
-| `invalid` | Banxico answered in a way the service does not recognize |
-| `error` | Processing failed; the reason travels in `error_code` |
+| `valid` | Banxico devolvió un CEP que coincide con los datos enviados |
+| `not_found` | Banxico no tiene un CEP con esos datos. Puede ser temporal: un CEP tarda en publicarse |
+| `cep_unavailable` | Banxico no pudo responder. No dice nada sobre la transferencia |
+| `returned` | El pago se liquidó y la institución receptora lo devolvió después |
+| `invalid` | Banxico respondió de una forma que el servicio no reconoce |
+| `error` | Falló el procesamiento; el motivo viaja en `error_code` |
 
-With a `valid` verdict the receipt is available as XML and PDF. A `valid` is the verdict at the moment
-of the query: Banxico can report a return up to 72 hours later, and the validation becomes `returned`.
+Con un veredicto `valid`, el comprobante queda disponible en XML y en PDF. Un `valid` es el veredicto
+del momento de la consulta: Banxico puede reportar una devolución hasta 72 horas después, y la
+validación pasa a `returned`.
 
-## Families of operations
+## Familias de operaciones
 
-The client groups the 75 M2M operations of the API into eleven families:
+El cliente agrupa las 75 operaciones M2M de la API en once familias:
 
-| family | covers |
+| familia | qué cubre |
 | --- | --- |
-| `client.validations` | Validate by fields or by image, read, list, export, check the payment status, delete, the retry policy and the receipt download |
-| `client.webhooks` | Register endpoints, rotate their secret, send a test event and read the delivery history |
-| `client.catalog` | SPEI bank catalog, SPEI non-business-day calendar, card issuer lookup and Banxico service status |
-| `client.beneficiaries` | Saved beneficiary accounts and the bulk import, as a full cycle |
-| `client.usage` | Validation quota, rate limits and the activity log |
-| `client.account` | Profile and default retry policy of the account |
-| `client.dashboard` | Dashboard summary |
-| `client.plans` | Catalog and comparison of public plans, without an API key |
-| `client.insights` | Overview, trends, top banks and top beneficiaries |
-| `client.finance` | Summaries, statements, previews, downloads and CEP exports |
-| `client.billing` | Active subscription |
+| `client.validations` | Validar por campos o por imagen, consultar, listar, exportar, revisar el estado del pago, borrar, la política de reintentos y la descarga del comprobante |
+| `client.webhooks` | Registrar endpoints, rotar su secreto, enviar un evento de prueba y leer el historial de entregas |
+| `client.catalog` | Catálogo de bancos SPEI, calendario de días inhábiles SPEI, consulta del banco emisor de una tarjeta y estado del servicio de Banxico |
+| `client.beneficiaries` | Cuentas de beneficiarios guardadas y la importación masiva, como ciclo completo |
+| `client.usage` | Cuota de validaciones, límites de uso y registro de actividad |
+| `client.account` | Perfil y política de reintentos predeterminada de la cuenta |
+| `client.dashboard` | Resumen del panel |
+| `client.plans` | Catálogo y comparación de planes públicos, sin clave de API |
+| `client.insights` | Resumen, tendencias, bancos y beneficiarios principales |
+| `client.finance` | Resúmenes, estados de cuenta, vistas previas, descargas y exportaciones de CEP |
+| `client.billing` | Suscripción activa |
 
-The three most used operations are also at the root of the client: `validate_transfer()`,
-`get_validation()` and `get_cep()`.
+Las tres operaciones de uso más frecuente están también en la raíz del cliente: `validate_transfer()`,
+`get_validation()` y `get_cep()`.
 
-## Install
+## Instalación
 
 ```bash
 pip install veriko
 ```
 
-While the version is `0.x`, a minor version can adjust the public surface of the SDK. Version `1.0.0`
-is reserved for a stable production integration.
+Mientras la versión sea `0.x`, una versión menor puede ajustar la superficie pública del SDK. La
+versión `1.0.0` se reserva para una integración estable en producción.
 
-## Connections and language
+## Conexiones e idioma
 
-The client keeps connections to the API open and reuses them, with `http.client` from the standard
-library. `client.close()` closes the idle ones, and `with Veriko() as client:` does it on exit.
-`accept_language` is `"es"` or `"en"` and sets the language of `error.detail`; any other value raises
-`ConfigurationError`. For a single call, use `client.with_options(accept_language="en", timeout=5)`.
+El cliente mantiene abiertas las conexiones a la API y las reutiliza, con `http.client` de la
+biblioteca estándar. `client.close()` cierra las inactivas, y `with Veriko() as client:` lo hace al
+salir. `accept_language` es `"es"` o `"en"` y fija el idioma de `error.detail`; cualquier otro valor
+levanta `ConfigurationError`. Para una sola llamada, usa
+`client.with_options(accept_language="en", timeout=5)`.
 
-## Identify the client
+## Identifica a tu cliente
 
-The SDK sends `User-Agent: veriko-sdk-python/<version> (<implementation> <Python version>; <system>
-<architecture>)`. A product that wraps the SDK adds its own text:
+El SDK manda `User-Agent: veriko-sdk-python/<versión> (<implementación> <versión de Python>; <sistema>
+<arquitectura>)`. Un producto que envuelve al SDK agrega su propio texto:
 
 ```python
-client = Veriko(user_agent_prefix="my-product/1.2", user_agent_suffix="integration-x")
+client = Veriko(user_agent_prefix="mi-producto/1.2", user_agent_suffix="integracion-x")
 ```
 
-## Authentication
+## Autenticación
 
-Create the API key in the [dashboard](https://app.veriko.mx). It starts with `veriko_`.
+Crea la clave de API en el [panel](https://app.veriko.mx). Empieza con `veriko_`.
 
 ```python
 client = Veriko(api_key="veriko_...")
 ```
 
-Without `api_key`, the client reads `VERIKO_API_KEY`. `VERIKO_BASE_URL` overrides the API root, and an
-`http://` root is accepted only for `localhost`. A key that does not match `veriko_<64 hex>` raises
-`ConfigurationError` before any request.
+Sin `api_key`, el cliente lee `VERIKO_API_KEY`. `VERIKO_BASE_URL` cambia la raíz de la API, y una raíz
+`http://` sólo se acepta para `localhost`. Una clave que no cumple `veriko_<64 hex>` levanta
+`ConfigurationError` antes de cualquier petición.
 
-Settings that apply to every call:
+Opciones que valen para todas las llamadas:
 
-| argument | default | effect |
+| argumento | valor por omisión | efecto |
 | --- | --- | --- |
-| `timeout` | `60.0` | seconds to wait per attempt |
-| `max_retries` | `2` | automatic retries besides the first attempt |
-| `retry` | none | a `RetryConfig` with the full backoff configuration |
-| `accept_language` | account language | `es` or `en`, for `error.detail` |
+| `timeout` | `60.0` | segundos de espera por intento |
+| `max_retries` | `2` | reintentos automáticos además del primer intento |
+| `retry` | ninguno | un `RetryConfig` con la configuración completa de la espera entre reintentos |
+| `accept_language` | idioma de la cuenta | `es` o `en`, para `error.detail` |
 
-To change a setting for one call, derive a client:
+Para cambiar una opción en una sola llamada, deriva un cliente:
 
 ```python
 client.with_options(timeout=5.0, max_retries=0).validations.get(validation_id)
 client.with_options(headers={"X-Trace": "t1"}).validations.get(validation_id)
 ```
 
-`with_options()` returns a new client and leaves the original unchanged.
+`with_options()` devuelve un cliente nuevo y deja el original sin cambios.
 
-## Validate a transfer
+## Valida una transferencia
 
 ```python
 validation = client.validate_transfer(
     send_date="2025-03-15",
-    amount=15000.50,                         # also accepts Decimal
+    amount=15000.50,                         # también acepta Decimal
     tracking_key="MXBA20250315001234",
     numeric_reference="1234567",
     sender_bank="BANCO NACIONAL DE MEXICO",
     receiver_bank="BBVA MEXICO",
     beneficiary_account="012180004412345678",
-    client_ref="order-1042",
+    client_ref="pedido-1042",
 )
 ```
 
-`amount` is required, plus `beneficiary_account` (or `candidate_accounts`) and `tracking_key` or
-`numeric_reference`. `send_date` is the sending date as `YYYY-MM-DD` and is optional: without it the
-API tries candidate dates. Each call consumes plan quota.
+`amount` es obligatorio, además de `beneficiary_account` (o `candidate_accounts`) y de `tracking_key` o
+`numeric_reference`. `send_date` es la fecha de envío en formato `YYYY-MM-DD` y es opcional: sin ella,
+la API prueba fechas candidatas. Cada llamada consume cuota del plan.
 
-The client checks the arguments before sending and raises `InvalidRequestError` with `local=True` and
-the API's own code (`account_required`, `tracking_key_or_reference_required`,
+El cliente revisa los argumentos antes de enviar y levanta `InvalidRequestError` con `local=True` y el
+mismo código que usaría la API (`account_required`, `tracking_key_or_reference_required`,
 `account_and_candidates_mutually_exclusive`, `candidate_accounts_invalid`).
 
-### From the receipt
+### A partir del comprobante
 
 ```python
 validation = client.validations.validate_ocr(
-    image="receipt.png", beneficiary_account="012180004412345678"
+    image="comprobante.png", beneficiary_account="012180004412345678"
 )
 ```
 
-`image` takes bytes, a path, or a string that starts with `data:` (a data URI). `image_url` takes a
-receipt already published over HTTPS. `recipient_is_bank=True` marks a payment to the receiving
-institution itself.
+`image` acepta bytes, una ruta o una cadena que empiece con `data:` (un URI de datos). `image_url`
+acepta un comprobante ya publicado en HTTPS. `recipient_is_bank=True` marca un pago a la propia
+institución receptora.
 
-The SDK refuses before sending a file over 12 MB (`body_too_large`), an `image_url` that is not `https`
-(`invalid_url_scheme`) and an uncompressed PDF of more than 3 pages (`pdf_too_many_pages`). The error is
-an `InvalidRequestError` with `local=True`.
+Antes de enviar, el SDK rechaza un archivo de más de 12 MB (`body_too_large`), un `image_url` que no es
+`https` (`invalid_url_scheme`) y un PDF sin comprimir de más de 3 páginas (`pdf_too_many_pages`). El
+error es un `InvalidRequestError` con `local=True`.
 
-### Without waiting for the verdict
+### Sin esperar el veredicto
 
-`validations.enqueue()` and `validations.enqueue_ocr()` accept the same arguments as the methods above,
-queue the request and return a `QueuedValidation`. An unknown argument raises `TypeError`. `wait_for()`
-collects the verdict:
+`validations.enqueue()` y `validations.enqueue_ocr()` aceptan los mismos argumentos que los métodos
+anteriores, ponen la petición en cola y devuelven una `QueuedValidation`. Un argumento desconocido
+levanta `TypeError`. `wait_for()` recoge el veredicto:
 
 ```python
 queued = client.validations.enqueue(
@@ -175,32 +177,34 @@ queued = client.validations.enqueue(
 validation = client.validations.wait_for(queued.id, timeout=120)
 ```
 
-`wait_for()` sends `If-None-Match` on each poll and waits what the API asks (`next_poll_after_seconds`
-or `Retry-After`), never past `timeout`. It waits for `Validation.is_settled`: a `not_found` with a retry
-cycle under way keeps changing. When the time runs out it raises `VerikoTimeoutError`, which is also a
-`TimeoutError` and carries `last`.
+`wait_for()` manda `If-None-Match` en cada sondeo y espera lo que pide la API
+(`next_poll_after_seconds` o `Retry-After`), sin pasar nunca de `timeout`. Espera a
+`Validation.is_settled`: un `not_found` con un ciclo de reintentos en marcha sigue cambiando. Cuando se
+acaba el tiempo, levanta `VerikoTimeoutError`, que también es un `TimeoutError` y trae `last`.
 
-Without `enqueue()`, the API answers `202` when Banxico takes more than 45 seconds; collect the verdict
-with `get_validation()`.
+Sin `enqueue()`, la API responde `202` cuando Banxico tarda más de 45 segundos; recoge el veredicto con
+`get_validation()`.
 
-### Own reference, duplicate and account conflict
+### Referencia propia, duplicado y conflicto de cuenta
 
-`client_ref` (1 to 64 characters) comes back in `Validation.client_ref` and in the webhooks.
-`Validation.duplicate_of` points at an earlier `valid` validation of the same transfer, and
-`Validation.account_conflict` reports that the CEP names another account. Neither changes the verdict.
+`client_ref` (de 1 a 64 caracteres) vuelve en `Validation.client_ref` y en los webhooks.
+`Validation.duplicate_of` apunta a una validación `valid` anterior de la misma transferencia, y
+`Validation.account_conflict` avisa que el CEP nombra otra cuenta. Ninguna de las dos cambia el
+veredicto.
 
-### Several candidate accounts
+### Varias cuentas candidatas
 
-When it is not known which account received the transfer, send `candidate_accounts` (2 up to the limit
-the API sets) instead of `beneficiary_account`. A match fills `Validation.candidate_match`. Sending both
-raises `account_and_candidates_mutually_exclusive`.
+Cuando no se sabe qué cuenta recibió la transferencia, envía `candidate_accounts` (de 2 hasta el límite
+que fije la API) en lugar de `beneficiary_account`. Una coincidencia llena `Validation.candidate_match`.
+Enviar las dos levanta `account_and_candidates_mutually_exclusive`.
 
-### Keep the receipt
+### Conserva el comprobante
 
-OCR validations keep the image by default. `retain_image=False` deletes it once the validation no
-longer needs it, and `Validation.image_retained` becomes `False`. `validations.image(id)` downloads it.
+Las validaciones por OCR conservan la imagen por omisión. `retain_image=False` la borra cuando la
+validación ya no la necesita, y `Validation.image_retained` pasa a `False`. `validations.image(id)` la
+descarga.
 
-### List and walk the history
+### Lista y recorre el historial
 
 ```python
 page = client.validations.list(per_page=50, status="valid", from_="2025-03-01")
@@ -208,75 +212,77 @@ for validation in client.validations.iter(status="valid"):
     ...
 ```
 
-A `Page` behaves as a sequence and carries `page`, `per_page`, `total` and `total_pages`.
-`page.next_page()` requests the next page with the same filters and returns `None` on the last one.
-Without `per_page`, a page holds 10 validations, 50 deliveries or 25 import rows. The iterators
-(`iter()`, `iter_deliveries()`, `iter_import_preview()`) ask for the most each endpoint gives (50, 100
-and 100) unless `per_page` says otherwise, and request the next page only when needed.
+Una `Page` se comporta como una secuencia y trae `page`, `per_page`, `total` y `total_pages`.
+`page.next_page()` pide la página siguiente con los mismos filtros y devuelve `None` en la última. Sin
+`per_page`, una página trae 10 validaciones, 50 entregas o 25 filas de importación. Los iteradores
+(`iter()`, `iter_deliveries()`, `iter_import_preview()`) piden el máximo que da cada endpoint (50, 100 y
+100), salvo que `per_page` diga otra cosa, y piden la página siguiente sólo cuando hace falta.
 
-`list()`, `iter()`, `stats()` and `export()` take the same typed filters, so a misspelled filter raises
-`TypeError`. `type` is `"direct"` or `"ocr"` and `retry_state` is `"pending"`, `"resolved"`,
-`"exhausted"` or `"cancelled"`.
+`list()`, `iter()`, `stats()` y `export()` reciben los mismos filtros tipados, así que un filtro mal
+escrito levanta `TypeError`. `type` es `"direct"` u `"ocr"` y `retry_state` es `"pending"`,
+`"resolved"`, `"exhausted"` o `"cancelled"`.
 
-Identifiers are checked against the format of the spec before a request goes out: a UUID for
-validations, endpoints and CEP exports, an integer for beneficiaries and imports.
+Los identificadores se revisan contra el formato del spec antes de enviar la petición: un UUID para
+validaciones, endpoints y exportaciones de CEP, un entero para beneficiarios e importaciones.
 
-## Download the CEP
+## Descarga el CEP
 
 ```python
-cep = client.get_cep(validation.id, format="pdf")   # or "xml"
+cep = client.get_cep(validation.id, format="pdf")   # o "xml"
 cep.write_to(cep.filename)
 ```
 
-The CEP of a purged validation answers `410` with `validation_purged` (`GoneError`).
+El CEP de una validación depurada responde `410` con `validation_purged` (`GoneError`).
 
-## Check the payment afterwards
+## Revisa el pago después
 
-`validations.recheck(id)` queries the payment status again and returns a `RecheckResult`. A return
-Banxico reports later turns the validation into `returned`, with `Validation.payment_status`.
+`validations.recheck(id)` consulta de nuevo el estado del pago y devuelve un `RecheckResult`. Una
+devolución que Banxico reporta más tarde convierte la validación en `returned`, con
+`Validation.payment_status`.
 
-## Delete and purge
+## Borra y depura
 
-`validations.delete(id)` removes a validation from the history. `prepare_purge(id)` and
-`execute_purge(id, confirmation_token=...)` delete its content for good and leave a tombstone.
+`validations.delete(id)` quita una validación del historial. `prepare_purge(id)` y
+`execute_purge(id, confirmation_token=...)` borran su contenido de forma definitiva y dejan una lápida.
 
-## Register a webhook
+## Registra un webhook
 
 ```python
 endpoint = client.webhooks.create(
     url="https://example.com/hooks/veriko",
     events=["validation.completed", "validation.returned"],
 )
-secret = endpoint.secret   # the API delivers it once
+secret = endpoint.secret   # la API lo entrega una sola vez
 ```
 
-`WEBHOOK_EVENTS` lists the 12 events an endpoint subscribes to, and `WebhookEvent` tells its kind with
-`is_validation_event`, `is_billing_event` and `is_test`. `webhooks.test(id)` sends a test event, `webhooks.deliveries()` and `iter_deliveries()` read the
-history, and `export_deliveries()` downloads it.
+`WEBHOOK_EVENTS` enumera los 12 eventos a los que se suscribe un endpoint, y `WebhookEvent` indica su
+tipo con `is_validation_event`, `is_billing_event` e `is_test`. `webhooks.test(id)` envía un evento de
+prueba, `webhooks.deliveries()` e `iter_deliveries()` leen el historial, y `export_deliveries()` lo
+descarga.
 
-### Rotate the secret
+### Rota el secreto
 
 ```python
-endpoint = client.webhooks.regenerate_secret(webhook_id)                  # old secret valid 24 h
-endpoint = client.webhooks.regenerate_secret(webhook_id, immediate=True)  # old secret stops now
+endpoint = client.webhooks.regenerate_secret(webhook_id)                  # el secreto anterior vale 24 h
+endpoint = client.webhooks.regenerate_secret(webhook_id, immediate=True)  # el secreto anterior deja de valer ya
 print(endpoint.previous_secret_expires_at)
 ```
 
-## Catalog and Banxico status
+## Catálogo y estado de Banxico
 
 `catalog.banks()`, `catalog.spei_calendar(year)`, `catalog.bin_lookup(bin)`, `catalog.banxico_status()`
-and `catalog.banxico_timeseries()`.
+y `catalog.banxico_timeseries()`.
 
-## Conditional reads
+## Lecturas condicionales
 
-`validations.get()`, `catalog.banks()` and `catalog.spei_calendar()` accept `if_none_match`. When
-nothing changed the API answers `304` and the SDK raises `NotModifiedError`, an `APIError` with
-`status=304` and the `etag`.
+`validations.get()`, `catalog.banks()` y `catalog.spei_calendar()` aceptan `if_none_match`. Cuando nada
+cambió, la API responde `304` y el SDK levanta `NotModifiedError`, un `APIError` con `status=304` y el
+`etag`.
 
-## Verify a webhook signature
+## Verifica la firma de un webhook
 
-Verify the **raw body**, before parsing it. Reading it into a dictionary and writing it back changes
-the bytes.
+Verifica el **cuerpo crudo**, antes de interpretarlo. Leerlo en un diccionario y volver a escribirlo
+cambia los bytes.
 
 ```python
 from veriko import SignatureVerificationError, parse_webhook
@@ -290,38 +296,39 @@ if event.event == "validation.completed":
     ...
 ```
 
-`parse_webhook()` with the request headers checks `X-Webhook-Signature-Timestamped`, falls back to
-`X-Webhook-Signature-Old` (the previous secret, for 24 hours after a rotation) and rejects a `t` outside
-a 5-minute window (`tolerance=300`). Pass one secret or several. With only the value of
-`X-Webhook-Signature`, it checks the body without a time window.
+`parse_webhook()` con los encabezados de la petición comprueba `X-Webhook-Signature-Timestamped`, recurre
+a `X-Webhook-Signature-Old` (el secreto anterior, durante 24 horas después de una rotación) y rechaza una
+`t` fuera de una ventana de 5 minutos (`tolerance=300`). Pasa un secreto o varios. Con sólo el valor de
+`X-Webhook-Signature`, comprueba el cuerpo sin ventana de tiempo.
 
-| header | content |
+| encabezado | contenido |
 | --- | --- |
-| `X-Webhook-Signature` | `sha256=<hex>` over the body |
-| `X-Webhook-Signature-Timestamped` | `t=<seconds>,v1=<hex>` over `<t>.<body>` |
-| `X-Webhook-Signature-Old` | the same format, signed with the previous secret |
-| `X-Veriko-Event` | the event name |
-| `X-Veriko-Delivery-Id` | the delivery identifier, in `WebhookEvent.delivery_id` |
+| `X-Webhook-Signature` | `sha256=<hex>` sobre el cuerpo |
+| `X-Webhook-Signature-Timestamped` | `t=<segundos>,v1=<hex>` sobre `<t>.<cuerpo>` |
+| `X-Webhook-Signature-Old` | el mismo formato, firmado con el secreto anterior |
+| `X-Veriko-Event` | el nombre del evento |
+| `X-Veriko-Delivery-Id` | el identificador de la entrega, en `WebhookEvent.delivery_id` |
 
-`verify_webhook()`, `verify_webhook_timestamped()` and `verify_delivery()` return `True` or `False` and
-never raise; they compare in constant time and accept bytes or text.
+`verify_webhook()`, `verify_webhook_timestamped()` y `verify_delivery()` devuelven `True` o `False` y
+nunca levantan; comparan en tiempo constante y aceptan bytes o texto.
 
-A `validation.returned` event carries `WebhookEvent.payment_status`. `validation.completed` carries
-`banxico_confirmed` with the amount Banxico confirmed.
+Un evento `validation.returned` trae `WebhookEvent.payment_status`. `validation.completed` trae
+`banxico_confirmed` con el monto que Banxico confirmó.
 
-## Retries
+## Reintentos
 
-The SDK retries what is safe to repeat, with exponential backoff and jitter:
+El SDK reintenta lo que es seguro repetir, con espera exponencial y variación aleatoria:
 
-| situation | retried |
+| situación | se reintenta |
 | --- | --- |
-| `429` (`rate_limit_exceeded`) | always |
-| `429` with `quota_exceeded` | never: the quota renews on the next period |
-| `408`, `5xx` and network errors | `GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`, and a `POST` with `Idempotency-Key` |
-| TLS and certificate failures | never |
+| `429` (`rate_limit_exceeded`) | siempre |
+| `429` con `quota_exceeded` | nunca: la cuota se renueva en el siguiente periodo |
+| `408`, `5xx` y errores de red | `GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`, y un `POST` con `Idempotency-Key` |
+| Fallas de TLS y de certificado | nunca |
 
-A `Retry-After` is honored. When it exceeds `RetryConfig.max_retry_after_seconds` (60), the error is
-raised at once with `retry_after` set. A `DELETE` that answers `404` after a retry counts as done.
+Se respeta `Retry-After`. Cuando excede `RetryConfig.max_retry_after_seconds` (60), el error se levanta
+de inmediato con `retry_after` puesto. Un `DELETE` que responde `404` después de un reintento cuenta como
+hecho.
 
 ```python
 from veriko import RetryConfig, Veriko
@@ -329,22 +336,24 @@ from veriko import RetryConfig, Veriko
 client = Veriko(retry=RetryConfig(max_retries=4, backoff_base_seconds=1.0, max_retry_after_seconds=30))
 ```
 
-## Idempotency
+## Idempotencia
 
-The six operations that accept `Idempotency-Key` always send one: the one passed in `idempotency_key`,
-or a generated key that every retry of that call reuses. Pass your own key to protect a later resend:
+Las seis operaciones que aceptan `Idempotency-Key` siempre mandan una: la que pasas en
+`idempotency_key`, o una clave generada que cada reintento de esa llamada reutiliza. Pasa tu propia
+clave para proteger un reenvío posterior:
 
 ```python
-client.validate_transfer(..., idempotency_key="order-1042")
+client.validate_transfer(..., idempotency_key="pedido-1042")
 ```
 
-A key is 1 to 255 characters of `[A-Za-z0-9_-]`. A `409` with `idempotency_key_in_progress` waits and
-repeats with the same key, up to `RetryConfig.idempotency_wait_seconds` (30), then raises
-`IdempotencyKeyInProgressError`. `response_info.idempotent_replayed` tells a replayed answer.
+Una clave mide de 1 a 255 caracteres de `[A-Za-z0-9_-]`. Un `409` con `idempotency_key_in_progress`
+espera y repite con la misma clave, hasta `RetryConfig.idempotency_wait_seconds` (30), y después levanta
+`IdempotencyKeyInProgressError`. `response_info.idempotent_replayed` indica que la respuesta es una
+repetición.
 
-## Response metadata
+## Metadatos de la respuesta
 
-Every result carries `response_info`:
+Cada resultado trae `response_info`:
 
 ```python
 validation = client.get_validation(validation_id)
@@ -352,37 +361,38 @@ info = validation.response_info
 info.rate_limit.remaining, info.request_id, info.etag, info.idempotent_replayed
 ```
 
-`info.deprecation` and `info.sunset` hold the `Deprecation` and `Sunset` headers. The first response
-with a `Deprecation` header emits one `DeprecationWarning` per process. Methods that return a `list` or
-a `dict` return `ApiList` and `ApiDict`, which behave the same and carry `response_info`.
+`info.deprecation` e `info.sunset` guardan los encabezados `Deprecation` y `Sunset`. La primera
+respuesta con un encabezado `Deprecation` emite un `DeprecationWarning` por proceso. Los métodos que
+devuelven una `list` o un `dict` devuelven `ApiList` y `ApiDict`, que se comportan igual y traen
+`response_info`.
 
-The methods that return a resource's attributes (`usage`, `account`, `insights`, `finance`, `billing`,
-`plans`, `dashboard` and the catalog status and BIN lookup) return a typed dictionary from
-`veriko.responses`, such as `UsageHistory` or `CepExport`. It is still the dictionary:
-`result["months"]`, `result.get("months")`, `"months" in result`, iteration and `==` against a
-dictionary work, and so does `json.dumps(result)`. The fields of the spec are also attributes,
-`result.months`, and a field the response lacks reads as `None`. `result.id`, `result.links`,
-`result.meta` and `result.raw` hold what the response carries outside the attributes.
+Los métodos que devuelven los atributos de un recurso (`usage`, `account`, `insights`, `finance`,
+`billing`, `plans`, `dashboard` y el estado del catálogo y la consulta de BIN) devuelven un diccionario
+tipado de `veriko.responses`, como `UsageHistory` o `CepExport`. Sigue siendo el diccionario:
+`result["months"]`, `result.get("months")`, `"months" in result`, la iteración y `==` contra un
+diccionario funcionan, y también `json.dumps(result)`. Los campos del spec además son atributos,
+`result.months`, y un campo que la respuesta no trae se lee como `None`. `result.id`, `result.links`,
+`result.meta` y `result.raw` guardan lo que la respuesta trae fuera de los atributos.
 
-## Errors
+## Errores
 
-Everything the SDK raises inherits from `VerikoError`.
+Todo lo que levanta el SDK hereda de `VerikoError`.
 
-| class | when |
+| clase | cuándo |
 | --- | --- |
-| `ConfigurationError` | missing or malformed API key, unusable argument |
-| `ConnectionError` (`VerikoConnectionError`) | no response after the retries; `cause`, `timed_out` |
+| `ConfigurationError` | falta la clave de API o está mal formada, o un argumento no se puede usar |
+| `ConnectionError` (`VerikoConnectionError`) | no hubo respuesta tras los reintentos; `cause`, `timed_out` |
 | `AuthenticationError`, `ForbiddenError`, `NotFoundError` | `401`, `403`, `404` |
-| `NotModifiedError` | `304` on a conditional read |
+| `NotModifiedError` | `304` en una lectura condicional |
 | `ConflictError`, `IdempotencyKeyInProgressError` | `409` |
 | `GoneError` | `410`: `validation_purged`, `image_not_retained` |
 | `InvalidRequestError`, `PayloadTooLargeError` | `400`, `422`, `413` |
 | `RateLimitError`, `QuotaExceededError` | `429`; `retry_after`, `limit`, `remaining`, `reset` |
 | `ServerError` | `5xx` |
-| `VerikoTimeoutError` | a wait helper ran out of time |
+| `VerikoTimeoutError` | una espera se quedó sin tiempo |
 
-Branch on `code`, never on `detail`, which is translated and can change wording. A `422` carries one
-entry per invalid field:
+Ramifica según `code`, nunca según `detail`, que se traduce y puede cambiar de redacción. Un `422` trae
+una entrada por cada campo inválido:
 
 ```python
 try:
@@ -393,33 +403,33 @@ except InvalidRequestError as error:
     print(error.request_id)
 ```
 
-`error.codes`, `error.field_errors`, `error.has_code("invalid_date")` and `error.local` are also
-available.
+También están disponibles `error.codes`, `error.field_errors`, `error.has_code("invalid_date")` y
+`error.local`.
 
-## Beneficiaries
+## Beneficiarios
 
-`beneficiaries.create()`, `list()`, `update()`, `delete()`, `lookup(account)` and
-`validate_account(account, type=None)`, which checks the structure of a CLABE, card or mobile number
-without consuming quota.
+`beneficiaries.create()`, `list()`, `update()`, `delete()`, `lookup(account)` y
+`validate_account(account, type=None)`, que revisa la estructura de una cuenta CLABE, tarjeta o número
+de celular sin consumir cuota.
 
-### Bulk import
+### Importación masiva
 
 ```python
-job = client.beneficiaries.import_start("beneficiaries.csv")   # csv, xls, xlsx, txt, json or pdf, up to 20 MB
+job = client.beneficiaries.import_start("beneficiarios.csv")   # csv, xls, xlsx, txt, json o pdf, hasta 20 MB
 job = client.beneficiaries.import_wait(job.id)
 for row in client.beneficiaries.iter_import_preview(job.id, buckets=["correctable", "fatal"]):
     ...
 job = client.beneficiaries.import_commit(job.id)
 ```
 
-`import_edit_row()`, `import_remove_row()` and `import_cancel()` fix or drop rows. The status endpoint
-has no `ETag`, so `import_wait()` downloads the whole body on each poll.
+`import_edit_row()`, `import_remove_row()` e `import_cancel()` corrigen o descartan filas. El endpoint de
+estado no tiene `ETag`, así que `import_wait()` descarga el cuerpo completo en cada sondeo.
 
-## Usage
+## Uso
 
-`usage.summary()`, `history()`, `breakdown()`, `limits()`, `heatmap()`, `api_usage()` and `export()`.
+`usage.summary()`, `history()`, `breakdown()`, `limits()`, `heatmap()`, `api_usage()` y `export()`.
 
-## Finance and CEP exports
+## Finanzas y exportaciones de CEP
 
 ```python
 export = client.finance.create_cep_export(from_="2026-01-01", to="2026-01-31")
@@ -428,13 +438,13 @@ if export.is_ready:
     client.finance.download_cep_export(export.id).write_to("ceps.zip")
 ```
 
-An export ends as `ready`, `failed` or `expired` (`CEP_EXPORT_TERMINAL_STATUSES`). A `failed` one
-carries its reason in `error_code` (`CEP_EXPORT_ERROR_CODES`).
+Una exportación termina como `ready`, `failed` o `expired` (`CEP_EXPORT_TERMINAL_STATUSES`). Una
+`failed` trae su motivo en `error_code` (`CEP_EXPORT_ERROR_CODES`).
 
-A downloaded `Document` keeps the response `headers`. `finance_folio` and `finance_items` read
-`X-Finance-Folio` and `X-Finance-Items`, and `iter_bytes()` yields the content in chunks.
+Un `Document` descargado conserva los `headers` de la respuesta. `finance_folio` y `finance_items` leen
+`X-Finance-Folio` y `X-Finance-Items`, e `iter_bytes()` entrega el contenido en trozos.
 
-## Asynchronous client
+## Cliente asíncrono
 
 ```python
 import asyncio
@@ -454,16 +464,17 @@ async def main():
 asyncio.run(main())
 ```
 
-`AsyncVeriko` takes the same arguments and exposes the same families as `Veriko`; every method is a
-coroutine and `iter_*` are asynchronous iterators. The SDK has no runtime dependencies, so each call runs
-the synchronous client in a worker thread. `scripts/generate_async.py` regenerates the mirror.
+`AsyncVeriko` recibe los mismos argumentos y expone las mismas familias que `Veriko`; cada método es una
+corrutina y los `iter_*` son iteradores asíncronos. El SDK no tiene dependencias en tiempo de ejecución,
+así que cada llamada ejecuta el cliente síncrono en un hilo de trabajo. `scripts/generate_async.py`
+regenera el espejo.
 
-## Names from earlier versions
+## Nombres de versiones anteriores
 
-Field names from earlier versions keep working for existing integrations and emit a
-`DeprecationWarning`; they are not part of the typed API.
+Los nombres de campo de versiones anteriores siguen funcionando para las integraciones que ya existen y
+emiten un `DeprecationWarning`; no forman parte de la API tipada.
 
-## Develop
+## Desarrollo
 
 ```bash
 pip install -e ".[dev]"
@@ -471,16 +482,16 @@ ruff check . && ruff format --check . && mypy
 pytest
 ```
 
-The tests run against recorded responses served by a local HTTP server; none calls the API.
-`spec/openapi.yaml` is a copy of the public spec, and the spec tests compare the SDK against it.
+Las pruebas corren contra respuestas grabadas que sirve un servidor HTTP local; ninguna llama a la API.
+`spec/openapi.yaml` es una copia del spec público, y las pruebas del spec comparan el SDK contra ella.
 
-## Links
+## Enlaces
 
-- Documentation: https://docs.veriko.mx/en/
-- Errors: https://docs.veriko.mx/en/concepts/errors
-- Webhooks: https://docs.veriko.mx/en/concepts/webhooks-architecture
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Documentación: https://docs.veriko.mx/es/
+- Errores: https://docs.veriko.mx/es/concepts/errors
+- Webhooks: https://docs.veriko.mx/es/concepts/webhooks-architecture
+- Registro de cambios: [CHANGELOG.md](CHANGELOG.md)
 
-## License
+## Licencia
 
-MIT. See [LICENSE](LICENSE).
+MIT. Consulta [LICENSE](LICENSE).
