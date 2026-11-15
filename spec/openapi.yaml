@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.223.0
+  version: 1.228.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -442,6 +442,14 @@ paths:
               x-translations:
                 en:
                   description: Validations remaining in the current cycle.
+            X-Quota-Included:
+              schema:
+                type: integer
+                example: 650
+              description: Validaciones incluidas en el plan para el ciclo vigente. Con el excedente activo es menor que `X-Quota-Limit` (el tope); sin excedente, igual. También va en el cuerpo, en `meta.quota`.
+              x-translations:
+                en:
+                  description: Validations included in the plan for the current cycle. With overage enabled it is lower than `X-Quota-Limit` (the cap); without overage, equal. Also in the body, under `meta.quota`.
             X-Quota-Reset:
               schema:
                 type: string
@@ -460,6 +468,11 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/Validation'
+                      meta:
+                        type: object
+                        properties:
+                          quota:
+                            $ref: '#/components/schemas/QuotaSnapshot'
               examples:
                 valid_found:
                   summary: Transferencia confirmada en el CEP
@@ -547,11 +560,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: Request body is empty.
+                      - detail: The request has no body.
                 invalid_idempotency_key:
                   value:
                     errors:
-                      - detail: 'Invalid Idempotency-Key format. Allowed: A-Z a-z 0-9 _ - (1-255 chars).'
+                      - detail: The idempotency key format is not valid.
                 url_ssrf_blocked:
                   value:
                     errors:
@@ -563,7 +576,7 @@ paths:
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -578,7 +591,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -592,7 +605,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_idempotency_key
-                        detail: Formato de Idempotency-Key inválido. Se admiten A-Z a-z 0-9 _ - (de 1 a 255 caracteres).
+                        detail: La clave de idempotencia no tiene un formato válido.
                     meta:
                       version: 1.51.0
                       request_id: 3c4d5e6f7a8bb8a7f6e5d4c3
@@ -633,7 +646,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -653,43 +666,43 @@ paths:
                 account_and_candidates_mutually_exclusive:
                   value:
                     errors:
-                      - detail: 'The field ''''candidate_accounts'''' cannot be sent together with ''''beneficiary_account'''': send one account or the candidate list, not both.'
+                      - detail: The beneficiary account and the candidate accounts cannot be sent together.
                 account_invalid_checksum:
                   value:
                     errors:
-                      - detail: 'The CLABE is not valid: check the digits.'
+                      - detail: 'The CLABE is not valid: its check digit does not match.'
                 account_invalid_format:
                   value:
                     errors:
-                      - detail: The beneficiary account can only contain digits.
+                      - detail: The beneficiary account must contain digits only.
                 account_invalid_length:
                   value:
                     errors:
-                      - detail: The account must have 10 digits (phone), 16 (card) or 18 (CLABE).
+                      - detail: The account has 17 digits and must have 10, 16 or 18.
                 account_invalid_luhn:
                   value:
                     errors:
-                      - detail: 'The card number is not valid: check the digits.'
+                      - detail: 'The card number is not valid: its check digit does not match.'
                 account_required:
                   value:
                     errors:
-                      - detail: The beneficiary account is required.
+                      - detail: The beneficiary account is missing.
                 account_unknown_bin:
                   value:
                     errors:
-                      - detail: The bank for that card is not recognized.
+                      - detail: We do not recognize the bank of this card.
                 account_unknown_prefix:
                   value:
                     errors:
-                      - detail: The CLABE doesn't match any registered bank.
+                      - detail: The first three digits of the CLABE (999) do not match any bank.
                 amount_invalid:
                   value:
                     errors:
-                      - detail: The amount must be a number greater than zero.
+                      - detail: 'The amount must be a number greater than zero: -5.'
                 amount_invalid_precision:
                   value:
                     errors:
-                      - detail: The field 'amount' must have at most two decimal places.
+                      - detail: 'The amount cannot have more than 2 decimal places: 10.505.'
                 amount_required:
                   value:
                     errors:
@@ -697,75 +710,75 @@ paths:
                 candidate_accounts_invalid:
                   value:
                     errors:
-                      - detail: The account at position 1 is repeated.
+                      - detail: This candidate account is repeated.
                 bank_code_unresolvable_for_phone:
                   value:
                     errors:
-                      - detail: Could not determine the bank for this phone number. Provide the receiver bank.
+                      - detail: The bank for this phone number could not be determined.
                 card_receiver_mismatch:
                   value:
                     errors:
-                      - detail: The card does not belong to the selected receiving bank. Correct the receiving bank or the card number.
+                      - detail: The card belongs to BBVA MEXICO (40012), not to BANORTE (40072).
                 clabe_receiver_mismatch:
                   value:
                     errors:
-                      - detail: The CLABE does not belong to the selected receiving bank. Correct the receiving bank or the beneficiary account.
+                      - detail: The CLABE belongs to BBVA MEXICO (40012), not to BANORTE (40072).
                 tracking_key_invalid_format:
                   value:
                     errors:
-                      - detail: The field 'tracking_key' contains characters that Banxico does not accept.
+                      - detail: The tracking key has characters that Banxico does not accept.
                 tracking_key_looks_like_reference:
                   value:
                     errors:
-                      - detail: The field 'tracking_key' looks like a numeric_reference (digits only, 7 or fewer). Send it as 'numeric_reference' instead.
+                      - detail: The tracking key looks like a numeric reference.
                 tracking_key_too_long:
                   value:
                     errors:
-                      - detail: The field 'tracking_key' must be at most 30 characters.
+                      - detail: The tracking key has 31 characters and the maximum is 30.
                 send_date_before_cep_era:
                   value:
                     errors:
-                      - detail: 'The field ''send_date'' cannot be earlier than 2012: Banxico has no CEP before that year.'
+                      - detail: The payment date (2011-12-31) is earlier than 2012; Banxico has no CEPs from those years.
                 preflight_failed:
                   value:
                     errors:
-                      - detail: Some of the data is not valid. Check the fields indicated.
+                      - detail: Some data needs fixing.
                 pdf_unsupported_image:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' contains an image we cannot process. Send the receipt as a JPEG or PNG image.
+                      - detail: We can't read the PDF in ''image''. Send it as JPEG or PNG.
                 pdf_too_many_pages:
                   value:
                     errors:
-                      - detail: Field ''image'' must have between 1 and 3 pages.
+                      - detail: The PDF in 'image' has too many pages. Send only the receipt.
                 pdf_text_layer_too_large:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' contains more text than a receipt allows. Send the original receipt from the bank.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
                 pdf_modified_after_issue:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' cannot be accepted as an original receipt. Send the receipt exactly as downloaded from the bank, without opening or saving it in another program.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
                 pdf_invalid_structure:
                   value:
                     errors:
-                      - detail: The file in ''image'' is not a valid PDF or is damaged. Download the receipt from the bank again and resend it.
+                      - detail: The PDF in ''image'' is damaged. Download it again from the bank.
                 pdf_hidden_content:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' cannot be accepted as an original receipt. Send the receipt exactly as downloaded from the bank, without opening or saving it in another program.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
                 pdf_encrypted:
                   value:
                     errors:
-                      - detail: The field ''image'' is an encrypted PDF; password-protected or encrypted files are not accepted.
+                      - detail: The PDF in ''image'' has a password. Send a copy without one.
                 pdf_active_content:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' cannot be accepted as an original receipt. Send the receipt exactly as downloaded from the bank, without opening or saving it in another program.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
                 invalid_client_ref:
                   value:
                     errors:
-                      - detail: The field ''client_ref'' must be text of 1 to 64 characters, without line breaks or emoji.
+                      - detail: The reference must be 1 to 64 characters.
                 invalid_bank_code:
                   value:
                     errors:
@@ -773,43 +786,43 @@ paths:
                 intra_bank_no_cep:
                   value:
                     errors:
-                      - detail: Transfers within the same bank do not generate a CEP.
+                      - detail: Both accounts are at the same bank, and no CEP is issued in that case.
                 image_too_small:
                   value:
                     errors:
-                      - detail: Field ''image'' is too small to be a valid PDF.
+                      - detail: '''image'' is too small to be an image.'
                 image_too_large:
                   value:
                     errors:
-                      - detail: The field ''image'' exceeds the maximum size of 12MB.
+                      - detail: '''''image'''' exceeds 12 MB.'
                 image_strip_failed:
                   value:
                     errors:
-                      - detail: Processing the field ''image'' failed while removing metadata.
+                      - detail: We couldn't process the image in ''image''. Try again.
                 image_polyglot_detected:
                   value:
                     errors:
-                      - detail: We could not accept the file in ''image''. Send a new screenshot or the original receipt from the bank as JPEG, PNG or WebP, without modifying it.
+                      - detail: We can't accept the file in ''image''. Send the bank's original receipt.
                 image_mime_mismatch:
                   value:
                     errors:
-                      - detail: The field ''image'' has an unrecognized or inconsistent format.
+                      - detail: We don't recognize the format of ''image''. Send JPEG, PNG, WebP or PDF.
                 image_invalid_format:
                   value:
                     errors:
-                      - detail: Field ''image'' does not contain valid base64.
+                      - detail: The receipt must be a JPEG, PNG, WebP, or PDF file.
                 image_invalid:
                   value:
                     errors:
-                      - detail: The image is invalid or its format is not allowed.
+                      - detail: The image is not valid. Send JPEG, PNG, WebP or PDF.
                 image_dimensions_too_large:
                   value:
                     errors:
-                      - detail: The field ''image'' exceeds the maximum dimensions (12000px per side).
+                      - detail: '''''image'''' exceeds 12000 px per side.'
                 image_decompression_bomb:
                   value:
                     errors:
-                      - detail: The field ''image'' exceeds the total pixel limit.
+                      - detail: We can't process the image in ''image''. Send a new screenshot.
                 receiver_bank_unresolvable:
                   value:
                     errors:
@@ -817,27 +830,27 @@ paths:
                 numeric_reference_invalid_format:
                   value:
                     errors:
-                      - detail: The field 'numeric_reference' must contain digits only.
+                      - detail: The numeric reference must contain digits only.
                 numeric_reference_too_long:
                   value:
                     errors:
-                      - detail: The field 'numeric_reference' must be at most 7 digits.
+                      - detail: The numeric reference cannot be longer than 7 digits.
                 retry_policy_invalid:
                   value:
                     errors:
-                      - detail: retry_policy.max_retries cannot exceed 5.
+                      - detail: The retry policy is not valid.
                 retry_pending_cap_exceeded:
                   value:
                     errors:
-                      - detail: You have reached the pending retry limit. Cancel a validation with a pending retry or wait for them to resolve.
+                      - detail: You reached the limit of validations with pending retries.
                 send_date_future:
                   value:
                     errors:
-                      - detail: 'The date can''t be in the future: use the day the payment was made.'
+                      - detail: 'The payment date cannot be in the future: 2030-01-15.'
                 send_date_invalid:
                   value:
                     errors:
-                      - detail: The date is not valid. Use the YYYY-MM-DD format.
+                      - detail: 'The payment date is not valid: 2026-13-01.'
                 send_date_required:
                   value:
                     errors:
@@ -849,23 +862,23 @@ paths:
                 tracking_key_date_mismatch:
                   value:
                     errors:
-                      - detail: The tracking key embeds a date that does not match the submitted date. Check which of the two is correct.
+                      - detail: The date in the tracking key (2026-03-10) does not match the payment date (2026-03-11).
                 tracking_key_invalid_length:
                   value:
                     errors:
-                      - detail: The tracking key does not have the length this bank always issues. Check that it is complete, with no missing or extra characters.
+                      - detail: BBVA MEXICO tracking keys have 30 characters; this one has 28 and is incomplete.
                 tracking_key_or_reference_required:
                   value:
                     errors:
-                      - detail: Either tracking_key or numeric_reference is required.
+                      - detail: The tracking key or the numeric reference is missing.
                 tracking_required:
                   value:
                     errors:
-                      - detail: Either tracking_key or numeric_reference is required.
+                      - detail: The tracking key or the numeric reference is missing.
                 validation_error:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -880,7 +893,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_and_candidates_mutually_exclusive
-                        detail: 'El campo ''''candidate_accounts'''' no se puede enviar junto con ''''beneficiary_account'''': envía una cuenta o la lista de candidatas, no las dos.'
+                        detail: No se pueden enviar juntas la cuenta beneficiaria y las cuentas candidatas.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -894,7 +907,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_invalid_checksum
-                        detail: 'La CLABE no es válida: revisa los dígitos.'
+                        detail: 'La CLABE no es válida: su dígito de control no coincide.'
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -910,7 +923,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_invalid_format
-                        detail: La cuenta beneficiaria sólo puede tener dígitos.
+                        detail: La cuenta beneficiaria debe tener solo dígitos.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -926,7 +939,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_invalid_length
-                        detail: La cuenta debe tener 10 dígitos (celular), 16 (tarjeta) o 18 (CLABE).
+                        detail: La cuenta tiene 17 dígitos y debe tener 10, 16 o 18.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -942,7 +955,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_invalid_luhn
-                        detail: 'El número de tarjeta no es válido: revisa los dígitos.'
+                        detail: 'El número de tarjeta no es válido: su dígito de control no coincide.'
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -958,7 +971,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_required
-                        detail: La cuenta beneficiaria es obligatoria.
+                        detail: Falta la cuenta beneficiaria.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -974,7 +987,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_unknown_bin
-                        detail: No se reconoce el banco de esa tarjeta.
+                        detail: No reconocemos el banco de esta tarjeta.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -990,7 +1003,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_unknown_prefix
-                        detail: La CLABE no corresponde a ningún banco registrado.
+                        detail: Los tres primeros dígitos de la CLABE (999) no corresponden a ningún banco.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -1006,7 +1019,7 @@ paths:
                     errors:
                       - status: '422'
                         code: amount_invalid
-                        detail: El monto debe ser un número mayor a cero.
+                        detail: 'El monto debe ser un número mayor a cero: -5.'
                         source:
                           pointer: /data/attributes/amount
                     meta:
@@ -1022,7 +1035,7 @@ paths:
                     errors:
                       - status: '422'
                         code: amount_invalid_precision
-                        detail: El campo 'amount' no puede tener más de dos decimales.
+                        detail: 'El monto no puede tener más de 2 decimales: 10.505.'
                         source:
                           pointer: /data/attributes/amount
                     meta:
@@ -1054,7 +1067,7 @@ paths:
                     errors:
                       - status: '422'
                         code: candidate_accounts_invalid
-                        detail: La cuenta de la posición 1 está repetida.
+                        detail: Esta cuenta candidata está repetida.
                         source:
                           pointer: /data/attributes/candidate_accounts/1
                     meta:
@@ -1070,7 +1083,7 @@ paths:
                     errors:
                       - status: '422'
                         code: bank_code_unresolvable_for_phone
-                        detail: No se pudo determinar el banco para este número de celular. Especifica el banco receptor.
+                        detail: No se pudo determinar el banco de este celular.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1084,7 +1097,7 @@ paths:
                     errors:
                       - status: '422'
                         code: card_receiver_mismatch
-                        detail: La tarjeta no corresponde al banco receptor elegido. Corrige el banco receptor o el número de tarjeta.
+                        detail: La tarjeta es de BBVA MEXICO (40012), no de BANORTE (40072).
                         source:
                           pointer: /data/attributes/receiver_bank
                     meta:
@@ -1100,7 +1113,7 @@ paths:
                     errors:
                       - status: '422'
                         code: clabe_receiver_mismatch
-                        detail: La CLABE no corresponde al banco receptor elegido. Corrige el banco receptor o la cuenta beneficiaria.
+                        detail: La CLABE es de BBVA MEXICO (40012), no de BANORTE (40072).
                         source:
                           pointer: /data/attributes/receiver_bank
                     meta:
@@ -1116,7 +1129,7 @@ paths:
                     errors:
                       - status: '422'
                         code: tracking_key_invalid_format
-                        detail: El campo 'tracking_key' contiene caracteres que Banxico no acepta.
+                        detail: La clave de rastreo tiene caracteres que Banxico no acepta.
                         source:
                           pointer: /data/attributes/tracking_key
                     meta:
@@ -1132,7 +1145,7 @@ paths:
                     errors:
                       - status: '422'
                         code: tracking_key_looks_like_reference
-                        detail: El campo 'tracking_key' parece una referencia numérica (sólo dígitos, 7 o menos). Envíalo en 'numeric_reference'.
+                        detail: La clave de rastreo parece una referencia numérica.
                         source:
                           pointer: /data/attributes/tracking_key
                     meta:
@@ -1148,7 +1161,7 @@ paths:
                     errors:
                       - status: '422'
                         code: tracking_key_too_long
-                        detail: El campo 'tracking_key' no puede exceder 30 caracteres.
+                        detail: La clave de rastreo tiene 31 caracteres y el máximo es 30.
                         source:
                           pointer: /data/attributes/tracking_key
                     meta:
@@ -1164,7 +1177,7 @@ paths:
                     errors:
                       - status: '422'
                         code: send_date_before_cep_era
-                        detail: 'El campo ''send_date'' no puede ser anterior a 2012: Banxico no tiene CEP previos a ese año.'
+                        detail: La fecha del pago (2011-12-31) es anterior a 2012; Banxico no tiene CEP de esos años.
                         source:
                           pointer: /data/attributes/send_date
                     meta:
@@ -1180,7 +1193,7 @@ paths:
                     errors:
                       - status: '422'
                         code: preflight_failed
-                        detail: Hay datos que no son válidos. Revisa los campos indicados.
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1194,7 +1207,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_unsupported_image
-                        detail: El PDF de ''image'' contiene una imagen que no podemos procesar. Envía el comprobante como imagen JPEG o PNG.
+                        detail: No podemos leer el PDF de ''image''. Envíalo como JPEG o PNG.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1210,7 +1223,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_too_many_pages
-                        detail: El campo ''image'' debe tener entre 1 y 3 páginas.
+                        detail: El PDF de 'image' tiene demasiadas páginas. Envía solo el comprobante.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1226,7 +1239,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_text_layer_too_large
-                        detail: El PDF de ''image'' contiene más texto del que admite un comprobante. Envía el comprobante original del banco.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1242,7 +1255,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_modified_after_issue
-                        detail: El PDF de ''image'' no se puede aceptar como comprobante original. Envía el comprobante tal como lo descargaste del banco, sin abrirlo ni guardarlo con otro programa.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1258,7 +1271,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_invalid_structure
-                        detail: El archivo de ''image'' no es un PDF válido o está dañado. Descarga de nuevo el comprobante del banco y vuelve a enviarlo.
+                        detail: El PDF de ''image'' está dañado. Descárgalo de nuevo del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1274,7 +1287,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_hidden_content
-                        detail: El PDF de ''image'' no se puede aceptar como comprobante original. Envía el comprobante tal como lo descargaste del banco, sin abrirlo ni guardarlo con otro programa.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1290,7 +1303,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_encrypted
-                        detail: El campo ''image'' es un PDF cifrado; no se aceptan archivos con contraseña o cifrado.
+                        detail: El PDF de ''image'' tiene contraseña. Envía una copia sin contraseña.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1306,7 +1319,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_active_content
-                        detail: El PDF de ''image'' no se puede aceptar como comprobante original. Envía el comprobante tal como lo descargaste del banco, sin abrirlo ni guardarlo con otro programa.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1322,7 +1335,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_client_ref
-                        detail: El campo ''client_ref'' debe ser un texto de 1 a 64 caracteres, sin saltos de línea ni emoji.
+                        detail: La referencia debe tener de 1 a 64 caracteres.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1352,7 +1365,7 @@ paths:
                     errors:
                       - status: '422'
                         code: intra_bank_no_cep
-                        detail: Las transferencias dentro del mismo banco no generan CEP.
+                        detail: Las dos cuentas son del mismo banco, y en ese caso no se emite CEP.
                         source:
                           pointer: /data/attributes/receiver_bank
                     meta:
@@ -1368,7 +1381,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_too_small
-                        detail: El campo ''image'' es demasiado pequeño para ser un PDF válido.
+                        detail: '''image'' es demasiado pequeño para ser una imagen.'
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1384,7 +1397,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_too_large
-                        detail: El campo ''image'' excede el tamaño máximo de 12MB.
+                        detail: '''''image'''' supera los 12 MB.'
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1400,7 +1413,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_strip_failed
-                        detail: El procesamiento del campo ''image'' falló durante la limpieza de metadatos.
+                        detail: No pudimos procesar la imagen de ''image''. Vuelve a intentarlo.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1416,7 +1429,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_polyglot_detected
-                        detail: No pudimos aceptar el archivo de ''image''. Envía una captura nueva o el comprobante original del banco en JPEG, PNG o WebP, sin modificarlo.
+                        detail: No podemos aceptar el archivo de ''image''. Envía el comprobante original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1432,7 +1445,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_mime_mismatch
-                        detail: El campo ''image'' tiene un formato no reconocido o inconsistente.
+                        detail: No reconocemos el formato de ''image''. Envía JPEG, PNG, WebP o PDF.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1448,7 +1461,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_invalid_format
-                        detail: El campo ''image'' no contiene base64 válido.
+                        detail: El comprobante debe ser un archivo JPEG, PNG, WebP o PDF.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1464,7 +1477,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_invalid
-                        detail: La imagen no es válida o su formato no está permitido.
+                        detail: La imagen no es válida. Envía JPEG, PNG, WebP o PDF.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1478,7 +1491,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_dimensions_too_large
-                        detail: El campo ''image'' excede las dimensiones máximas (12000px por lado).
+                        detail: '''''image'''' supera los 12000 px por lado.'
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1494,7 +1507,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_decompression_bomb
-                        detail: El campo ''image'' excede el límite total de píxeles.
+                        detail: No podemos procesar la imagen de ''image''. Envía una captura nueva.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -1526,7 +1539,7 @@ paths:
                     errors:
                       - status: '422'
                         code: numeric_reference_invalid_format
-                        detail: El campo 'numeric_reference' debe contener solo dígitos.
+                        detail: La referencia numérica debe tener solo dígitos.
                         source:
                           pointer: /data/attributes/numeric_reference
                     meta:
@@ -1542,7 +1555,7 @@ paths:
                     errors:
                       - status: '422'
                         code: numeric_reference_too_long
-                        detail: El campo 'numeric_reference' no puede exceder 7 dígitos.
+                        detail: La referencia numérica no puede tener más de 7 dígitos.
                         source:
                           pointer: /data/attributes/numeric_reference
                     meta:
@@ -1558,7 +1571,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_policy_invalid
-                        detail: '`retry_policy.max_retries` no puede pasar de 5.'
+                        detail: La política de reintentos no es válida.
                         source:
                           pointer: /data/attributes/retry_policy/max_retries
                     meta:
@@ -1574,7 +1587,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_pending_cap_exceeded
-                        detail: Has alcanzado el límite de reintentos pendientes. Cancela alguna validación con retry pendiente o espera a que resuelvan.
+                        detail: Alcanzaste el máximo de validaciones con reintentos pendientes.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1588,7 +1601,7 @@ paths:
                     errors:
                       - status: '422'
                         code: send_date_future
-                        detail: 'La fecha no puede ser futura: usa el día en que se hizo el pago.'
+                        detail: 'La fecha del pago no puede ser futura: 2030-01-15.'
                         source:
                           pointer: /data/attributes/send_date
                     meta:
@@ -1604,7 +1617,7 @@ paths:
                     errors:
                       - status: '422'
                         code: send_date_invalid
-                        detail: La fecha no es válida. Usa el formato AAAA-MM-DD.
+                        detail: 'La fecha del pago no es válida: 2026-13-01.'
                         source:
                           pointer: /data/attributes/send_date
                     meta:
@@ -1652,7 +1665,7 @@ paths:
                     errors:
                       - status: '422'
                         code: tracking_key_date_mismatch
-                        detail: La clave de rastreo lleva incrustada una fecha que no corresponde con la fecha enviada. Revisa cuál de las dos es la correcta.
+                        detail: La fecha de la clave de rastreo (2026-03-10) no coincide con la del pago (2026-03-11).
                         source:
                           pointer: /data/attributes/send_date
                     meta:
@@ -1668,7 +1681,7 @@ paths:
                     errors:
                       - status: '422'
                         code: tracking_key_invalid_length
-                        detail: La clave de rastreo no tiene la longitud que ese banco emite siempre. Revisa que esté completa, sin caracteres de menos ni de más.
+                        detail: 'Las claves de BBVA MEXICO tienen 30 caracteres y esta tiene 28: está incompleta.'
                         source:
                           pointer: /data/attributes/tracking_key
                     meta:
@@ -1684,7 +1697,7 @@ paths:
                     errors:
                       - status: '422'
                         code: tracking_key_or_reference_required
-                        detail: Se requiere tracking_key o numeric_reference.
+                        detail: Falta la clave de rastreo o la referencia numérica.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1698,7 +1711,7 @@ paths:
                     errors:
                       - status: '422'
                         code: tracking_required
-                        detail: Se requiere tracking_key o numeric_reference.
+                        detail: Falta la clave de rastreo o la referencia numérica.
                         source:
                           pointer: /data/attributes/tracking_key
                     meta:
@@ -1714,7 +1727,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: Los datos de la solicitud no son válidos.
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1728,12 +1741,12 @@ paths:
                 quota_exceeded:
                   value:
                     errors:
-                      - detail: You've used your plan's validations. They renew next period, or you can change plans.
+                      - detail: You used all 500 validations in your plan for this period.
                 rate_limit_exceeded:
                   value:
                     errors:
-                      - detail: Rate limit exceeded. Try again in 45 seconds.
-                        hint: Wait `meta.retry_after` seconds before retrying.
+                      - detail: You exceeded the request limit.
+                        hint: Wait a few seconds and try again.
                         docs_url: https://docs.veriko.mx/en/concepts/rate-limits
           headers:
             Retry-After:
@@ -1792,7 +1805,7 @@ paths:
                     errors:
                       - status: '429'
                         code: quota_exceeded
-                        detail: Ya usaste las validaciones de tu plan. Se renuevan en tu siguiente periodo, o puedes cambiar de plan.
+                        detail: Usaste las 500 validaciones de tu plan en este periodo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -1806,8 +1819,8 @@ paths:
                     errors:
                       - status: '429'
                         code: rate_limit_exceeded
-                        detail: Límite de peticiones excedido. Inténtalo de nuevo en 45 segundos.
-                        hint: Espera los segundos de `meta.retry_after` antes de reintentar.
+                        detail: Superaste el límite de peticiones.
+                        hint: Espera unos segundos y vuelve a intentarlo.
                         docs_url: https://docs.veriko.mx/es/concepts/rate-limits
                     meta:
                       version: 1.51.0
@@ -1820,7 +1833,7 @@ paths:
               description: Banxico was unavailable (`banxico_rate_limit_exhausted`) or the asynchronous validation could not be started (`dispatch_failed`). The request can be repeated after a few minutes.
               example:
                 errors:
-                  - detail: Could not queue your request. Please try again.
+                  - detail: We could not start the request.
           content:
             application/json:
               schema:
@@ -1829,7 +1842,7 @@ paths:
                 errors:
                   - status: '503'
                     code: dispatch_failed
-                    detail: No se pudo poner la solicitud en cola. Intenta de nuevo.
+                    detail: No pudimos iniciar la solicitud.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -2006,6 +2019,14 @@ paths:
               x-translations:
                 en:
                   description: Validations remaining in the current cycle.
+            X-Quota-Included:
+              schema:
+                type: integer
+                example: 650
+              description: Validaciones incluidas en el plan para el ciclo vigente. Con el excedente activo es menor que `X-Quota-Limit` (el tope); sin excedente, igual. También va en el cuerpo, en `meta.quota`.
+              x-translations:
+                en:
+                  description: Validations included in the plan for the current cycle. With overage enabled it is lower than `X-Quota-Limit` (the cap); without overage, equal. Also in the body, under `meta.quota`.
             X-Quota-Reset:
               schema:
                 type: string
@@ -2024,6 +2045,11 @@ paths:
                     properties:
                       data:
                         $ref: '#/components/schemas/Validation'
+                      meta:
+                        type: object
+                        properties:
+                          quota:
+                            $ref: '#/components/schemas/QuotaSnapshot'
               examples:
                 ocr_valid:
                   summary: OCR exitoso — transferencia confirmada
@@ -2078,11 +2104,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: Request body is empty.
+                      - detail: The request has no body.
                 invalid_idempotency_key:
                   value:
                     errors:
-                      - detail: 'Invalid Idempotency-Key format. Allowed: A-Z a-z 0-9 _ - (1-255 chars).'
+                      - detail: The idempotency key format is not valid.
                 url_ssrf_blocked:
                   value:
                     errors:
@@ -2094,7 +2120,7 @@ paths:
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -2109,7 +2135,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2123,7 +2149,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_idempotency_key
-                        detail: Formato de Idempotency-Key inválido. Se admiten A-Z a-z 0-9 _ - (de 1 a 255 caracteres).
+                        detail: La clave de idempotencia no tiene un formato válido.
                     meta:
                       version: 1.51.0
                       request_id: 3c4d5e6f7a8bb8a7f6e5d4c3
@@ -2164,7 +2190,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2184,31 +2210,31 @@ paths:
                 candidate_accounts_invalid:
                   value:
                     errors:
-                      - detail: The account at position 1 is repeated.
+                      - detail: This candidate account is repeated.
                 bank_code_unresolvable_for_phone:
                   value:
                     errors:
-                      - detail: Could not determine the bank for this phone number. Provide the receiver bank.
+                      - detail: The bank for this phone number could not be determined.
                 account_and_candidates_mutually_exclusive:
                   value:
                     errors:
-                      - detail: 'The field ''''candidate_accounts'''' cannot be sent together with ''''beneficiary_account'''': send one account or the candidate list, not both.'
+                      - detail: The beneficiary account and the candidate accounts cannot be sent together.
                 account_ambiguous:
                   value:
                     errors:
-                      - detail: The receipt account matches too many candidates. Send an explicit `beneficiary_account`.
+                      - detail: The visible digits of the account match too many accounts.
                 account_ambiguous_in_whitelist:
                   value:
                     errors:
-                      - detail: You have several beneficiaries with matching trailing digits, so the account cannot be resolved on its own. Send an explicit `beneficiary_account`.
+                      - detail: Several saved beneficiaries end the same way, so we cannot tell which one got the payment.
                 account_unresolvable:
                   value:
                     errors:
-                      - detail: The beneficiary account could not be resolved from the image. Send an explicit `beneficiary_account` in the request.
+                      - detail: We could not identify the account that received the payment from the image.
                 invalid_client_ref:
                   value:
                     errors:
-                      - detail: The field ''client_ref'' must be text of 1 to 64 characters, without line breaks or emoji.
+                      - detail: The reference must be 1 to 64 characters.
                 invalid_bank_code:
                   value:
                     errors:
@@ -2216,71 +2242,71 @@ paths:
                 invalid_retain_image:
                   value:
                     errors:
-                      - detail: 'The field ''''retain_image'''' must be a boolean: true or false.'
+                      - detail: '''retain_image'' must be true or false.'
                 image_too_small:
                   value:
                     errors:
-                      - detail: Field ''image'' is too small to be a valid PDF.
+                      - detail: '''image'' is too small to be an image.'
                 image_too_large:
                   value:
                     errors:
-                      - detail: The field ''image'' exceeds the maximum size of 12MB.
+                      - detail: '''''image'''' exceeds 12 MB.'
                 image_strip_failed:
                   value:
                     errors:
-                      - detail: Processing the field ''image'' failed while removing metadata.
+                      - detail: We couldn't process the image in ''image''. Try again.
                 image_polyglot_detected:
                   value:
                     errors:
-                      - detail: We could not accept the file in ''image''. Send a new screenshot or the original receipt from the bank as JPEG, PNG or WebP, without modifying it.
+                      - detail: We can't accept the file in ''image''. Send the bank's original receipt.
                 image_or_image_url_required:
                   value:
                     errors:
-                      - detail: Either image (base64) or image_url is required.
+                      - detail: Send 'image' (base64) or 'image_url'.
                 image_not_spei_receipt:
                   value:
                     errors:
-                      - detail: Image is not a SPEI transfer receipt. Only SPEI transfers can be validated.
+                      - detail: The image is not a SPEI receipt. We only validate SPEI.
                 image_not_readable_receipt:
                   value:
                     errors:
-                      - detail: Image is not a readable transfer receipt.
+                      - detail: The image is not a readable receipt.
                 image_not_readable:
                   value:
                     errors:
-                      - detail: We could not read the image. Check that it is not corrupted and upload it again.
+                      - detail: We couldn't read the image. Upload it again.
                 image_mime_mismatch:
                   value:
                     errors:
-                      - detail: The field ''image'' has an unrecognized or inconsistent format.
+                      - detail: We don't recognize the format of ''image''. Send JPEG, PNG, WebP or PDF.
                 image_invalid_format:
                   value:
                     errors:
-                      - detail: Field ''image'' does not contain valid base64.
+                      - detail: The receipt must be a JPEG, PNG, WebP, or PDF file.
                 image_invalid:
                   value:
                     errors:
-                      - detail: The image is invalid or its format is not allowed.
+                      - detail: The image is not valid. Send JPEG, PNG, WebP or PDF.
                 image_dimensions_too_large:
                   value:
                     errors:
-                      - detail: The field ''image'' exceeds the maximum dimensions (12000px per side).
+                      - detail: '''''image'''' exceeds 12000 px per side.'
                 image_decompression_bomb:
                   value:
                     errors:
-                      - detail: The field ''image'' exceeds the total pixel limit.
+                      - detail: We can't process the image in ''image''. Send a new screenshot.
                 masked_account_no_suffix:
                   value:
                     errors:
-                      - detail: The receipt shows a masked account with no readable trailing digits. Send an explicit `beneficiary_account`.
+                      - detail: The receipt hides the account and does not show its last digits.
                 masked_account_unresolvable:
                   value:
                     errors:
-                      - detail: The receipt shows a masked account and it could not be matched against any of your beneficiaries. Send an explicit `beneficiary_account`.
+                      - detail: The receipt hides the account and we could not identify it.
                 validation_error:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: Some data needs fixing.
                 sender_bank_unresolvable:
                   value:
                     errors:
@@ -2288,11 +2314,11 @@ paths:
                 retry_policy_invalid:
                   value:
                     errors:
-                      - detail: retry_policy.max_retries cannot exceed 5.
+                      - detail: The retry policy is not valid.
                 retry_pending_cap_exceeded:
                   value:
                     errors:
-                      - detail: You have reached the pending retry limit. Cancel a validation with a pending retry or wait for them to resolve.
+                      - detail: You reached the limit of validations with pending retries.
                 receiver_bank_unresolvable:
                   value:
                     errors:
@@ -2300,39 +2326,39 @@ paths:
                 pdf_unsupported_image:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' contains an image we cannot process. Send the receipt as a JPEG or PNG image.
+                      - detail: We can't read the PDF in ''image''. Send it as JPEG or PNG.
                 pdf_too_many_pages:
                   value:
                     errors:
-                      - detail: Field ''image'' must have between 1 and 3 pages.
+                      - detail: The PDF in 'image' has too many pages. Send only the receipt.
                 pdf_text_layer_too_large:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' contains more text than a receipt allows. Send the original receipt from the bank.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
                 pdf_multiple_receipts:
                   value:
                     errors:
-                      - detail: The document contains more than one receipt.
+                      - detail: The document has more than one receipt. Send each one separately.
                 pdf_modified_after_issue:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' cannot be accepted as an original receipt. Send the receipt exactly as downloaded from the bank, without opening or saving it in another program.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
                 pdf_invalid_structure:
                   value:
                     errors:
-                      - detail: The file in ''image'' is not a valid PDF or is damaged. Download the receipt from the bank again and resend it.
+                      - detail: The PDF in ''image'' is damaged. Download it again from the bank.
                 pdf_hidden_content:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' cannot be accepted as an original receipt. Send the receipt exactly as downloaded from the bank, without opening or saving it in another program.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
                 pdf_encrypted:
                   value:
                     errors:
-                      - detail: The field ''image'' is an encrypted PDF; password-protected or encrypted files are not accepted.
+                      - detail: The PDF in ''image'' has a password. Send a copy without one.
                 pdf_active_content:
                   value:
                     errors:
-                      - detail: The PDF in ''image'' cannot be accepted as an original receipt. Send the receipt exactly as downloaded from the bank, without opening or saving it in another program.
+                      - detail: We can't accept the PDF in ''image''. Send the bank's original.
           content:
             application/json:
               schema:
@@ -2347,7 +2373,7 @@ paths:
                     errors:
                       - status: '422'
                         code: candidate_accounts_invalid
-                        detail: La cuenta de la posición 1 está repetida.
+                        detail: Esta cuenta candidata está repetida.
                         source:
                           pointer: /data/attributes/candidate_accounts/1
                     meta:
@@ -2363,7 +2389,7 @@ paths:
                     errors:
                       - status: '422'
                         code: bank_code_unresolvable_for_phone
-                        detail: No se pudo determinar el banco para este número de celular. Especifica el banco receptor.
+                        detail: No se pudo determinar el banco de este celular.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2377,7 +2403,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_and_candidates_mutually_exclusive
-                        detail: 'El campo ''''candidate_accounts'''' no se puede enviar junto con ''''beneficiary_account'''': envía una cuenta o la lista de candidatas, no las dos.'
+                        detail: No se pueden enviar juntas la cuenta beneficiaria y las cuentas candidatas.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2391,7 +2417,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_ambiguous
-                        detail: La cuenta del comprobante coincide con demasiados candidatos. Envía `beneficiary_account` explícita.
+                        detail: Los dígitos visibles de la cuenta coinciden con demasiadas cuentas.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -2407,7 +2433,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_ambiguous_in_whitelist
-                        detail: Tienes varios beneficiarios con dígitos finales coincidentes, así que la cuenta no se puede resolver sola. Envía `beneficiary_account` explícita.
+                        detail: Varios beneficiarios guardados terminan igual y no sabemos cuál recibió el pago.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -2423,7 +2449,7 @@ paths:
                     errors:
                       - status: '422'
                         code: account_unresolvable
-                        detail: No se pudo resolver la cuenta beneficiaria desde la imagen. Envía `beneficiary_account` explícita en el request.
+                        detail: No pudimos identificar en la imagen la cuenta que recibió el pago.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -2439,7 +2465,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_client_ref
-                        detail: El campo ''client_ref'' debe ser un texto de 1 a 64 caracteres, sin saltos de línea ni emoji.
+                        detail: La referencia debe tener de 1 a 64 caracteres.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2469,7 +2495,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_retain_image
-                        detail: 'El campo ''''retain_image'''' debe ser un booleano: true o false.'
+                        detail: '''retain_image'' debe ser true o false.'
                     meta:
                       version: 1.221.1
                       api_version: v1
@@ -2483,7 +2509,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_too_small
-                        detail: El campo ''image'' es demasiado pequeño para ser un PDF válido.
+                        detail: '''image'' es demasiado pequeño para ser una imagen.'
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2499,7 +2525,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_too_large
-                        detail: El campo ''image'' excede el tamaño máximo de 12MB.
+                        detail: '''''image'''' supera los 12 MB.'
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2515,7 +2541,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_strip_failed
-                        detail: El procesamiento del campo ''image'' falló durante la limpieza de metadatos.
+                        detail: No pudimos procesar la imagen de ''image''. Vuelve a intentarlo.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2531,7 +2557,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_polyglot_detected
-                        detail: No pudimos aceptar el archivo de ''image''. Envía una captura nueva o el comprobante original del banco en JPEG, PNG o WebP, sin modificarlo.
+                        detail: No podemos aceptar el archivo de ''image''. Envía el comprobante original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2547,7 +2573,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_or_image_url_required
-                        detail: Se requiere image (base64) o image_url.
+                        detail: Envía 'image' (base64) o 'image_url'.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2561,7 +2587,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_not_spei_receipt
-                        detail: La imagen no es un comprobante SPEI. Solo se pueden validar transferencias SPEI.
+                        detail: La imagen no es un comprobante SPEI. Solo validamos SPEI.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2575,7 +2601,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_not_readable_receipt
-                        detail: La imagen no es un comprobante de transferencia legible.
+                        detail: La imagen no es un comprobante legible.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2589,7 +2615,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_not_readable
-                        detail: No pudimos leer la imagen. Comprueba que no esté dañada y vuelve a subirla.
+                        detail: No pudimos leer la imagen. Súbela de nuevo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2603,7 +2629,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_mime_mismatch
-                        detail: El campo ''image'' tiene un formato no reconocido o inconsistente.
+                        detail: No reconocemos el formato de ''image''. Envía JPEG, PNG, WebP o PDF.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2619,7 +2645,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_invalid_format
-                        detail: El campo ''image'' no contiene base64 válido.
+                        detail: El comprobante debe ser un archivo JPEG, PNG, WebP o PDF.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2635,7 +2661,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_invalid
-                        detail: La imagen no es válida o su formato no está permitido.
+                        detail: La imagen no es válida. Envía JPEG, PNG, WebP o PDF.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2649,7 +2675,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_dimensions_too_large
-                        detail: El campo ''image'' excede las dimensiones máximas (12000px por lado).
+                        detail: '''''image'''' supera los 12000 px por lado.'
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2665,7 +2691,7 @@ paths:
                     errors:
                       - status: '422'
                         code: image_decompression_bomb
-                        detail: El campo ''image'' excede el límite total de píxeles.
+                        detail: No podemos procesar la imagen de ''image''. Envía una captura nueva.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2681,7 +2707,7 @@ paths:
                     errors:
                       - status: '422'
                         code: masked_account_no_suffix
-                        detail: El comprobante muestra la cuenta enmascarada y no tiene dígitos finales legibles. Envía `beneficiary_account` explícita.
+                        detail: El comprobante oculta la cuenta y no deja ver sus últimos dígitos.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -2697,7 +2723,7 @@ paths:
                     errors:
                       - status: '422'
                         code: masked_account_unresolvable
-                        detail: El comprobante muestra la cuenta enmascarada y no se pudo emparejar con ningún beneficiario tuyo. Envía `beneficiary_account` explícita.
+                        detail: El comprobante oculta la cuenta y no pudimos identificarla.
                         source:
                           pointer: /data/attributes/beneficiary_account
                     meta:
@@ -2713,7 +2739,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: Los datos de la solicitud no son válidos.
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2743,7 +2769,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_policy_invalid
-                        detail: '`retry_policy.max_retries` no puede pasar de 5.'
+                        detail: La política de reintentos no es válida.
                         source:
                           pointer: /data/attributes/retry_policy/max_retries
                     meta:
@@ -2759,7 +2785,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_pending_cap_exceeded
-                        detail: Has alcanzado el límite de reintentos pendientes. Cancela alguna validación con retry pendiente o espera a que resuelvan.
+                        detail: Alcanzaste el máximo de validaciones con reintentos pendientes.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -2789,7 +2815,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_unsupported_image
-                        detail: El PDF de ''image'' contiene una imagen que no podemos procesar. Envía el comprobante como imagen JPEG o PNG.
+                        detail: No podemos leer el PDF de ''image''. Envíalo como JPEG o PNG.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2805,7 +2831,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_too_many_pages
-                        detail: El campo ''image'' debe tener entre 1 y 3 páginas.
+                        detail: El PDF de 'image' tiene demasiadas páginas. Envía solo el comprobante.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2821,7 +2847,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_text_layer_too_large
-                        detail: El PDF de ''image'' contiene más texto del que admite un comprobante. Envía el comprobante original del banco.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2837,7 +2863,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_multiple_receipts
-                        detail: El documento contiene más de un comprobante.
+                        detail: El documento trae más de un comprobante. Envía cada uno por separado.
                     meta:
                       version: 1.221.1
                       api_version: v1
@@ -2851,7 +2877,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_modified_after_issue
-                        detail: El PDF de ''image'' no se puede aceptar como comprobante original. Envía el comprobante tal como lo descargaste del banco, sin abrirlo ni guardarlo con otro programa.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2867,7 +2893,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_invalid_structure
-                        detail: El archivo de ''image'' no es un PDF válido o está dañado. Descarga de nuevo el comprobante del banco y vuelve a enviarlo.
+                        detail: El PDF de ''image'' está dañado. Descárgalo de nuevo del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2883,7 +2909,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_hidden_content
-                        detail: El PDF de ''image'' no se puede aceptar como comprobante original. Envía el comprobante tal como lo descargaste del banco, sin abrirlo ni guardarlo con otro programa.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2899,7 +2925,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_encrypted
-                        detail: El campo ''image'' es un PDF cifrado; no se aceptan archivos con contraseña o cifrado.
+                        detail: El PDF de ''image'' tiene contraseña. Envía una copia sin contraseña.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2915,7 +2941,7 @@ paths:
                     errors:
                       - status: '422'
                         code: pdf_active_content
-                        detail: El PDF de ''image'' no se puede aceptar como comprobante original. Envía el comprobante tal como lo descargaste del banco, sin abrirlo ni guardarlo con otro programa.
+                        detail: No podemos aceptar el PDF de ''image''. Envía el original del banco.
                         source:
                           pointer: /data/attributes/image
                     meta:
@@ -2931,12 +2957,12 @@ paths:
                 quota_exceeded:
                   value:
                     errors:
-                      - detail: You've used your plan's validations. They renew next period, or you can change plans.
+                      - detail: You used all 500 validations in your plan for this period.
                 rate_limit_exceeded:
                   value:
                     errors:
-                      - detail: Rate limit exceeded. Try again in 45 seconds.
-                        hint: Wait `meta.retry_after` seconds before retrying.
+                      - detail: You exceeded the request limit.
+                        hint: Wait a few seconds and try again.
                         docs_url: https://docs.veriko.mx/en/concepts/rate-limits
           headers:
             Retry-After:
@@ -2995,7 +3021,7 @@ paths:
                     errors:
                       - status: '429'
                         code: quota_exceeded
-                        detail: Ya usaste las validaciones de tu plan. Se renuevan en tu siguiente periodo, o puedes cambiar de plan.
+                        detail: Usaste las 500 validaciones de tu plan en este periodo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -3009,8 +3035,8 @@ paths:
                     errors:
                       - status: '429'
                         code: rate_limit_exceeded
-                        detail: Límite de peticiones excedido. Inténtalo de nuevo en 45 segundos.
-                        hint: Espera los segundos de `meta.retry_after` antes de reintentar.
+                        detail: Superaste el límite de peticiones.
+                        hint: Espera unos segundos y vuelve a intentarlo.
                         docs_url: https://docs.veriko.mx/es/concepts/rate-limits
                     meta:
                       version: 1.51.0
@@ -3025,11 +3051,11 @@ paths:
                 dispatch_failed:
                   value:
                     errors:
-                      - detail: Could not queue your request. Please try again.
+                      - detail: We could not start the request.
                 ocr_not_configured:
                   value:
                     errors:
-                      - detail: OCR is not configured on this deploy.
+                      - detail: Receipt reading is not available.
           content:
             application/json:
               schema:
@@ -3044,7 +3070,7 @@ paths:
                     errors:
                       - status: '503'
                         code: dispatch_failed
-                        detail: No se pudo poner la solicitud en cola. Intenta de nuevo.
+                        detail: No pudimos iniciar la solicitud.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -3058,7 +3084,7 @@ paths:
                     errors:
                       - status: '503'
                         code: ocr_not_configured
-                        detail: La lectura de comprobantes no está disponible. Escribe los datos a mano o intenta más tarde.
+                        detail: La lectura de comprobantes no está disponible.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -3447,11 +3473,11 @@ paths:
                 invalid_client_ref:
                   value:
                     errors:
-                      - detail: The field ''client_ref'' must be text of 1 to 64 characters, without line breaks or emoji.
+                      - detail: The reference must be 1 to 64 characters.
                 invalid_filter:
                   value:
                     errors:
-                      - detail: One of the filters is not valid. Check the query parameters.
+                      - detail: A filter was repeated and accepts only one value.
           content:
             application/json:
               schema:
@@ -3466,7 +3492,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_client_ref
-                        detail: El campo ''client_ref'' debe ser un texto de 1 a 64 caracteres, sin saltos de línea ni emoji.
+                        detail: La referencia debe tener de 1 a 64 caracteres.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -3480,7 +3506,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_filter
-                        detail: Uno de los filtros no es válido. Revisa los parámetros de la consulta.
+                        detail: Un filtro llegó repetido y solo admite un valor.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -3783,11 +3809,11 @@ paths:
                 invalid_client_ref:
                   value:
                     errors:
-                      - detail: The field ''client_ref'' must be text of 1 to 64 characters, without line breaks or emoji.
+                      - detail: The reference must be 1 to 64 characters.
                 invalid_filter:
                   value:
                     errors:
-                      - detail: The `retry_state` filter has an unsupported value.
+                      - detail: 'Invalid filter value; accepted: pending, resolved, exhausted, cancelled.'
           content:
             application/json:
               schema:
@@ -3802,7 +3828,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_client_ref
-                        detail: El campo ''client_ref'' debe ser un texto de 1 a 64 caracteres, sin saltos de línea ni emoji.
+                        detail: La referencia debe tener de 1 a 64 caracteres.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -3816,7 +3842,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_filter
-                        detail: El filtro `retry_state` trae un valor no admitido.
+                        detail: 'Valor de filtro no válido; admitidos: pending, resolved, exhausted, cancelled.'
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -4082,11 +4108,11 @@ paths:
                 invalid_client_ref:
                   value:
                     errors:
-                      - detail: The field ''client_ref'' must be text of 1 to 64 characters, without line breaks or emoji.
+                      - detail: The reference must be 1 to 64 characters.
                 invalid_filter:
                   value:
                     errors:
-                      - detail: The `retry_state` filter has an unsupported value.
+                      - detail: 'Invalid filter value; accepted: pending, resolved, exhausted, cancelled.'
           content:
             application/json:
               schema:
@@ -4101,7 +4127,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_client_ref
-                        detail: El campo ''client_ref'' debe ser un texto de 1 a 64 caracteres, sin saltos de línea ni emoji.
+                        detail: La referencia debe tener de 1 a 64 caracteres.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -4115,7 +4141,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_filter
-                        detail: El filtro `retry_state` trae un valor no admitido.
+                        detail: 'Valor de filtro no válido; admitidos: pending, resolved, exhausted, cancelled.'
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -4353,7 +4379,7 @@ paths:
               description: Validation not found or not owned by the account (`not_found`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -4362,7 +4388,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4374,7 +4400,7 @@ paths:
               description: Invalid UUID in path (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -4383,7 +4409,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4466,7 +4492,7 @@ paths:
               description: Validation not found or not owned by the account.
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -4475,7 +4501,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4487,7 +4513,7 @@ paths:
               description: Invalid UUID in path (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -4496,7 +4522,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4588,7 +4614,7 @@ paths:
               description: Format outside the allowlist (`invalid_export_format`).
               example:
                 errors:
-                  - detail: Invalid format. Use xml or pdf.
+                  - detail: The CEP format must be xml or pdf.
           content:
             application/json:
               schema:
@@ -4597,7 +4623,7 @@ paths:
                 errors:
                   - status: '400'
                     code: invalid_export_format
-                    detail: Formato inválido. Usa xml o pdf.
+                    detail: El formato del CEP debe ser xml o pdf.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4613,7 +4639,7 @@ paths:
               description: Validation not found (`not_found`) or the CEP is not available for this validation (`cep_not_available`). The latter code is returned when `banxico_status` is neither `valid` nor `returned` or the requested file is missing.
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -4622,7 +4648,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4636,7 +4662,7 @@ paths:
               description: Invalid UUID in path (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -4645,7 +4671,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4779,7 +4805,7 @@ paths:
               description: Validation not found or not owned by the account (`not_found`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -4788,7 +4814,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4811,7 +4837,7 @@ paths:
               description: Invalid UUID in path (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -4820,7 +4846,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4834,7 +4860,7 @@ paths:
               description: Delivery could not be started (`dispatch_failed`).
               example:
                 errors:
-                  - detail: Could not queue your request. Please try again.
+                  - detail: We could not start the request.
           content:
             application/json:
               schema:
@@ -4843,7 +4869,7 @@ paths:
                 errors:
                   - status: '503'
                     code: dispatch_failed
-                    detail: No se pudo poner la solicitud en cola. Intenta de nuevo.
+                    detail: No pudimos iniciar la solicitud.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -4975,7 +5001,7 @@ paths:
               description: Validation not found (`not_found`) or no image is available (`image_not_available`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -4984,7 +5010,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -5005,7 +5031,7 @@ paths:
               description: Invalid UUID in path (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -5014,7 +5040,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -5137,7 +5163,7 @@ paths:
               description: Validation not found (`not_found`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -5146,7 +5172,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -5160,7 +5186,7 @@ paths:
               description: Invalid UUID in path (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -5169,7 +5195,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -5339,11 +5365,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -5358,7 +5384,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -5372,7 +5398,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -5421,35 +5447,35 @@ paths:
                 reactivation_cap_exceeded:
                   value:
                     errors:
-                      - detail: Retry reactivation limit reached for this validation.
+                      - detail: Retries for this validation were already reactivated 3 times, the maximum.
                 retry_age_exceeded:
                   value:
                     errors:
-                      - detail: This validation is too old to be retried.
+                      - detail: This validation is too old for retries.
                 retry_already_resolved:
                   value:
                     errors:
-                      - detail: This retry cycle has already been resolved.
+                      - detail: Retries for this validation already finished.
                 retry_not_applicable:
                   value:
                     errors:
-                      - detail: Retries are only applicable for not_found, cep_unavailable, or error outcomes.
+                      - detail: This validation does not accept retries.
                 retry_not_supported_for_bulk:
                   value:
                     errors:
-                      - detail: Retries are not supported for bulk import validations.
+                      - detail: Bulk validations do not support retries.
                 retry_pending_cap_exceeded:
                   value:
                     errors:
-                      - detail: Daily dispatch limit reached.
+                      - detail: You reached the 24-hour retry limit.
                 retry_policy_invalid:
                   value:
                     errors:
-                      - detail: retry_policy.max_retries cannot exceed 5.
+                      - detail: The retry policy is not valid.
                 validation_error:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -5464,7 +5490,7 @@ paths:
                     errors:
                       - status: '422'
                         code: reactivation_cap_exceeded
-                        detail: Esta validación ya llegó al límite de reactivaciones de reintentos.
+                        detail: Los reintentos de esta validación ya se reactivaron 3 veces, el máximo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -5478,7 +5504,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_age_exceeded
-                        detail: Esta validación es demasiado antigua para reintentarla. Vuelve a validar.
+                        detail: Esta validación es muy antigua para reintentos.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -5492,7 +5518,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_already_resolved
-                        detail: Estos reintentos ya terminaron.
+                        detail: Los reintentos de esta validación ya terminaron.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -5506,7 +5532,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_not_applicable
-                        detail: Los reintentos sólo aplican cuando el resultado es `not_found`, `cep_unavailable` o `error`.
+                        detail: Esta validación no admite reintentos.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -5520,7 +5546,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_not_supported_for_bulk
-                        detail: Los reintentos no están disponibles para las validaciones de una carga masiva.
+                        detail: Las validaciones masivas no admiten reintentos.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -5534,7 +5560,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_pending_cap_exceeded
-                        detail: Daily dispatch limit reached.
+                        detail: Alcanzaste el máximo de reintentos en 24 horas.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -5548,7 +5574,7 @@ paths:
                     errors:
                       - status: '422'
                         code: retry_policy_invalid
-                        detail: '`retry_policy.max_retries` no puede pasar de 5.'
+                        detail: La política de reintentos no es válida.
                         source:
                           pointer: /data/attributes/retry_policy/max_retries
                     meta:
@@ -5564,7 +5590,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: Los datos de la solicitud no son válidos.
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -5697,7 +5723,7 @@ paths:
               description: Validation not found or not owned by the account (`not_found`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -5706,7 +5732,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -5720,7 +5746,7 @@ paths:
               description: No active retry cycle to cancel (code `retry_not_active`). Invalid UUID (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -5729,7 +5755,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -5974,7 +6000,7 @@ paths:
               description: Validation not found, withdrawn, or not owned by the account (`not_found`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -5983,7 +6009,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -5997,7 +6023,7 @@ paths:
               description: 'The validation cannot be queried: its status is neither `valid` nor `returned` (code `recheck_not_eligible`, with the status in `meta.status`) or it is older than the window (code `recheck_window_expired`, with the window in `meta.window_hours`). Invalid UUID (`invalid_uuid`).'
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -6006,7 +6032,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -6200,7 +6226,7 @@ paths:
               description: Validation not found, or not owned by the account (`not_found`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -6209,7 +6235,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -6232,7 +6258,7 @@ paths:
               description: Invalid UUID in path (`invalid_uuid`).
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -6241,7 +6267,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -6404,11 +6430,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -6423,7 +6449,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.51.0
                       request_id: 2b3c4d5e6f7aa7f6e5d4c3b2
@@ -6436,7 +6462,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -6452,7 +6478,7 @@ paths:
               description: Validation not found, or not owned by the account (`not_found`).
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -6461,7 +6487,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -6475,7 +6501,7 @@ paths:
                 purge_validation_in_progress:
                   value:
                     errors:
-                      - detail: This validation is still in progress (status processing). It can be purged once it finishes.
+                      - detail: The validation is still in progress (status processing).
           content:
             application/json:
               schema:
@@ -6490,7 +6516,7 @@ paths:
                     errors:
                       - status: '409'
                         code: purge_validation_in_progress
-                        detail: Esta validación sigue en curso (estado processing). Se puede purgar cuando termine.
+                        detail: La validación sigue en curso (estado processing).
                     meta:
                       version: 1.205.0
                       request_id: 3073fe582c07ac36bae4b069
@@ -6505,7 +6531,7 @@ paths:
               description: 'The token is not valid. Possible codes: `confirmation_token_missing`, `confirmation_token_malformed`, `confirmation_token_signature_invalid`, `confirmation_token_expired`, `confirmation_token_operation_mismatch`, and `purge_token_mismatch` (the token belongs to another validation or another account). Invalid UUID in path (`invalid_uuid`).'
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -6514,7 +6540,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -6787,7 +6813,7 @@ paths:
               description: The resource does not exist or is not visible to the client
               example:
                 errors:
-                  - detail: That BIN was not found in the card directory.
+                  - detail: We could not find that BIN in the card directory.
           content:
             application/json:
               schema:
@@ -6810,11 +6836,11 @@ paths:
                 bin_invalid:
                   value:
                     errors:
-                      - detail: The card BIN must be six to eight digits.
+                      - detail: The BIN must have between 6 and 16 digits.
                 validation_error:
                   value:
                     errors:
-                      - detail: The send_date field is required.
+                      - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -6829,7 +6855,7 @@ paths:
                     errors:
                       - status: '422'
                         code: bin_invalid
-                        detail: El BIN de la tarjeta debe tener entre seis y ocho dígitos.
+                        detail: El BIN debe tener entre 6 y 16 dígitos.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -6843,9 +6869,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: El campo send_date es obligatorio.
-                        source:
-                          pointer: /data/attributes/send_date
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.51.0
                       request_id: e6f7a8b9c0d11d0c9b8a7f6e
@@ -7032,6 +7056,7 @@ paths:
                     code: spei_calendar_year_not_covered
                     detail: We do not have the calendar for 2030.
                     hint: Request a year from 2024 to 2026.
+                    docs_url: https://docs.example.local/en/concepts/errors-taxonomy#spei_calendar_year_not_covered
                 meta:
                   version: 1.63.0
                   request_id: c1d2e3f4a5b66b5a4f3e2d1c
@@ -7063,6 +7088,7 @@ paths:
                     code: spei_calendar_year_not_covered
                     detail: No tenemos el calendario de 2030.
                     hint: Pide un año de 2024 a 2026.
+                    docs_url: https://docs.example.local/es/concepts/errors-taxonomy#spei_calendar_year_not_covered
                 meta:
                   version: 1.63.0
                   request_id: c1d2e3f4a5b66b5a4f3e2d1c
@@ -7080,6 +7106,7 @@ paths:
                   - status: '422'
                     code: spei_calendar_year_invalid
                     detail: The year does not have four digits.
+                    docs_url: https://docs.example.local/en/concepts/errors-taxonomy#spei_calendar_year_invalid
           content:
             application/json:
               schema:
@@ -7089,6 +7116,7 @@ paths:
                   - status: '422'
                     code: spei_calendar_year_invalid
                     detail: El año no tiene cuatro dígitos.
+                    docs_url: https://docs.example.local/es/concepts/errors-taxonomy#spei_calendar_year_invalid
                 meta:
                   version: 1.63.0
                   request_id: d2e3f4a5b6c77c6b5a4f3e2d
@@ -7522,11 +7550,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -7541,7 +7569,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -7555,7 +7583,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -7603,11 +7631,11 @@ paths:
                 invalid_bank_code:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: The bank code 999 is not valid.
                 validation_error:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -7728,7 +7756,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_bank_code
-                        detail: The request data is invalid.
+                        detail: El código de banco 999 no es válido.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -7742,7 +7770,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: Los datos de la solicitud no son válidos.
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -7904,11 +7932,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -7923,7 +7951,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -7937,7 +7965,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -7953,7 +7981,7 @@ paths:
               description: The resource does not exist or is not visible to the client
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -7962,7 +7990,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -7978,7 +8006,7 @@ paths:
                 no_fields:
                   value:
                     errors:
-                      - detail: The body carries no editable field.
+                      - detail: The request has no updatable data.
                 label_invalid_type:
                   value:
                     errors:
@@ -7990,7 +8018,7 @@ paths:
                 invalid_bank_code:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: The bank code 999 is not valid.
                 plan_cap_exceeded:
                   value:
                     errors:
@@ -7998,7 +8026,7 @@ paths:
                 validation_error:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -8013,7 +8041,7 @@ paths:
                     errors:
                       - status: '422'
                         code: no_valid_fields
-                        detail: El cuerpo no trae ningún campo editable.
+                        detail: La petición no trae datos actualizables.
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -8057,7 +8085,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_bank_code
-                        detail: The request data is invalid.
+                        detail: El código de banco 999 no es válido.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -8085,7 +8113,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: Los datos de la solicitud no son válidos.
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -8174,7 +8202,7 @@ paths:
               description: The resource does not exist or is not visible to the client
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -8183,7 +8211,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -8403,7 +8431,7 @@ paths:
               description: '`query_param_account_required`: The `account` parameter is empty.'
               example:
                 errors:
-                  - detail: The `account` query parameter is required.
+                  - detail: The account number is missing from the query.
           content:
             application/json:
               schema:
@@ -8412,7 +8440,7 @@ paths:
                 errors:
                   - status: '400'
                     code: query_param_account_required
-                    detail: Falta el parámetro `account` en la consulta.
+                    detail: Falta el número de cuenta en la consulta.
                 meta:
                   version: 1.47.0
                   api_version: v1
@@ -8552,11 +8580,11 @@ paths:
                 missing:
                   value:
                     errors:
-                      - detail: The `account` query parameter is required.
+                      - detail: The account number is missing from the query.
                 bad_format:
                   value:
                     errors:
-                      - detail: The account format is not recognized.
+                      - detail: The account must contain digits only.
           content:
             application/json:
               schema:
@@ -8571,7 +8599,7 @@ paths:
                     errors:
                       - status: '400'
                         code: query_param_account_required
-                        detail: Falta el parámetro `account` en la consulta.
+                        detail: Falta el número de cuenta en la consulta.
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -8585,7 +8613,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_account_format
-                        detail: No reconocemos el formato de esa cuenta.
+                        detail: La cuenta debe tener solo dígitos.
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -8601,7 +8629,7 @@ paths:
               description: Account not found in the user's beneficiary list.
               example:
                 errors:
-                  - detail: No beneficiary found for this account.
+                  - detail: None of your beneficiaries has that account.
           content:
             application/json:
               schema:
@@ -8610,7 +8638,7 @@ paths:
                 errors:
                   - status: '404'
                     code: beneficiary_not_found_for_account
-                    detail: No encontramos ningún beneficiario para esa cuenta.
+                    detail: Ningún beneficiario tuyo tiene esa cuenta.
                 meta:
                   version: 1.47.0
                   api_version: v1
@@ -8642,9 +8670,9 @@ paths:
         - Beneficiaries
       summary: Descargar la plantilla de importación de beneficiarios
       description: |-
-        Devuelve un **archivo plantilla para la importación de beneficiarios** en el formato solicitado, con los encabezados fijos `alias`, `cuenta` y `banco` y filas de ejemplo para CLABE, tarjeta y celular/DiMo. Sirve de punto de partida para {% concept slug="bulk-imports" %}la importación masiva{% /concept %}.
+        Devuelve un **archivo plantilla para la importación de beneficiarios** en el formato solicitado, con los encabezados fijos `label`, `account_number` y `bank_code` (los mismos campos de `POST /v1/beneficiaries`) y filas de ejemplo para CLABE, tarjeta y celular/DiMo. Sirve de punto de partida para {% concept slug="bulk-imports" %}la importación masiva{% /concept %}.
 
-        Los encabezados no cambian con el idioma: la cabecera `Accept-Language` sólo elige el idioma de las filas de ejemplo y del nombre de la hoja; de forma predeterminada se entregan en español. La importación acepta después encabezados en ambos idiomas de forma insensible a acentos.
+        Los encabezados no cambian con el idioma: la cabecera `Accept-Language` sólo elige el idioma de las filas de ejemplo y del nombre de la hoja; de forma predeterminada se entregan en español. Al importar, los encabezados se reconocen sin distinguir mayúsculas de minúsculas.
       operationId: downloadBeneficiaryImportTemplate
       externalDocs:
         url: https://docs.veriko.mx/how-to/beneficiary-import
@@ -8654,15 +8682,16 @@ paths:
           summary: Download bulk import template
           description: |-
             Returns a template file in the requested format, with the fixed headers
-            `alias`, `cuenta` and `banco` and example rows for CLABE, card and DiMo
+            `label`, `account_number` and `bank_code` (the same fields as
+            `POST /v1/beneficiaries`) and example rows for CLABE, card and DiMo
             phone.
             Serves as a starting point for {% concept slug="bulk-imports" %}the
             bulk import{% /concept %}.
 
             The headers do not change with the language: the `Accept-Language`
             header only picks the language of the example rows and the sheet name;
-            Spanish is served by default. The import parser then accepts headers
-            in both languages accent-insensitively.
+            Spanish is served by default. On import, headers are matched
+            case-insensitively.
       security:
         - ApiKeyAuth: []
       parameters:
@@ -8698,7 +8727,7 @@ paths:
             Content-Disposition:
               schema:
                 type: string
-                example: attachment; filename="platform_plantilla_beneficiarios.csv"
+                example: attachment; filename="platform_beneficiaries_template.csv"
               description: Sugerencia de nombre de archivo para descarga.
               x-translations:
                 en:
@@ -8727,7 +8756,7 @@ paths:
               description: '`invalid_format`: The requested format is not supported.'
               example:
                 errors:
-                  - detail: 'Format must be one of: csv, xlsx, xls, txt, json'
+                  - detail: 'Invalid template format; accepted: csv, xlsx, xls, txt, json.'
           content:
             application/json:
               schema:
@@ -8736,7 +8765,7 @@ paths:
                 errors:
                   - status: '422'
                     code: invalid_format
-                    detail: 'El formato debe ser uno de: csv, xlsx, xls, txt, json.'
+                    detail: 'Formato de plantilla no válido; admitidos: csv, xlsx, xls, txt, json.'
                 meta:
                   version: 1.47.0
                   api_version: v1
@@ -8825,7 +8854,7 @@ paths:
               description: 'Validation or pre-condition failed. Possible codes: `file_required`, `upload_error`, `file_too_large`, `invalid_parse_mode`, `unsupported_format`, `import_already_in_flight`, and `persist_failed`.'
               example:
                 errors:
-                  - detail: A `file` part is required in the multipart body.
+                  - detail: The import file is missing.
           content:
             application/json:
               schema:
@@ -8834,7 +8863,7 @@ paths:
                 errors:
                   - status: '422'
                     code: file_required
-                    detail: Falta la parte `file` en el cuerpo multiparte.
+                    detail: Falta el archivo de la importación.
                 meta:
                   version: 1.47.0
                   api_version: v1
@@ -9005,7 +9034,7 @@ paths:
               description: The resource does not exist or is not visible to the client
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -9014,7 +9043,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -9089,7 +9118,7 @@ paths:
               description: Job does not exist or is in a terminal state.
               example:
                 errors:
-                  - detail: Import job not found or already terminal.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -9098,7 +9127,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: El lote no existe o ya llegó a un estado final.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.47.0
                   api_version: v1
@@ -9362,7 +9391,7 @@ paths:
               description: The resource does not exist or is not visible to the client
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -9371,7 +9400,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -9628,11 +9657,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -9647,7 +9676,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -9661,7 +9690,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -9677,7 +9706,7 @@ paths:
               description: The resource does not exist or is not visible to the client
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -9686,7 +9715,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -9702,27 +9731,27 @@ paths:
                 not_editable:
                   value:
                     errors:
-                      - detail: Job is not in preview_ready state.
+                      - detail: This import can no longer be edited.
                 bad_type:
                   value:
                     errors:
-                      - detail: parsed_account_type must be clabe, card, or phone.
+                      - detail: The account type must be CLABE, card or phone.
                 invalid_account:
                   value:
                     errors:
-                      - detail: The account number is not valid.
+                      - detail: The parsed account only accepts digits, spaces and hyphens, up to 32 characters.
                 invalid_bank_code:
                   value:
                     errors:
-                      - detail: parsed_bank_code must be a 4-5 digit Banxico code.
+                      - detail: The bank code must have 4 to 5 digits.
                 no_valid_fields:
                   value:
                     errors:
-                      - detail: No valid fields to update.
+                      - detail: The request has no updatable data.
                 validation_error:
                   value:
                     errors:
-                      - detail: The request data is invalid.
+                      - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -9737,7 +9766,7 @@ paths:
                     errors:
                       - status: '422'
                         code: job_not_editable
-                        detail: El lote no está en estado `preview_ready`.
+                        detail: Esta importación ya no se puede editar.
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -9751,7 +9780,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_account_type
-                        detail: '`parsed_account_type` debe ser `clabe`, `card` o `phone`.'
+                        detail: El tipo de cuenta debe ser CLABE, tarjeta o celular.
                     meta:
                       version: 1.47.0
                       api_version: v1
@@ -9765,7 +9794,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_account
-                        detail: El número de cuenta no es válido.
+                        detail: La cuenta leída solo admite dígitos, espacios y guiones, hasta 32 caracteres.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -9779,7 +9808,7 @@ paths:
                     errors:
                       - status: '422'
                         code: invalid_bank_code
-                        detail: parsed_bank_code must be a 4-5 digit Banxico code.
+                        detail: El código de banco debe tener de 4 a 5 dígitos.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -9793,7 +9822,7 @@ paths:
                     errors:
                       - status: '422'
                         code: no_valid_fields
-                        detail: No hay campos válidos para actualizar.
+                        detail: La petición no trae datos actualizables.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -9807,7 +9836,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: Los datos de la solicitud no son válidos.
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -10493,11 +10522,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -10512,7 +10541,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -10526,7 +10555,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -11073,11 +11102,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
                 url_dns_failed:
                   value:
                     errors:
@@ -11100,7 +11129,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -11114,7 +11143,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -11162,7 +11191,7 @@ paths:
                 missing_field:
                   value:
                     errors:
-                      - detail: The url field is required.
+                      - detail: Some data needs fixing.
                 url_required:
                   value:
                     errors:
@@ -11190,11 +11219,11 @@ paths:
                 event_invalid:
                   value:
                     errors:
-                      - detail: The given event does not exist. The rejected event is in meta.event.
+                      - detail: The event validation.created does not exist.
                 limit_reached:
                   value:
                     errors:
-                      - detail: The maximum number of allowed endpoints has been reached. The applied cap is in meta.limit.
+                      - detail: Your account already has 10 webhooks, the maximum.
                 description_too_long:
                   value:
                     errors:
@@ -11213,9 +11242,7 @@ paths:
                     errors:
                       - status: '422'
                         code: validation_error
-                        detail: El campo url es obligatorio.
-                        source:
-                          pointer: /data/attributes/url
+                        detail: Hay datos por corregir.
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -11325,7 +11352,7 @@ paths:
                     errors:
                       - status: '422'
                         code: webhook_event_invalid
-                        detail: El evento indicado no existe. El evento rechazado viene en meta.event.
+                        detail: El evento validation.created no existe.
                         source:
                           pointer: /data/attributes/events
                     meta:
@@ -11341,7 +11368,7 @@ paths:
                     errors:
                       - status: '422'
                         code: webhook_limit_reached
-                        detail: Se alcanzó el número máximo de endpoints permitidos. El tope aplicado viene en meta.limit.
+                        detail: Tu cuenta ya tiene 10 webhooks, el máximo.
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -11483,11 +11510,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: The request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
                 url_dns_failed:
                   value:
                     errors:
@@ -11510,7 +11537,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -11524,7 +11551,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.58.0
                       api_version: v1
@@ -11568,7 +11595,7 @@ paths:
               description: '`not_found`: Endpoint does not exist or does not belong to the user.'
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -11577,7 +11604,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -11591,7 +11618,7 @@ paths:
               description: 'Invalid data. Possible codes: `webhook_url_invalid_type`, `webhook_url_empty`, `webhook_url_too_long`, `webhook_url_invalid_format`, `webhook_url_not_https`, `webhook_events_required`, `webhook_events_too_many`, `webhook_event_invalid`, `webhook_description_invalid_type`, `webhook_description_too_long`, `webhook_status_invalid`, `no_valid_fields`. A `description` longer than 255 characters responds `webhook_description_too_long`. Every field-level error carries `source.pointer`.'
               example:
                 errors:
-                  - detail: 'Invalid event: validation.created'
+                  - detail: The event validation.created does not exist.
           content:
             application/json:
               schema:
@@ -11600,7 +11627,7 @@ paths:
                 errors:
                   - status: '422'
                     code: webhook_event_invalid
-                    detail: 'Evento inválido: validation.created'
+                    detail: El evento validation.created no existe.
                     source:
                       pointer: /data/attributes/events
                 meta:
@@ -11683,7 +11710,7 @@ paths:
               description: '`not_found`: Endpoint does not exist or does not belong to the user.'
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -11692,7 +11719,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -11790,7 +11817,7 @@ paths:
               description: '`not_found`: Endpoint does not exist or does not belong to the user.'
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -11799,7 +11826,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -11934,7 +11961,7 @@ paths:
               description: '`not_found`: Endpoint does not exist or does not belong to the user.'
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -11943,7 +11970,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -12048,7 +12075,7 @@ paths:
               description: The resource does not exist or is not visible to the client
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -12057,7 +12084,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -12155,11 +12182,11 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: Request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
           content:
             application/json:
               schema:
@@ -12174,7 +12201,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -12188,7 +12215,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -12204,7 +12231,7 @@ paths:
               description: '`not_found`: Endpoint does not exist or does not belong to the user.'
               example:
                 errors:
-                  - detail: Resource not found.
+                  - detail: We could not find what you requested.
           content:
             application/json:
               schema:
@@ -12213,7 +12240,7 @@ paths:
                 errors:
                   - status: '404'
                     code: not_found
-                    detail: Recurso no encontrado.
+                    detail: No encontramos lo que pediste.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -13256,7 +13283,7 @@ paths:
               description: The `period` parameter format is invalid.
               example:
                 errors:
-                  - detail: Invalid period.
+                  - detail: The period must be the current one or YYYY-MM.
           content:
             application/json:
               schema:
@@ -13265,7 +13292,7 @@ paths:
                 errors:
                   - status: '400'
                     code: invalid_period
-                    detail: Período inválido.
+                    detail: El periodo debe ser el actual o AAAA-MM.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -13882,11 +13909,11 @@ paths:
                 invalid_month:
                   value:
                     errors:
-                      - detail: '''month'' is required and must be YYYY-MM.'
+                      - detail: The month is missing or has an invalid format.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -13901,7 +13928,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_month
-                        detail: '''month'' es obligatorio y debe tener el formato YYYY-MM.'
+                        detail: El mes falta o no tiene formato válido.
                     meta:
                       version: 1.51.0
                       request_id: d5e6f7a8b9c11c9b8a7f6e5d
@@ -13914,7 +13941,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -14119,11 +14146,11 @@ paths:
                 invalid_month:
                   value:
                     errors:
-                      - detail: '''month'' is required and must be YYYY-MM.'
+                      - detail: The month is missing or has an invalid format.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -14138,7 +14165,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_month
-                        detail: '''month'' es obligatorio y debe tener el formato YYYY-MM.'
+                        detail: El mes falta o no tiene formato válido.
                     meta:
                       version: 1.51.0
                       request_id: d5e6f7a8b9c11c9b8a7f6e5d
@@ -14151,7 +14178,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -14215,15 +14242,15 @@ paths:
                 csv_stream_failed:
                   value:
                     errors:
-                      - detail: We could not generate the CSV file. Try again; contact us if it persists.
+                      - detail: We could not generate the CSV file.
                 pdf_render_failed:
                   value:
                     errors:
-                      - detail: We could not generate the PDF. Try again; contact us if it persists.
+                      - detail: We couldn't generate the PDF. Try again.
                 xlsx_render_failed:
                   value:
                     errors:
-                      - detail: We could not generate the XLSX file. Try again; contact us if it persists.
+                      - detail: We could not generate the XLSX file.
           content:
             application/json:
               schema:
@@ -14238,7 +14265,7 @@ paths:
                     errors:
                       - status: '500'
                         code: csv_stream_failed
-                        detail: No pudimos generar el archivo CSV. Vuelve a intentarlo; si persiste, escríbenos.
+                        detail: No pudimos generar el archivo CSV.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -14252,7 +14279,7 @@ paths:
                     errors:
                       - status: '500'
                         code: pdf_render_failed
-                        detail: No pudimos generar el PDF. Vuelve a intentarlo; si persiste, escríbenos.
+                        detail: No pudimos generar el PDF. Vuelve a intentarlo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -14266,7 +14293,7 @@ paths:
                     errors:
                       - status: '500'
                         code: xlsx_render_failed
-                        detail: No pudimos generar el archivo XLSX. Vuelve a intentarlo; si persiste, escríbenos.
+                        detail: No pudimos generar el archivo XLSX.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -14433,11 +14460,11 @@ paths:
                 invalid_month:
                   value:
                     errors:
-                      - detail: '''month'' is required and must be YYYY-MM.'
+                      - detail: The month is missing or has an invalid format.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -14452,7 +14479,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_month
-                        detail: '''month'' es obligatorio y debe tener el formato YYYY-MM.'
+                        detail: El mes falta o no tiene formato válido.
                     meta:
                       version: 1.51.0
                       request_id: d5e6f7a8b9c11c9b8a7f6e5d
@@ -14465,7 +14492,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -14527,7 +14554,7 @@ paths:
               description: '`pdf_render_failed`: the PDF could not be generated. Retry or request CSV or XLSX.'
               example:
                 errors:
-                  - detail: We could not generate the PDF. Try again; contact us if it persists.
+                  - detail: We couldn't generate the PDF. Try again.
           content:
             application/json:
               schema:
@@ -14536,7 +14563,7 @@ paths:
                 errors:
                   - status: '500'
                     code: pdf_render_failed
-                    detail: No pudimos generar el PDF. Vuelve a intentarlo; si persiste, escríbenos.
+                    detail: No pudimos generar el PDF. Vuelve a intentarlo.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -14705,11 +14732,11 @@ paths:
                 invalid_month:
                   value:
                     errors:
-                      - detail: '''month'' is required and must be YYYY-MM.'
+                      - detail: The month is missing or has an invalid format.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -14724,7 +14751,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_month
-                        detail: '''month'' es obligatorio y debe tener el formato YYYY-MM.'
+                        detail: El mes falta o no tiene formato válido.
                     meta:
                       version: 1.51.0
                       request_id: d5e6f7a8b9c11c9b8a7f6e5d
@@ -14737,7 +14764,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -14799,7 +14826,7 @@ paths:
               description: '`pdf_render_failed`: the PDF could not be generated. Retry or request CSV or XLSX.'
               example:
                 errors:
-                  - detail: We could not generate the PDF. Try again; contact us if it persists.
+                  - detail: We couldn't generate the PDF. Try again.
           content:
             application/json:
               schema:
@@ -14808,7 +14835,7 @@ paths:
                 errors:
                   - status: '500'
                     code: pdf_render_failed
-                    detail: No pudimos generar el PDF. Vuelve a intentarlo; si persiste, escríbenos.
+                    detail: No pudimos generar el PDF. Vuelve a intentarlo.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -14973,11 +15000,11 @@ paths:
                 invalid_month:
                   value:
                     errors:
-                      - detail: '''month'' is required and must be YYYY-MM.'
+                      - detail: The month is missing or has an invalid format.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -14992,7 +15019,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_month
-                        detail: '''month'' es obligatorio y debe tener el formato YYYY-MM.'
+                        detail: El mes falta o no tiene formato válido.
                     meta:
                       version: 1.51.0
                       request_id: d5e6f7a8b9c11c9b8a7f6e5d
@@ -15005,7 +15032,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15067,7 +15094,7 @@ paths:
               description: '`pdf_render_failed`: the PDF could not be generated. Retry or request CSV or XLSX.'
               example:
                 errors:
-                  - detail: We could not generate the PDF. Try again; contact us if it persists.
+                  - detail: We couldn't generate the PDF. Try again.
           content:
             application/json:
               schema:
@@ -15076,7 +15103,7 @@ paths:
                 errors:
                   - status: '500'
                     code: pdf_render_failed
-                    detail: No pudimos generar el PDF. Vuelve a intentarlo; si persiste, escríbenos.
+                    detail: No pudimos generar el PDF. Vuelve a intentarlo.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -15248,11 +15275,11 @@ paths:
                 invalid_month:
                   value:
                     errors:
-                      - detail: '''month'' is required and must be YYYY-MM.'
+                      - detail: The month is missing or has an invalid format.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -15267,7 +15294,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_month
-                        detail: '''month'' es obligatorio y debe tener el formato YYYY-MM.'
+                        detail: El mes falta o no tiene formato válido.
                     meta:
                       version: 1.51.0
                       request_id: d5e6f7a8b9c11c9b8a7f6e5d
@@ -15280,7 +15307,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15342,7 +15369,7 @@ paths:
               description: '`pdf_render_failed`: the PDF could not be generated. Retry or request CSV or XLSX.'
               example:
                 errors:
-                  - detail: We could not generate the PDF. Try again; contact us if it persists.
+                  - detail: We couldn't generate the PDF. Try again.
           content:
             application/json:
               schema:
@@ -15351,7 +15378,7 @@ paths:
                 errors:
                   - status: '500'
                     code: pdf_render_failed
-                    detail: No pudimos generar el PDF. Vuelve a intentarlo; si persiste, escríbenos.
+                    detail: No pudimos generar el PDF. Vuelve a intentarlo.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -15502,11 +15529,11 @@ paths:
                 invalid_range:
                   value:
                     errors:
-                      - detail: Invalid range.
+                      - detail: A date in the range is missing or not valid.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -15521,7 +15548,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_range
-                        detail: Rango inválido.
+                        detail: Falta una fecha del rango o no es válida.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15535,7 +15562,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15595,7 +15622,7 @@ paths:
               description: '`no_ceps`: No CEPs available in the specified range.'
               example:
                 errors:
-                  - detail: No CEPs available in that range.
+                  - detail: There are no CEPs between 2026-01-01 and 2026-01-31.
           content:
             application/json:
               schema:
@@ -15604,7 +15631,7 @@ paths:
                 errors:
                   - status: '404'
                     code: no_ceps
-                    detail: No hay CEPs disponibles en ese rango.
+                    detail: No hay CEP entre 2026-01-01 y 2026-01-31.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -15751,19 +15778,19 @@ paths:
                 body_empty:
                   value:
                     errors:
-                      - detail: Request body is empty.
+                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
-                      - detail: The body is not valid JSON.
+                      - detail: The request body is not valid JSON. Check its syntax and resend it.
                 invalid_range:
                   value:
                     errors:
-                      - detail: Invalid range.
+                      - detail: A date in the range is missing or not valid.
                 invalid_user_id:
                   value:
                     errors:
-                      - detail: Invalid user ID.
+                      - detail: The user identifier is not in the expected format.
           content:
             application/json:
               schema:
@@ -15778,7 +15805,7 @@ paths:
                     errors:
                       - status: '400'
                         code: body_empty
-                        detail: El cuerpo de la petición está vacío.
+                        detail: La petición no trae cuerpo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15792,7 +15819,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_json
-                        detail: El cuerpo no es JSON válido.
+                        detail: El cuerpo de la petición no es un JSON válido. Revisa su sintaxis y vuelve a enviarlo.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15806,7 +15833,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_range
-                        detail: Rango inválido.
+                        detail: Falta una fecha del rango o no es válida.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15820,7 +15847,7 @@ paths:
                     errors:
                       - status: '400'
                         code: invalid_user_id
-                        detail: ID de usuario inválido.
+                        detail: El identificador de usuario no tiene el formato esperado.
                     meta:
                       version: 1.193.0
                       api_version: v1
@@ -15891,7 +15918,7 @@ paths:
               description: '`range_too_large`: The range exceeds the maximum CEPs per export (10,000).'
               example:
                 errors:
-                  - detail: The request data is invalid.
+                  - detail: Some data needs fixing.
           content:
             application/json:
               schema:
@@ -15900,7 +15927,7 @@ paths:
                 errors:
                   - status: '422'
                     code: validation_error
-                    detail: Los datos de la solicitud no son válidos.
+                    detail: Hay datos por corregir.
                 meta:
                   version: 1.193.0
                   api_version: v1
@@ -15928,7 +15955,7 @@ paths:
                 dispatch_failed:
                   value:
                     errors:
-                      - detail: Could not queue your request. Please try again.
+                      - detail: We could not start the request.
           headers:
             Retry-After:
               schema:
@@ -15948,7 +15975,7 @@ paths:
                     errors:
                       - status: '503'
                         code: dispatch_failed
-                        detail: No se pudo poner la solicitud en cola. Intenta de nuevo.
+                        detail: No pudimos iniciar la solicitud.
                     meta:
                       version: 1.205.0
                       api_version: v1
@@ -17759,6 +17786,107 @@ components:
         legacy_fields:
           - fecha
           - monto
+    TimestampUTC:
+      type: string
+      format: date-time
+      description: |
+        Timestamp ISO 8601 en UTC con sufijo `Z` explícito; por ejemplo,
+        `"2026-05-01T05:14:38Z"`.
+
+        Los campos `*_at`, `*_end`, `*_start` y `*_date` adoptan esta forma.
+        `meta.datetime` describe el mismo contrato en la respuesta.
+      example: '2026-05-01T05:14:38Z'
+      x-translations:
+        en:
+          description: |
+            ISO 8601 timestamp in UTC with an explicit `Z` suffix; for example,
+            `"2026-05-01T05:14:38Z"`. The `*_at`, `*_end`, `*_start`, and `*_date`
+            fields follow this format. `meta.datetime` describes the same contract in
+            the response.
+    QuotaSnapshot:
+      type: object
+      description: Cuota de validaciones como quedó después de esta petición. Sale sólo en las respuestas que revisan o cobran la cuota (validaciones directas, con OCR y asíncronas, también en el 429 por cuota agotada) y dice lo mismo que las cabeceras `X-Quota-*`. `limit` y `remaining` son el tope duro, donde se corta el servicio; `included` e `included_remaining` son lo que trae el plan sin cargo extra, y `overage_used` lo que ya pasó de ahí y se cobra aparte.
+      x-translations:
+        en:
+          description: Validation quota as it stood after this request. Only present on responses that check or charge the quota (direct, OCR and asynchronous validations, also on the 429 for an exhausted quota) and it says the same as the `X-Quota-*` headers. `limit` and `remaining` are the hard cap, where service stops; `included` and `included_remaining` are what the plan includes at no extra charge, and `overage_used` is what went past that and is billed separately.
+      properties:
+        kind:
+          type: string
+          enum:
+            - cycle
+            - trial
+          description: 'De dónde sale la cuota: `cycle` (el ciclo de la suscripción) o `trial` (la prueba inicial de una cuenta que no ha reclamado su plan).'
+          example: cycle
+          x-translations:
+            en:
+              description: 'Where the quota comes from: `cycle` (the subscription cycle) or `trial` (the initial trial of an account that has not claimed its plan).'
+        included:
+          type: integer
+          minimum: 0
+          description: Validaciones incluidas en el ciclo. Igual a `limit` cuando el plan no separa lo incluido del tope.
+          example: 650
+          x-translations:
+            en:
+              description: Validations included in the cycle. Equal to `limit` when the plan does not separate what is included from the cap.
+        used:
+          type: integer
+          minimum: 0
+          description: Validaciones consumidas en el ciclo, contando esta.
+          example: 820
+          x-translations:
+            en:
+              description: Validations consumed in the cycle, counting this one.
+        included_remaining:
+          type: integer
+          minimum: 0
+          description: Incluidas que quedan sin cargo extra (`max(0, included - used)`).
+          example: 0
+          x-translations:
+            en:
+              description: Included validations left at no extra charge (`max(0, included - used)`).
+        overage_enabled:
+          type: boolean
+          description: '`true` cuando el excedente está activo: se puede validar por encima de `included`, hasta `limit`, con cargo aparte.'
+          example: true
+          x-translations:
+            en:
+              description: '`true` when overage is enabled: you can validate above `included`, up to `limit`, billed separately.'
+        overage_used:
+          type: integer
+          minimum: 0
+          description: Validaciones por encima de `included` en el ciclo; se cobran aparte al final del periodo. `0` sin excedente.
+          example: 170
+          x-translations:
+            en:
+              description: Validations above `included` in the cycle; billed separately at the end of the period. `0` without overage.
+        limit:
+          type: integer
+          minimum: 0
+          description: Tope duro del ciclo, igual a `X-Quota-Limit`.
+          example: 13000
+          x-translations:
+            en:
+              description: Hard cap of the cycle, equal to `X-Quota-Limit`.
+        remaining:
+          type: integer
+          minimum: 0
+          description: Validaciones que quedan hasta el tope, igual a `X-Quota-Remaining`.
+          example: 12180
+          x-translations:
+            en:
+              description: Validations left before the cap, equal to `X-Quota-Remaining`.
+        resets_at:
+          $ref: '#/components/schemas/TimestampUTC'
+      required:
+        - kind
+        - included
+        - used
+        - included_remaining
+        - overage_enabled
+        - overage_used
+        - limit
+        - remaining
+        - resets_at
     ErrorResponse:
       type: object
       description: |
@@ -17817,6 +17945,8 @@ components:
               $ref: '#/components/schemas/DatetimeMeta'
             field_names_notice:
               $ref: '#/components/schemas/FieldNamesNotice'
+            quota:
+              $ref: '#/components/schemas/QuotaSnapshot'
             validation_id:
               type: string
               format: uuid
@@ -17957,23 +18087,6 @@ components:
             en:
               description: |
                 Resource identifier, unique within its `type`. It always travels as a string, even when it originates from an auto-increment column.
-    TimestampUTC:
-      type: string
-      format: date-time
-      description: |
-        Timestamp ISO 8601 en UTC con sufijo `Z` explícito; por ejemplo,
-        `"2026-05-01T05:14:38Z"`.
-
-        Los campos `*_at`, `*_end`, `*_start` y `*_date` adoptan esta forma.
-        `meta.datetime` describe el mismo contrato en la respuesta.
-      example: '2026-05-01T05:14:38Z'
-      x-translations:
-        en:
-          description: |
-            ISO 8601 timestamp in UTC with an explicit `Z` suffix; for example,
-            `"2026-05-01T05:14:38Z"`. The `*_at`, `*_end`, `*_start`, and `*_date`
-            fields follow this format. `meta.datetime` describes the same contract in
-            the response.
     RoleAssignmentSummary:
       type: object
       description: Un rol vigente de la cuenta de usuario y el ámbito en el que lo tiene. Las asignaciones revocadas no aparecen.
@@ -19918,6 +20031,8 @@ components:
           properties:
             field_names_notice:
               $ref: '#/components/schemas/FieldNamesNotice'
+            quota:
+              $ref: '#/components/schemas/QuotaSnapshot'
             async_reason:
               type: string
               enum:
@@ -22842,6 +22957,35 @@ components:
               description: Validations available in the current cycle (`max(0, limit - used)`).
         resets_at:
           $ref: '#/components/schemas/TimestampUTC'
+        billing_model:
+          type: string
+          enum:
+            - free
+            - tiered
+            - metered
+            - hybrid
+          description: Modelo de cobro del plan. En `hybrid` el plan trae validaciones incluidas y, con el sobreconsumo activo, permite seguir validando hasta `limit`. Aditivo.
+          example: hybrid
+          x-translations:
+            en:
+              description: The plan's billing model. With `hybrid` the plan includes validations and, with overage enabled, keeps validating up to `limit`. Additive.
+        overage_enabled:
+          type: boolean
+          description: '`true` cuando el sobreconsumo está activo: las validaciones por encima de `included_validations` se cobran aparte y `limit` es el tope del plan. Aditivo.'
+          example: true
+          x-translations:
+            en:
+              description: '`true` when overage is enabled: validations above `included_validations` are billed separately and `limit` is the plan''s cap. Additive.'
+        included_validations:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+          description: Validaciones incluidas en el plan por ciclo. `null` cuando el plan no separa lo incluido del límite. Aditivo.
+          example: 650
+          x-translations:
+            en:
+              description: Validations included in the plan per cycle. `null` when the plan does not separate what is included from the limit. Additive.
     ApiUsage:
       type: object
       description: |
@@ -24628,6 +24772,35 @@ components:
           x-translations:
             en:
               description: '`true` when this quota replenishes at the next cycle. `false` for `quota_kind=trial`.'
+        billing_model:
+          type: string
+          enum:
+            - free
+            - tiered
+            - metered
+            - hybrid
+          description: Modelo de cobro del plan. En `hybrid` el plan trae validaciones incluidas y, con el sobreconsumo activo, permite seguir validando hasta `limit`. Aditivo.
+          example: hybrid
+          x-translations:
+            en:
+              description: The plan's billing model. With `hybrid` the plan includes validations and, with overage enabled, keeps validating up to `limit`. Additive.
+        overage_enabled:
+          type: boolean
+          description: '`true` cuando el sobreconsumo está activo: las validaciones por encima de `included_validations` se cobran aparte y `limit` es el tope del plan. Aditivo.'
+          example: true
+          x-translations:
+            en:
+              description: '`true` when overage is enabled: validations above `included_validations` are billed separately and `limit` is the plan''s cap. Additive.'
+        included_validations:
+          type:
+            - integer
+            - 'null'
+          minimum: 0
+          description: Validaciones incluidas en el plan por ciclo. `null` cuando el plan no separa lo incluido del límite. Aditivo.
+          example: 650
+          x-translations:
+            en:
+              description: Validations included in the plan per cycle. `null` when the plan does not separate what is included from the limit. Additive.
       required:
         - plan_slug
         - limit
@@ -24778,12 +24951,12 @@ components:
                         type: integer
                         example: 380
                       limit:
-                        description: Límite mensual de la operación. `0` cuando se aplica el límite del plan.
+                        description: Límite efectivo del ciclo vigente, el mismo de `GET /v1/usage/summary` y de `X-Quota-Limit`; con excedente activo es el tope del plan. Es el de hoy, repetido en cada fila.
                         x-translations:
                           en:
-                            description: Monthly limit for the operation. `0` when the plan limit applies.
+                            description: Effective limit of the current cycle, the same as `GET /v1/usage/summary` and `X-Quota-Limit`; with overage enabled it is the plan's cap. It is today's limit, repeated on every row.
                         type: integer
-                        example: 0
+                        example: 13000
     GetUsageLimitsAttributes:
       type: object
       description: Límites de tasa aplicables a la cuenta.
@@ -27517,8 +27690,8 @@ components:
           description: 'Rate limit exceeded (`rate_limit_exceeded`: wait a few seconds) or plan quota used up (`quota_exceeded`: wait for the next period or change plans).'
           example:
             errors:
-              - detail: Rate limit exceeded. Try again in 45 seconds.
-                hint: Wait `meta.retry_after` seconds before retrying.
+              - detail: You exceeded the request limit.
+                hint: Wait a few seconds and try again.
                 docs_url: https://docs.veriko.mx/en/concepts/rate-limits
       headers:
         Retry-After:
@@ -27571,8 +27744,8 @@ components:
             errors:
               - status: '429'
                 code: rate_limit_exceeded
-                detail: Límite de peticiones excedido. Inténtalo de nuevo en 45 segundos.
-                hint: Espera los segundos de `meta.retry_after` antes de reintentar.
+                detail: Superaste el límite de peticiones.
+                hint: Espera unos segundos y vuelve a intentarlo.
                 docs_url: https://docs.veriko.mx/es/concepts/rate-limits
             meta:
               version: 1.51.0
@@ -27585,7 +27758,7 @@ components:
           description: Authentication is required or the provided credentials are invalid.
           example:
             errors:
-              - detail: Invalid or missing authentication credentials.
+              - detail: This request requires authentication.
       content:
         application/json:
           schema:
@@ -27594,7 +27767,7 @@ components:
             errors:
               - status: '401'
                 code: unauthorized
-                detail: Credenciales de autenticación ausentes o inválidas.
+                detail: La petición necesita autenticación.
             meta:
               version: 1.51.0
               request_id: c4d5e6f7a8b99b8a7f6e5d4c
@@ -27625,7 +27798,7 @@ components:
           description: The request body exceeds the maximum accepted size (`body_too_large`).
           example:
             errors:
-              - detail: The request body is too large.
+              - detail: The body exceeds the 1 MB maximum.
       content:
         application/json:
           schema:
@@ -27634,7 +27807,7 @@ components:
             errors:
               - status: '413'
                 code: body_too_large
-                detail: El cuerpo de la petición es demasiado grande.
+                detail: El cuerpo supera el máximo de 1 MB.
             meta:
               version: 1.51.0
               request_id: 1a2b3c4d5e6ff6e5d4c3b2a1
@@ -27719,6 +27892,14 @@ components:
           x-translations:
             en:
               description: Validations remaining in the current cycle.
+        X-Quota-Included:
+          schema:
+            type: integer
+            example: 650
+          description: Validaciones incluidas en el plan para el ciclo vigente. Con el excedente activo es menor que `X-Quota-Limit` (el tope); sin excedente, igual. También va en el cuerpo, en `meta.quota`.
+          x-translations:
+            en:
+              description: Validations included in the plan for the current cycle. With overage enabled it is lower than `X-Quota-Limit` (the cap); without overage, equal. Also in the body, under `meta.quota`.
         X-Quota-Reset:
           schema:
             type: string
@@ -27758,7 +27939,7 @@ components:
             errors:
               - status: '409'
                 code: idempotency_key_in_progress
-                detail: Una petición con esta Idempotency-Key sigue en proceso.
+                detail: Ya hay una solicitud en curso con esta Idempotency-Key.
             meta:
               version: 1.51.0
               request_id: 2b3c4d5e6f7aa7f6e5d4c3b2
@@ -27784,7 +27965,7 @@ components:
           description: The validation was purged and this resource no longer exists (`validation_purged`).
           example:
             errors:
-              - detail: The validation was purged and this resource no longer exists.
+              - detail: This validation was permanently deleted.
       content:
         application/json:
           schema:
@@ -27793,7 +27974,7 @@ components:
             errors:
               - status: '410'
                 code: validation_purged
-                detail: La validación se purgó y este recurso ya no existe.
+                detail: Esta validación se borró de forma definitiva.
             meta:
               version: 1.61.0
               request_id: 1a2b3c4d5e6ff6e5d4c3b2a1
