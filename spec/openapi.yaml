@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.228.0
+  version: 1.237.1
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -13332,7 +13332,9 @@ paths:
         Los contextos no llevan los mismos límites. `api` limita las peticiones
         autenticadas por clave y por minuto, con el valor del plan de la cuenta
         (`key_per_minute`), y suma un techo por IP (`ip_ceiling_per_minute`); las
-        peticiones sin clave se limitan por IP (`ip_per_minute`). `webhooks` fija las
+        peticiones sin clave se limitan por IP (`ip_per_minute`). Una credencial que
+        no es la clave de la cuenta, como el token de una app conectada, tiene además
+        su propio tope (`credential_per_minute`). `webhooks` fija las
         entregas por minuto que la cuenta puede enviar hacia un mismo host destino,
         según su plan (`host_per_minute`), y el tope de todos los clientes juntos
         sobre ese host (`host_global_per_minute`). `login` limita por IP y por correo
@@ -13387,7 +13389,9 @@ paths:
             The contexts do not carry the same limits. `api` limits authenticated
             requests per key and per minute, with the value of the account plan
             (`key_per_minute`), and adds a per-IP ceiling (`ip_ceiling_per_minute`);
-            requests without a key are limited per IP (`ip_per_minute`). `webhooks`
+            requests without a key are limited per IP (`ip_per_minute`). A
+            credential that is not the account key, such as the token of a
+            connected app, also has its own cap (`credential_per_minute`). `webhooks`
             sets the deliveries per minute the account may send to a single
             destination host, per its plan (`host_per_minute`), and the cap for all
             customers together on that host (`host_global_per_minute`). `login`
@@ -19924,10 +19928,10 @@ components:
                   type:
                     - string
                     - 'null'
-                  description: URL del CEP en formato PDF. Solo aparece cuando `banxico_status` es `valid`, o es `returned` con comprobante, y la validación no se purgó; si no, se omite el objeto `links`.
+                  description: URL del CEP en formato PDF. Solo aparece cuando aparece `cep_xml` y el PDF está guardado; una validación anterior puede tener el XML sin el PDF.
                   x-translations:
                     en:
-                      description: URL of the CEP in PDF format. It only appears when `banxico_status` is `valid`, or is `returned` with a receipt, and the validation was not purged; otherwise the `links` object is omitted.
+                      description: URL of the CEP in PDF format. It only appears when `cep_xml` appears and the PDF is stored; an older validation can have the XML without the PDF.
                   example: /v1/validations/a1b2c3d4-e5f6-4890-abcd-ef0123456789/cep?format=pdf
     ValidationQueued:
       type: object
@@ -24988,10 +24992,10 @@ components:
               type: object
               properties:
                 rate_limits:
-                  description: 'Límites de tasa por contexto. Cada entrada trae sólo los que ese contexto aplica: `api` lleva `key_per_minute`, `ip_ceiling_per_minute` e `ip_per_minute`; `webhooks`, `host_per_minute` y `host_global_per_minute`; `login`, los cuatro de IP y correo electrónico. `key_per_minute` y `host_per_minute` los fija el plan de la cuenta.'
+                  description: 'Límites de tasa por contexto. Cada entrada trae sólo los que ese contexto aplica: `api` lleva `key_per_minute`, `credential_per_minute`, `ip_ceiling_per_minute` e `ip_per_minute`; `webhooks`, `host_per_minute` y `host_global_per_minute`; `login`, los cuatro de IP y correo electrónico. `key_per_minute` y `host_per_minute` los fija el plan de la cuenta.'
                   x-translations:
                     en:
-                      description: 'Rate limits by context. Each entry carries only the ones that context applies: `api` carries `key_per_minute`, `ip_ceiling_per_minute` and `ip_per_minute`; `webhooks`, `host_per_minute` and `host_global_per_minute`; `login`, the four IP and email ones. `key_per_minute` and `host_per_minute` are set by the account plan.'
+                      description: 'Rate limits by context. Each entry carries only the ones that context applies: `api` carries `key_per_minute`, `credential_per_minute`, `ip_ceiling_per_minute` and `ip_per_minute`; `webhooks`, `host_per_minute` and `host_global_per_minute`; `login`, the four IP and email ones. `key_per_minute` and `host_per_minute` are set by the account plan.'
                   type: object
                   additionalProperties:
                     type: object
@@ -25003,6 +25007,13 @@ components:
                         x-translations:
                           en:
                             description: Requests per minute for one key of the account on the API, per its plan. It governs authenticated requests.
+                      credential_per_minute:
+                        type: integer
+                        description: Peticiones por minuto de una credencial que no es la clave de la cuenta, como el token de una app conectada (el servidor MCP, por ejemplo) o una clave `adm_`. Se cuenta aparte y rige junto con `key_per_minute`.
+                        example: 120
+                        x-translations:
+                          en:
+                            description: Requests per minute for a credential that is not the account key, such as the token of a connected app (the MCP server, for example) or an `adm_` key. It is counted separately and applies together with `key_per_minute`.
                       ip_ceiling_per_minute:
                         type: integer
                         description: Techo de peticiones por minuto por dirección IP para las peticiones autenticadas, todas las claves de un mismo origen juntas.
@@ -27023,10 +27034,10 @@ components:
         cep_pdf:
           type: string
           example: /v1/validations/3fa85f64-5717-4562-b3fc-2c963f66afa6/cep?format=pdf
-          description: Ruta del CEP en PDF. Sólo aparece cuando el CEP existe.
+          description: Ruta del CEP en PDF. Sólo aparece cuando el PDF está guardado.
           x-translations:
             en:
-              description: Path of the CEP in PDF. It only appears when the CEP exists.
+              description: Path of the CEP in PDF. It only appears when the PDF is stored.
     WebhookValidationEvent:
       type: object
       required:
