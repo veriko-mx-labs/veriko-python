@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.237.1
+  version: 1.244.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -18091,6 +18091,60 @@ components:
             en:
               description: |
                 Resource identifier, unique within its `type`. It always travels as a string, even when it originates from an auto-increment column.
+    UserTwoFactorMethod:
+      type: object
+      description: |-
+        Un método de autenticación de 2 factores (2FA) de la cuenta, con su estado
+        en la escalera: `passkey`, `app`, `email` o `sms`.
+      x-translations:
+        en:
+          description: |-
+            One of the account's two-factor authentication (2FA) methods, with its
+            ladder state: `passkey`, `app`, `email` or `sms`.
+      properties:
+        method:
+          type: string
+          enum:
+            - passkey
+            - app
+            - email
+            - sms
+          description: 'Método: `passkey`: llave de acceso (Fase 4); `app`: app autenticadora (TOTP); `email`: código por correo electrónico; `sms`: código por SMS.'
+          x-translations:
+            en:
+              description: 'Method: `passkey`: passkey (Phase 4); `app`: authenticator app (TOTP); `email`: code by email; `sms`: code by SMS.'
+          example: app
+        status:
+          type: string
+          enum:
+            - enabled
+            - disabled
+          description: '`enabled`: el método participa en la escalera; `disabled`: no.'
+          x-translations:
+            en:
+              description: '`enabled`: the method takes part in the ladder; `disabled`: it does not.'
+          example: enabled
+        verified_at:
+          oneOf:
+            - $ref: '#/components/schemas/TimestampUTC'
+            - type: 'null'
+          description: 'Cuándo se verificó el método: la verificación del canal para `email`/`sms`, el enrolamiento confirmado para `app`; `null` cuando nunca se verificó (o `passkey`, sin enrolamiento hasta la Fase 4).'
+          x-translations:
+            en:
+              description: 'When the method was verified: the channel verification for `email`/`sms`, the confirmed enrollment for `app`; `null` when never verified (or `passkey`, with no enrollment until Phase 4).'
+        last_used_at:
+          oneOf:
+            - $ref: '#/components/schemas/TimestampUTC'
+            - type: 'null'
+          description: Cuándo se superó por última vez un reto con este método; `null` cuando nunca se usó.
+          x-translations:
+            en:
+              description: When a challenge with this method was last passed; `null` when never used.
+      required:
+        - method
+        - status
+        - verified_at
+        - last_used_at
     RoleAssignmentSummary:
       type: object
       description: Un rol vigente de la cuenta de usuario y el ámbito en el que lo tiene. Las asignaciones revocadas no aparecen.
@@ -18311,36 +18365,48 @@ components:
             en:
               description: Two-factor authentication (2FA) state.
           properties:
-            enabled:
-              type: boolean
-              description: '`true` cuando la autenticación de 2 factores (2FA) está activa en la cuenta.'
-              x-translations:
-                en:
-                  description: '`true` when two-factor authentication (2FA) is active on the user account.'
-              example: false
-            method:
-              type:
-                - string
-                - 'null'
-              enum:
-                - sms
-                - email
-                - null
-              description: 'Canal por el que se entrega el código de autenticación (OTP) — `sms`: Por mensaje de texto; `email`: Por correo electrónico; `null`: La cuenta de usuario nunca lo ha configurado. Al desactivar la 2FA se conserva el último canal usado.'
-              x-translations:
-                en:
-                  description: 'Channel the authentication code (OTP) is delivered through — `sms`: By text message; `email`: By email; `null`: The user account never configured it. Disabling 2FA keeps the last channel used.'
-              example: sms
             last_used_at:
               type:
                 - string
                 - 'null'
               format: date-time
-              description: 'Fecha y hora del último uso de la autenticación de 2 factores (2FA), en ISO 8601 UTC. Campo previsto para más adelante: hoy siempre `null`.'
+              description: Fecha y hora del último reto de 2FA superado con cualquier método, en ISO 8601 UTC; `null` cuando nunca se usó.
               x-translations:
                 en:
-                  description: 'Date and time of the last 2FA use, in ISO 8601 UTC. A field planned for later: today it is always `null`.'
+                  description: Date and time of the last passed 2FA challenge with any method, in ISO 8601 UTC; `null` when never used.
               example: null
+            methods:
+              type: array
+              items:
+                $ref: '#/components/schemas/UserTwoFactorMethod'
+              description: Los cuatro métodos en orden de escalera (`passkey`, `app`, `email`, `sms`) con su estado. El front de /security los lee.
+              x-translations:
+                en:
+                  description: The four methods in ladder order (`passkey`, `app`, `email`, `sms`) with their state. The /security front reads these.
+            primary:
+              type:
+                - string
+                - 'null'
+              enum:
+                - passkey
+                - app
+                - email
+                - sms
+                - null
+              description: Primer método habilitado en orden de escalera (el que reta el login); `null` cuando ninguno está habilitado. Derivado, no almacenado.
+              x-translations:
+                en:
+                  description: First enabled method in ladder order (the one the login challenges); `null` when none is enabled. Derived, not stored.
+              example: app
+            recovery_codes_remaining:
+              type: integer
+              minimum: 0
+              maximum: 8
+              description: Códigos de recuperación sin usar que quedan (0 cuando no hay juego vigente).
+              x-translations:
+                en:
+                  description: Unused recovery codes left (0 when no set is live).
+              example: 5
         permissions:
           type: array
           description: 'Lista plana y ordenada de los permisos efectivos de la cuenta de usuario, con claves como `validations.records.read`: los que le dan sus roles en la plataforma y en su organización personal.'
