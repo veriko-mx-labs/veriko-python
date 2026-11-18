@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.244.0
+  version: 1.249.2
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -18109,10 +18109,10 @@ components:
             - app
             - email
             - sms
-          description: 'Método: `passkey`: llave de acceso (Fase 4); `app`: app autenticadora (TOTP); `email`: código por correo electrónico; `sms`: código por SMS.'
+          description: 'Método: `passkey`: llave de acceso (Fase 4); `app`: app autenticadora (TOTP o HOTP); `email`: código por correo electrónico; `sms`: código por SMS.'
           x-translations:
             en:
-              description: 'Method: `passkey`: passkey (Phase 4); `app`: authenticator app (TOTP); `email`: code by email; `sms`: code by SMS.'
+              description: 'Method: `passkey`: passkey (Phase 4); `app`: authenticator app (TOTP or HOTP); `email`: code by email; `sms`: code by SMS.'
           example: app
         status:
           type: string
@@ -18124,6 +18124,13 @@ components:
             en:
               description: '`enabled`: the method takes part in the ladder; `disabled`: it does not.'
           example: enabled
+        available:
+          type: boolean
+          description: '`true` cuando el motor del método está disponible en este despliegue (RN-AUTH-054); `false` sólo para `passkey` hasta que `b-passkeys-controlador` esté en producción. El front no muestra un método no disponible que el usuario no tiene activo; cuando lo tenía activo, lo apaga sin desvincular.'
+          x-translations:
+            en:
+              description: '`true` when the method''s engine is available in this deployment (RN-AUTH-054); `false` only for `passkey` until `b-passkeys-controlador` is in production. The front hides an unavailable method the user does not have active; when they had it active, it turns it off without unlinking.'
+          example: true
         verified_at:
           oneOf:
             - $ref: '#/components/schemas/TimestampUTC'
@@ -18143,6 +18150,7 @@ components:
       required:
         - method
         - status
+        - available
         - verified_at
         - last_used_at
     RoleAssignmentSummary:
@@ -18379,10 +18387,10 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/UserTwoFactorMethod'
-              description: Los cuatro métodos en orden de escalera (`passkey`, `app`, `email`, `sms`) con su estado. El front de /security los lee.
+              description: Los cuatro métodos en orden de escalera (`passkey`, `app`, `email`, `sms`) con su estado y su disponibilidad (`available`). El front de /security los lee.
               x-translations:
                 en:
-                  description: The four methods in ladder order (`passkey`, `app`, `email`, `sms`) with their state. The /security front reads these.
+                  description: The four methods in ladder order (`passkey`, `app`, `email`, `sms`) with their state and availability (`available`). The /security front reads these.
             primary:
               type:
                 - string
@@ -20539,6 +20547,16 @@ components:
               x-translations:
                 en:
                   description: Reference of your own sent when validating (`client_ref`), returned as sent. It only appears when the request included it.
+            normalization_warnings:
+              type:
+                - array
+                - 'null'
+              items:
+                type: string
+              description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado. Solo aparece cuando la validación tiene alguna.
+              x-translations:
+                en:
+                  description: Normalization warnings present. They can explain an unexpected `not_found` result. It only appears when the validation has any.
     ValidationStats:
       type: object
       description: |
@@ -26827,6 +26845,16 @@ components:
           x-translations:
             en:
               description: Human-readable text that accompanies `error_code`. It only appears when the validation has one.
+        normalization_warnings:
+          type:
+            - array
+            - 'null'
+          items:
+            type: string
+          description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado. Sólo aparece cuando la validación tiene alguna.
+          x-translations:
+            en:
+              description: Normalization warnings present. They can explain an unexpected `not_found` result. It only appears when the validation has any.
         client_ref:
           type: string
           minLength: 1
