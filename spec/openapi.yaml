@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.255.0
+  version: 1.255.4
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -19614,10 +19614,10 @@ components:
                     - 'null'
                   items:
                     type: string
-                  description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado.
+                  description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado. Si un aviso menciona una cuenta, sólo muestra sus últimos 4 dígitos.
                   x-translations:
                     en:
-                      description: Normalization warnings present. They can explain an unexpected `not_found` result.
+                      description: Normalization warnings present. They can explain an unexpected `not_found` result. If a warning mentions an account, it shows only its last 4 digits.
                 duplicate_of:
                   type: object
                   required:
@@ -20553,10 +20553,10 @@ components:
                 - 'null'
               items:
                 type: string
-              description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado. Solo aparece cuando la validación tiene alguna.
+              description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado. Solo aparece cuando la validación tiene alguna. Si un aviso menciona una cuenta, sólo muestra sus últimos 4 dígitos.
               x-translations:
                 en:
-                  description: Normalization warnings present. They can explain an unexpected `not_found` result. It only appears when the validation has any.
+                  description: Normalization warnings present. They can explain an unexpected `not_found` result. It only appears when the validation has any. If a warning mentions an account, it shows only its last 4 digits.
     ValidationStats:
       type: object
       description: |
@@ -26851,10 +26851,10 @@ components:
             - 'null'
           items:
             type: string
-          description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado. Sólo aparece cuando la validación tiene alguna.
+          description: Advertencias de normalización presentes. Permiten explicar un resultado `not_found` inesperado. Sólo aparece cuando la validación tiene alguna. Si un aviso menciona una cuenta, sólo muestra sus últimos 4 dígitos.
           x-translations:
             en:
-              description: Normalization warnings present. They can explain an unexpected `not_found` result. It only appears when the validation has any.
+              description: Normalization warnings present. They can explain an unexpected `not_found` result. It only appears when the validation has any. If a warning mentions an account, it shows only its last 4 digits.
         client_ref:
           type: string
           minLength: 1
