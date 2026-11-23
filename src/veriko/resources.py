@@ -2024,7 +2024,7 @@ class Dashboard(_Resource):
 
 
 class Plans(_Resource):
-    """Catalog of public plans, without an API key."""
+    """Catalog of public plans, which needs no key."""
 
     def list_public(self) -> ApiList[PublicPlan]:
         response = self._transport.request("GET", "/plans/public", authenticated=False)

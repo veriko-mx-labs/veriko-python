@@ -21,7 +21,7 @@ class VerikoError(Exception):
 
 
 class ConfigurationError(VerikoError):
-    """The API key is missing, or an argument of the client cannot be used."""
+    """`api_key` is missing, or an argument of the client cannot be used."""
 
 
 class ConnectionError(VerikoError):
@@ -200,7 +200,7 @@ class APIError(VerikoError):
 
 
 class AuthenticationError(APIError):
-    """`401`. The API key is missing or no longer valid."""
+    """`401`. The key is missing or no longer valid."""
 
 
 class ForbiddenError(APIError):

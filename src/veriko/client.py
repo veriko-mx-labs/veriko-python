@@ -77,7 +77,7 @@ def new_idempotency_key() -> str:
 class Veriko:
     """Client of the Veriko API.
 
-    The API key is read from the `api_key` argument or, if it is not passed, from
+    The key is read from the `api_key` argument or, if it is not passed, from
     the `VERIKO_API_KEY` environment variable. It starts with `veriko_` and is
     obtained in the dashboard: https://app.veriko.mx
 
@@ -109,7 +109,7 @@ class Veriko:
         'valid'
 
     Args:
-        api_key: the API key. Defaults to `VERIKO_API_KEY`.
+        api_key: the key. Defaults to `VERIKO_API_KEY`.
         base_url: the root of the API. Defaults to `VERIKO_BASE_URL` or production.
         timeout: seconds to wait per attempt.
         max_retries: automatic retries besides the first attempt. `0` turns them

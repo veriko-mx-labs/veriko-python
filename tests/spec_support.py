@@ -121,6 +121,6 @@ def security(operation: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def accepts_api_key(operation: dict[str, Any]) -> bool:
-    """`True` if the operation accepts the API key or is public and needs no authentication."""
+    """`True` if the operation accepts `ApiKeyAuth` or is public and needs no authentication."""
     schemes = security(operation)
     return not schemes or any("ApiKeyAuth" in alternative for alternative in schemes)
