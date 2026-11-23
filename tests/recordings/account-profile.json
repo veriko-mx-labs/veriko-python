@@ -28,9 +28,39 @@
           "billing_interval": "month"
         },
         "two_factor": {
-          "enabled": false,
-          "method": "sms",
-          "last_used_at": null
+          "last_used_at": null,
+          "methods": [
+            {
+              "method": "passkey",
+              "status": "disabled",
+              "available": true,
+              "verified_at": null,
+              "last_used_at": null
+            },
+            {
+              "method": "app",
+              "status": "disabled",
+              "available": true,
+              "verified_at": null,
+              "last_used_at": null
+            },
+            {
+              "method": "email",
+              "status": "disabled",
+              "available": true,
+              "verified_at": null,
+              "last_used_at": null
+            },
+            {
+              "method": "sms",
+              "status": "disabled",
+              "available": true,
+              "verified_at": null,
+              "last_used_at": null
+            }
+          ],
+          "primary": null,
+          "recovery_codes_remaining": 0
         },
         "permissions": [
           "account.profile.read",
