@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.256.2
+  version: 1.263.1
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -1774,10 +1774,10 @@ paths:
             X-RateLimit-Reset:
               schema:
                 type: integer
-              description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada. Puede existir sobreescritura por endpoint (p. ej. `rate_limited_login`).
+              description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada.
               x-translations:
                 en:
-                  description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API. Per-endpoint overrides exist (e.g. `rate_limited_login`).
+                  description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API.
           content:
             application/json:
               schema:
@@ -2990,10 +2990,10 @@ paths:
             X-RateLimit-Reset:
               schema:
                 type: integer
-              description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada. Puede existir sobreescritura por endpoint (p. ej. `rate_limited_login`).
+              description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada.
               x-translations:
                 en:
-                  description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API. Per-endpoint overrides exist (e.g. `rate_limited_login`).
+                  description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API.
           content:
             application/json:
               schema:
@@ -6051,6 +6051,27 @@ paths:
               x-translations:
                 en:
                   description: Seconds left before this validation can be queried again.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Límite de solicitudes configurado para este bucket. Se emite en cada 429 y, en la API autenticada, también en las respuestas correctas, donde es el tope por clave del plan de la cuenta.
+              x-translations:
+                en:
+                  description: Configured request cap for this bucket. It is emitted on every 429 and, on the authenticated API, also on successful responses, where it is the per-key cap of the account plan.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Solicitudes restantes en la ventana actual. Siempre 0 en el momento del 429; en una respuesta correcta de la API autenticada es lo que queda del tope por clave.
+              x-translations:
+                en:
+                  description: Requests remaining in the current window. Always 0 at the moment of the 429; on a successful response of the authenticated API it is what is left of the per-key cap.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada.
+              x-translations:
+                en:
+                  description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API.
           content:
             application/json:
               schema:
@@ -15946,6 +15967,27 @@ paths:
               schema:
                 type: integer
                 example: 60
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Límite de solicitudes configurado para este bucket. Se emite en cada 429 y, en la API autenticada, también en las respuestas correctas, donde es el tope por clave del plan de la cuenta.
+              x-translations:
+                en:
+                  description: Configured request cap for this bucket. It is emitted on every 429 and, on the authenticated API, also on successful responses, where it is the per-key cap of the account plan.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Solicitudes restantes en la ventana actual. Siempre 0 en el momento del 429; en una respuesta correcta de la API autenticada es lo que queda del tope por clave.
+              x-translations:
+                en:
+                  description: Requests remaining in the current window. Always 0 at the moment of the 429; on a successful response of the authenticated API it is what is left of the per-key cap.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada.
+              x-translations:
+                en:
+                  description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API.
           content:
             application/json:
               schema:
@@ -18109,10 +18151,10 @@ components:
             - app
             - email
             - sms
-          description: 'Método: `passkey`: llave de acceso (Fase 4); `app`: app autenticadora (TOTP o HOTP); `email`: código por correo electrónico; `sms`: código por SMS.'
+          description: 'Método: `passkey`: llave de acceso; `app`: app autenticadora (TOTP o HOTP); `email`: código por correo electrónico; `sms`: código por SMS.'
           x-translations:
             en:
-              description: 'Method: `passkey`: passkey (Phase 4); `app`: authenticator app (TOTP or HOTP); `email`: code by email; `sms`: code by SMS.'
+              description: 'Method: `passkey`: passkey; `app`: authenticator app (TOTP or HOTP); `email`: code by email; `sms`: code by SMS.'
           example: app
         status:
           type: string
@@ -18126,19 +18168,19 @@ components:
           example: enabled
         available:
           type: boolean
-          description: '`true` cuando el motor del método está disponible en este despliegue (RN-AUTH-054); `false` sólo para `passkey` hasta que `b-passkeys-controlador` esté en producción. El front no muestra un método no disponible que el usuario no tiene activo; cuando lo tenía activo, lo apaga sin desvincular.'
+          description: '`true` cuando el motor del método está disponible en este despliegue (RN-AUTH-054). `passkey` sale siempre `true`. El front no muestra un método no disponible que el usuario no tiene activo; cuando lo tenía activo, lo apaga sin desvincular.'
           x-translations:
             en:
-              description: '`true` when the method''s engine is available in this deployment (RN-AUTH-054); `false` only for `passkey` until `b-passkeys-controlador` is in production. The front hides an unavailable method the user does not have active; when they had it active, it turns it off without unlinking.'
+              description: '`true` when the method''s engine is available in this deployment (RN-AUTH-054). `passkey` is always `true`. The front hides an unavailable method the user does not have active; when they had it active, it turns it off without unlinking.'
           example: true
         verified_at:
           oneOf:
             - $ref: '#/components/schemas/TimestampUTC'
             - type: 'null'
-          description: 'Cuándo se verificó el método: la verificación del canal para `email`/`sms`, el enrolamiento confirmado para `app`; `null` cuando nunca se verificó (o `passkey`, sin enrolamiento hasta la Fase 4).'
+          description: 'Cuándo se verificó el método: la verificación del canal para `email`/`sms`, el enrolamiento confirmado para `app`; `null` cuando nunca se verificó (o `passkey`, que no se enrola como método de 2FA: sus llaves se gestionan en `/v1/users/me/passkeys`).'
           x-translations:
             en:
-              description: 'When the method was verified: the channel verification for `email`/`sms`, the confirmed enrollment for `app`; `null` when never verified (or `passkey`, with no enrollment until Phase 4).'
+              description: 'When the method was verified: the channel verification for `email`/`sms`, the confirmed enrollment for `app`; `null` when never verified (or `passkey`, which is not enrolled as a 2FA method: its keys are managed at `/v1/users/me/passkeys`).'
         last_used_at:
           oneOf:
             - $ref: '#/components/schemas/TimestampUTC'
@@ -27789,10 +27831,10 @@ components:
                           description: Fixed text that identifies the delivery as a test.
   responses:
     RateLimited:
-      description: 'Límite de tasa excedido (`rate_limit_exceeded`: espera unos segundos) o cuota del plan agotada (`quota_exceeded`: espera al siguiente periodo o cambia de plan).'
+      description: 'Límite de tasa excedido (`rate_limit_exceeded`: espera unos segundos).'
       x-translations:
         en:
-          description: 'Rate limit exceeded (`rate_limit_exceeded`: wait a few seconds) or plan quota used up (`quota_exceeded`: wait for the next period or change plans).'
+          description: 'Rate limit exceeded (`rate_limit_exceeded`: wait a few seconds).'
           example:
             errors:
               - detail: You exceeded the request limit.
@@ -27824,10 +27866,10 @@ components:
         X-RateLimit-Reset:
           schema:
             type: integer
-          description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada. Puede existir sobreescritura por endpoint (p. ej. `rate_limited_login`).
+          description: Unix epoch absoluto (segundos) en que se reinicia la ventana. Se emite en cada 429, junto con Retry-After, y en las respuestas correctas de la API autenticada.
           x-translations:
             en:
-              description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API. Per-endpoint overrides exist (e.g. `rate_limited_login`).
+              description: Absolute Unix epoch (seconds) when the window resets. Emitted on every 429, alongside Retry-After, and on successful responses of the authenticated API.
       content:
         application/json:
           schema:
