@@ -5,7 +5,10 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
-Sin cambios todavía.
+### Añadido
+
+- `PlanQuota`, la cuota que devuelve `usage.api_usage()`, ahora expone `billing_model`,
+  `overage_enabled` e `included_validations`, igual que `BillingSubscription`.
 
 ## [0.8.1] — 2026-11-14
 

@@ -126,6 +126,9 @@ class PlanQuota(ApiObject):
     used: int
     remaining: int
     resets_at: str
+    billing_model: str
+    overage_enabled: bool
+    included_validations: int | None
 
 
 class ApiUsage(ApiObject):
