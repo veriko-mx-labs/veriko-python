@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.264.0
+  version: 1.269.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -199,9 +199,32 @@ paths:
                           cancel_at: null
                           billing_interval: month
                         two_factor:
-                          enabled: false
-                          method: sms
-                          last_used_at: null
+                          enabled: true
+                          method: app
+                          last_used_at: '2026-06-14T09:30:00Z'
+                          methods:
+                            - method: passkey
+                              status: disabled
+                              available: true
+                              verified_at: null
+                              last_used_at: null
+                            - method: app
+                              status: enabled
+                              available: true
+                              verified_at: '2026-05-02T16:10:00Z'
+                              last_used_at: '2026-06-14T09:30:00Z'
+                            - method: email
+                              status: disabled
+                              available: true
+                              verified_at: null
+                              last_used_at: null
+                            - method: sms
+                              status: disabled
+                              available: true
+                              verified_at: null
+                              last_used_at: null
+                          primary: app
+                          recovery_codes_remaining: 8
                         permissions:
                           - account.profile.read
                           - beneficiaries.records.read
@@ -18415,6 +18438,28 @@ components:
             en:
               description: Two-factor authentication (2FA) state.
           properties:
+            enabled:
+              type: boolean
+              description: '`true` cuando la cuenta tiene la autenticación de 2 factores (2FA) activa, es decir, cuando algún método está habilitado (`primary` no es `null`). Una passkey por sí sola no enciende la 2FA. Derivado de los métodos, no almacenado.'
+              x-translations:
+                en:
+                  description: '`true` when the account has two-factor authentication (2FA) active, that is, when some method is enabled (`primary` is not `null`). A passkey alone does not turn 2FA on. Derived from the methods, not stored.'
+              example: true
+            method:
+              type:
+                - string
+                - 'null'
+              enum:
+                - app
+                - email
+                - sms
+                - null
+              deprecated: true
+              description: '**Obsoleto:** usa el campo primary. Vale lo mismo que primary: el primer método habilitado en orden de escalera, o `null` cuando ninguno lo está. Antes sólo admitía `sms` y `email`; ahora también `app`.'
+              x-translations:
+                en:
+                  description: '**Deprecated:** use the primary field. It carries the same value as primary: the first enabled method in ladder order, or `null` when none is enabled. It used to allow only `sms` and `email`; it now also allows `app`.'
+              example: app
             last_used_at:
               type:
                 - string
