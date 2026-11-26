@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.271.0
+  version: 1.271.2
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
