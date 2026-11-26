@@ -1,0 +1,26 @@
+name: Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      etiqueta:
+        description: Version tag, for example v1.2.3.
+        required: true
+        type: string
+      sha:
+        description: Full SHA of the head of main.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  etiquetar:
+    uses: veriko-mx-labs/.github/.github/workflows/etiquetar-como-veriko.yml@44e52f8a2cd0518dc610b1a4a264b8b0b5356144
+    with:
+      etiqueta: ${{ inputs.etiqueta }}
+      sha: ${{ inputs.sha }}
+    secrets:
+      app_id: ${{ secrets.VERIKO_LABS_APP_ID }}
+      app_private_key: ${{ secrets.VERIKO_LABS_PRIVATE_KEY }}
