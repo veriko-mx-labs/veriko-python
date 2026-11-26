@@ -5,6 +5,10 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+Sin cambios todavía.
+
+## [0.8.2] — 2026-11-26
+
 ### Añadido
 
 - `PlanQuota`, la cuota que devuelve `usage.api_usage()`, ahora expone `billing_model`,
