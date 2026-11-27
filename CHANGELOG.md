@@ -7,6 +7,15 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 Sin cambios todavía.
 
+## [0.8.3] — 2026-11-26
+
+### Añadido
+
+- `Validation.truncated_fields`, con el tipo `TruncatedField`: los campos que el comprobante muestra
+  cortados con puntos suspensivos. Es `None` si la respuesta no lo trae.
+- El README explica `truncated_fields` y los dos valores nuevos de `Validation.error_code`:
+  `tracking_key_truncated` y `other_account_exists`. El spec versionado es el 1.272.0.
+
 ## [0.8.2] — 2026-11-26
 
 ### Añadido
