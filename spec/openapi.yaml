@@ -6,12 +6,14 @@ info:
 
     Las respuestas de error incluyen `error.detail` traducible. La cabecera `Accept-Language: es` o `Accept-Language: en` permite negociar el idioma; `error.code` es el contrato estable y NO se traduce.
 
+    Toda operación POST o PUT con cuerpo exige `Content-Type: application/json` o `multipart/form-data`; cualquier otro tipo responde `415` (`unsupported_media_type`). Las excepciones las documenta cada operación.
+
     Todas las fechas se emiten en UTC; cada respuesta lo confirma en `meta.datetime`.
 
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.272.0
+  version: 1.274.2
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -24,6 +26,8 @@ info:
         REST API to validate Mexican SPEI bank transfers against Banxico CEP. Supports field-based manual validation, OCR receipt validation, bulk import (CSV/XLSX/images), beneficiary management, usage metrics, finance and notifications.
 
         Error responses carry a translatable `error.detail`. The `Accept-Language: es` or `Accept-Language: en` header negotiates the language; `error.code` is the stable contract and is NOT translated.
+
+        Every POST or PUT operation with a body requires `Content-Type: application/json` or `multipart/form-data`; any other type answers `415` (`unsupported_media_type`). Each operation documents its exceptions.
 
         All datetimes are emitted in UTC; each response confirms it in `meta.datetime`.
 
@@ -11226,6 +11230,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '413':
           $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           description: La URL, la lista de eventos o `description` no superan la validación, o la cuenta alcanzó su tope de endpoints. Responde con un estado HTTP `422` (con `code` en el cuerpo); el inventario de códigos está en {% concept slug="errors-taxonomy" %}la taxonomía de errores{% /concept %}. Todo error de campo trae `source.pointer`.
           x-translations:
@@ -11267,7 +11273,7 @@ paths:
                 limit_reached:
                   value:
                     errors:
-                      - detail: Your account already has 10 webhooks, the maximum.
+                      - detail: Your account already has 5 webhooks, the maximum.
                 description_too_long:
                   value:
                     errors:
@@ -11412,7 +11418,7 @@ paths:
                     errors:
                       - status: '422'
                         code: webhook_limit_reached
-                        detail: Tu cuenta ya tiene 10 webhooks, el máximo.
+                        detail: Tu cuenta ya tiene 5 webhooks, el máximo.
                     meta:
                       version: 1.57.0
                       api_version: v1
@@ -11435,6 +11441,53 @@ paths:
                       request_id: e6f7a2b3c4d55d4c3b2a7f6e
         '429':
           $ref: '#/components/responses/RateLimited'
+        '500':
+          description: '`internal_error`: Algo falló de nuestro lado. `processing_failed`: Error interno al crear el endpoint.'
+          x-translations:
+            en:
+              description: '`internal_error`: Something went wrong on our side. `processing_failed`: Internal error creating the endpoint.'
+              examples:
+                internal_error:
+                  value:
+                    errors:
+                      - detail: Something went wrong on our side.
+                processing_failed:
+                  value:
+                    errors:
+                      - detail: We could not complete processing. Try again.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internal_error:
+                  summary: La operación no se pudo completar
+                  x-translations:
+                    en:
+                      summary: Internal error
+                  value:
+                    errors:
+                      - status: '500'
+                        code: internal_error
+                        detail: Algo falló de nuestro lado.
+                    meta:
+                      version: 1.273.1
+                      api_version: v1
+                      request_id: f1a2b3c4d5e6
+                processing_failed:
+                  summary: Procesamiento fallido
+                  x-translations:
+                    en:
+                      summary: Processing failed
+                  value:
+                    errors:
+                      - status: '500'
+                        code: processing_failed
+                        detail: No pudimos completar el procesamiento. Vuelve a intentarlo.
+                    meta:
+                      version: 1.273.1
+                      api_version: v1
+                      request_id: 9a8b7c6d5e4f
       x-related:
         - GET /v1/webhooks
         - POST /v1/webhooks/{id}/test
@@ -12218,15 +12271,11 @@ paths:
                       data:
                         $ref: '#/components/schemas/WebhookEndpoint'
         '400':
-          description: '`body_empty` o `invalid_json`: se envió un cuerpo que no es JSON válido. El cuerpo es opcional; si no hace falta `immediate`, omítelo.'
+          description: '`invalid_json`: se envió un cuerpo que no es JSON válido. El cuerpo es opcional; si no hace falta `immediate`, omítelo.'
           x-translations:
             en:
-              description: '`body_empty` or `invalid_json`: a body was sent that is not valid JSON. The body is optional; if `immediate` is not needed, omit it.'
+              description: '`invalid_json`: a body was sent that is not valid JSON. The body is optional; if `immediate` is not needed, omit it.'
               examples:
-                body_empty:
-                  value:
-                    errors:
-                      - detail: The request has no body.
                 invalid_json:
                   value:
                     errors:
@@ -12236,20 +12285,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
-                body_empty:
-                  summary: Cuerpo vacío
-                  x-translations:
-                    en:
-                      summary: Empty body
-                  value:
-                    errors:
-                      - status: '400'
-                        code: body_empty
-                        detail: La petición no trae cuerpo.
-                    meta:
-                      version: 1.193.0
-                      api_version: v1
-                      request_id: c391569dc1f2
                 invalid_json:
                   summary: JSON inválido
                   x-translations:
@@ -28257,6 +28292,25 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: 'La petición no declara un `Content-Type` admitido (`unsupported_media_type`): las operaciones POST y PUT con cuerpo aceptan `application/json` o `multipart/form-data`. Las excepciones las documenta cada operación.'
+      x-translations:
+        en:
+          description: 'The request does not declare a supported `Content-Type` (`unsupported_media_type`): POST and PUT operations with a body accept `application/json` or `multipart/form-data`. Each operation documents its exceptions.'
+          example:
+            errors:
+              - detail: The content type must be JSON.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            errors:
+              - status: '415'
+                code: unsupported_media_type
+                detail: El tipo de contenido debe ser JSON.
+            meta:
+              version: 1.273.1
   parameters:
     IdempotencyKeyHeader:
       name: Idempotency-Key
