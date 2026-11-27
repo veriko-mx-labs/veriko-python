@@ -192,6 +192,32 @@ Sin `enqueue()`, la API responde `202` cuando Banxico tarda más de 45 segundos;
 `Validation.account_conflict` avisa que el CEP nombra otra cuenta. Ninguna de las dos cambia el
 veredicto.
 
+### Campos cortados y pago a otra cuenta
+
+Algunos comprobantes muestran un campo cortado con puntos suspensivos. Una validación por imagen los
+lista en `Validation.truncated_fields`:
+
+```python
+for cut in validation.truncated_fields or []:
+    print(cut.field, cut.position)  # tracking_key end
+```
+
+Cada `TruncatedField` trae `field` (el nombre del campo en `normalized_data`), `position` (`start`,
+`middle` o `end`) y, cuando el corte está en medio, `head` y `tail` con el texto visible antes y
+después. El valor del campo nunca lleva los puntos: trae sólo lo visible, o queda vacío si el corte
+está en medio o si el campo es el monto, la fecha o la hora. Cada campo cortado se añade también a
+`normalization_warnings`, y `truncated_fields` es `None` cuando no hay ninguno.
+
+Dos valores de `Validation.error_code` acompañan a un `not_found` y no vienen del diagnóstico de
+Banxico:
+
+| `error_code` | significado |
+| --- | --- |
+| `tracking_key_truncated` | El comprobante muestra la clave de rastreo cortada y no hay referencia. La API no consulta a Banxico ni reintenta |
+| `other_account_exists` | No hay pago a la cuenta enviada, pero sí a otra cuenta que muestra el comprobante. La API no indica cuál |
+
+Con `tracking_key_truncated`, vuelve a validar con la clave de rastreo completa.
+
 ### Varias cuentas candidatas
 
 Cuando no se sabe qué cuenta recibió la transferencia, envía `candidate_accounts` (de 2 hasta el límite

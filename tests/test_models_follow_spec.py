@@ -31,6 +31,7 @@ from veriko.models import (
     RetryAttempt,
     RetryState,
     SpeiCalendar,
+    TruncatedField,
     UsageSummary,
     Validation,
     ValidationSummary,
@@ -92,10 +93,17 @@ def _validation_attribute(name: str) -> dict[str, Any]:
     return schema_properties(attributes_[name])
 
 
+def _validation_array_item(name: str) -> dict[str, Any]:
+    schemas = load_spec()["components"]["schemas"]
+    attributes_ = schema_properties(schema_properties(schemas["Validation"])["attributes"])
+    return schema_properties(attributes_[name]["items"])
+
+
 NESTED: list[tuple[type[Any], Any, set[str]]] = [
     (DuplicateOf, lambda: _validation_attribute("duplicate_of"), set()),
     (AccountConflict, lambda: _validation_attribute("account_conflict"), set()),
     (CandidateMatch, lambda: _validation_attribute("candidate_match"), set()),
+    (TruncatedField, lambda: _validation_array_item("truncated_fields"), set()),
     (
         RecheckResult,
         lambda: schema_properties(load_spec()["components"]["schemas"]["ValidationRecheckMeta"]),

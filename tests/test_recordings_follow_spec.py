@@ -94,7 +94,12 @@ OPERATION_RECORDINGS = {
         "validate-valid",
         "validate-valid-client-ref",
     ),
-    "validateOcr": ("validate-ocr", "validate-ocr-conflict", "validate-ocr-not-retained"),
+    "validateOcr": (
+        "validate-ocr",
+        "validate-ocr-conflict",
+        "validate-ocr-not-retained",
+        "validate-ocr-truncated",
+    ),
     "getValidationImage": ("validation-image", "validation-image-pdf"),
     "listValidations": ("validations-empty", "validations-page1", "validations-page2"),
     "exportValidations": ("validations-export-csv", "validations-export-xlsx"),

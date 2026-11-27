@@ -22,6 +22,7 @@ from veriko import (
     RecheckResult,
     RetryPolicy,
     ServerError,
+    TruncatedField,
     ValidationSummary,
     Veriko,
 )
@@ -547,6 +548,30 @@ def test_the_validation_exposes_the_duplicate_and_the_account_conflict(
     assert validation.account_conflict == AccountConflict(sent_last4="5678", read_last4="9012")
     # The conflict does not change the verdict.
     assert validation.status == "not_found"
+
+
+def test_the_validation_exposes_the_cut_off_fields_and_the_reason(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-ocr-truncated")
+
+    validation = client.validations.validate_ocr(image=b"png")
+
+    assert validation.truncated_fields == [
+        TruncatedField(field="tracking_key", position="end", head=None, tail=None)
+    ]
+    assert validation.error_code == "tracking_key_truncated"
+    assert validation.status == "not_found"
+
+
+def test_without_cut_off_fields_the_validation_carries_no_truncated_fields(
+    client: Veriko, server: RecordingServer
+) -> None:
+    server.enqueue_recording("validate-ocr")
+
+    validation = client.validations.validate_ocr(image=b"png")
+
+    assert validation.truncated_fields is None
 
 
 def test_client_ref_filters_the_listing_the_export_and_the_statistics(

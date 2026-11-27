@@ -198,6 +198,32 @@ class AccountConflict(ResponseCarrier):
 
 
 @dataclass(frozen=True)
+class TruncatedField(ResponseCarrier):
+    """A field the receipt shows cut off with an ellipsis.
+
+    It only appears on OCR validations. `field` is the name of the field as it
+    appears in `normalized_data`, and `position` says where the ellipsis is:
+    `start`, `middle` or `end`. `head` and `tail` carry the visible text before
+    and after the ellipsis, only when `position` is `middle`. The value of the
+    field never carries the ellipsis.
+    """
+
+    field: str
+    position: str
+    head: str | None = None
+    tail: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> TruncatedField:
+        return cls(
+            field=str(data.get("field") or ""),
+            position=str(data.get("position") or ""),
+            head=data.get("head"),
+            tail=data.get("tail"),
+        )
+
+
+@dataclass(frozen=True)
 class CandidateMatch(ResponseCarrier):
     """Which of the `candidate_accounts` sent matched the transfer.
 
@@ -252,15 +278,22 @@ class Validation(ResponseCarrier):
     """A SPEI validation: the verdict and everything that goes with it.
 
     `client_ref` returns your own reference sent when validating, if one was sent.
-    `duplicate_of`, `account_conflict` and `candidate_match` are `None` unless the
-    API reports them. `account_cross_checked` is `True` when the account queried at
-    Banxico belongs to the client (the one sent, one of the candidates or that of
-    an active beneficiary). With `False`, a `valid` confirms the transfer exists,
-    but not that it was paid to the expected account: compare the account of the
-    Banxico result before releasing the payment. It is `None` when the API does not
-    report it. `image_retained` says whether the platform keeps the receipt file,
-    and `purged_at` marks a permanently deleted validation, which is left as a
-    tombstone.
+    `duplicate_of`, `account_conflict`, `candidate_match` and `truncated_fields` are
+    `None` unless the API reports them. `account_cross_checked` is `True` when the
+    account queried at Banxico belongs to the client (the one sent, one of the
+    candidates or that of an active beneficiary). With `False`, a `valid` confirms
+    the transfer exists, but not that it was paid to the expected account: compare
+    the account of the Banxico result before releasing the payment. It is `None`
+    when the API does not report it. `image_retained` says whether the platform
+    keeps the receipt file, and `purged_at` marks a permanently deleted validation,
+    which is left as a tombstone.
+
+    `truncated_fields` lists the fields the receipt shows cut off with an ellipsis.
+    Two values of `error_code` do not come from the Banxico diagnosis:
+    `tracking_key_truncated` (the receipt shows the tracking key cut off and there
+    is no reference, so Banxico is not queried and there are no retries) and
+    `other_account_exists` (there is no payment to the account sent, but there is
+    one to another account shown on the receipt; which one is not disclosed).
 
     https://docs.veriko.mx/en/concepts/validation-flow
     """
@@ -281,6 +314,7 @@ class Validation(ResponseCarrier):
     duplicate_of: DuplicateOf | None = None
     account_conflict: AccountConflict | None = None
     candidate_match: CandidateMatch | None = None
+    truncated_fields: list[TruncatedField] | None = None
     account_cross_checked: bool | None = None
     image_retained: bool | None = None
     purged_at: str | None = None
@@ -367,6 +401,7 @@ class Validation(ResponseCarrier):
         duplicate_of = attributes.get("duplicate_of")
         account_conflict = attributes.get("account_conflict")
         candidate_match = attributes.get("candidate_match")
+        truncated_fields = attributes.get("truncated_fields")
         cross_checked = attributes.get("account_cross_checked")
         return cls(
             id=str(data.get("id") or ""),
@@ -393,6 +428,15 @@ class Validation(ResponseCarrier):
             candidate_match=(
                 CandidateMatch.from_dict(candidate_match)
                 if isinstance(candidate_match, dict)
+                else None
+            ),
+            truncated_fields=(
+                [
+                    TruncatedField.from_dict(item)
+                    for item in truncated_fields
+                    if isinstance(item, dict)
+                ]
+                if isinstance(truncated_fields, list)
                 else None
             ),
             account_cross_checked=(cross_checked if isinstance(cross_checked, bool) else None),
