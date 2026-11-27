@@ -11,7 +11,7 @@ info:
     Las integraciones programáticas se autentican mediante una clave de API (`Authorization: Bearer veriko_…`).
 
     Aviso de seguridad: no se ha autorizado ninguna prueba de seguridad, escaneo ni prueba de penetración de terceros sobre esta API. El aviso completo y el contacto para reportar vulnerabilidades están en `/.well-known/security.txt`.
-  version: 1.271.2
+  version: 1.272.0
   contact:
     name: Veriko Support
     email: soporte@veriko.mx
@@ -18906,6 +18906,8 @@ components:
             - not_found_amount
             - not_found_account_and_amount
             - not_found_account_or_amount
+            - tracking_key_truncated
+            - other_account_exists
             - internal_error
         - type: string
       x-translations:
@@ -19782,6 +19784,72 @@ components:
                         prevails and is the one queried at Banxico; the field does not
                         change the verdict. It carries only the last 4 digits, and the
                         conflict is added to `normalization_warnings`.
+                truncated_fields:
+                  type: array
+                  description: |-
+                    Campos que el comprobante muestra cortados con puntos suspensivos.
+                    Solo aparece en validaciones `ocr`, cuando hay alguno. El valor
+                    del campo nunca lleva los puntos: trae solo lo visible, o queda
+                    vacío si el corte está en medio o si es el monto, la fecha o la
+                    hora. Una clave de rastreo cortada no se consulta en Banxico
+                    (`error_code` `tracking_key_truncated` si tampoco hay referencia)
+                    y una referencia cortada se descarta. Cada campo se añade también
+                    a `normalization_warnings`.
+                  items:
+                    type: object
+                    required:
+                      - field
+                      - position
+                      - head
+                      - tail
+                    properties:
+                      field:
+                        type: string
+                        description: Nombre del campo cortado, como aparece en `normalized_data`.
+                        example: tracking_key
+                        x-translations:
+                          en:
+                            description: Name of the cut-off field, as it appears in `normalized_data`.
+                      position:
+                        type: string
+                        enum:
+                          - start
+                          - middle
+                          - end
+                        description: Dónde están los puntos, al inicio, en medio o al final del valor.
+                        x-translations:
+                          en:
+                            description: Where the ellipsis is, at the start, in the middle, or at the end of the value.
+                      head:
+                        type:
+                          - string
+                          - 'null'
+                        description: Texto visible antes de los puntos, solo cuando `position` es `middle`.
+                        example: null
+                        x-translations:
+                          en:
+                            description: Visible text before the ellipsis, only when `position` is `middle`.
+                      tail:
+                        type:
+                          - string
+                          - 'null'
+                        description: Texto visible después de los puntos, solo cuando `position` es `middle`.
+                        example: null
+                        x-translations:
+                          en:
+                            description: Visible text after the ellipsis, only when `position` is `middle`.
+                  x-translations:
+                    en:
+                      description: |-
+                        Fields the receipt shows cut off with an ellipsis. It only
+                        appears on `ocr` validations, when there is at least one. The
+                        field value never carries the ellipsis: it holds only the
+                        visible part, or is empty when the cut is in the middle or the
+                        field is the amount, the date, or the time. A cut-off tracking
+                        key is not queried at Banxico (`error_code`
+                        `tracking_key_truncated` when there is no reference either),
+                        and a cut-off reference is discarded. Each field is also added
+                        to `normalization_warnings`.
                 candidate_match:
                   type: object
                   required:
@@ -20026,7 +20094,12 @@ components:
                     `not_found`, el diagnóstico puede precisar el campo que falló: la
                     identidad, la cuenta, el importe, ambos, o la operación sin aislar
                     el campo. Un diagnóstico no cambia el veredicto ni acredita el
-                    pago. Sin respuesta concluyente, el campo queda en `null`.
+                    pago. Sin respuesta concluyente, el campo queda en `null`. Dos
+                    códigos no vienen del diagnóstico: `tracking_key_truncated` (el
+                    comprobante muestra la clave de rastreo cortada y no hay
+                    referencia; no se consulta a Banxico ni se reintenta) y
+                    `other_account_exists` (no hay pago a la cuenta enviada, pero sí
+                    a otra cuenta que muestra el comprobante; no se indica cuál).
                   x-translations:
                     en:
                       description: |-
@@ -20035,7 +20108,12 @@ components:
                         identity, account, amount, both, or the payment without
                         isolating the field. A diagnosis does not change the verdict
                         or prove payment. Without a conclusive response, the field
-                        remains `null`.
+                        remains `null`. Two codes do not come from diagnosis:
+                        `tracking_key_truncated` (the receipt shows the tracking key
+                        cut off and there is no reference; Banxico is not queried and
+                        there are no retries) and `other_account_exists` (there is no
+                        payment to the sent account, but there is one to another
+                        account shown on the receipt; which one is not disclosed).
                 batch_id:
                   type:
                     - integer
