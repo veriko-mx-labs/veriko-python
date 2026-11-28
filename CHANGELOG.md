@@ -5,6 +5,10 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
+Sin cambios todavía.
+
+## [0.8.4] — 2026-11-28
+
 ### Cambiado
 
 - El README explica los cuatro códigos que traen los `429` de la API pública (`rate_limit_exceeded`,
