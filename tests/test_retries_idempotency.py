@@ -72,6 +72,35 @@ def test_a_429_for_exhausted_quota_is_not_retried(
     assert sleeps == []
 
 
+def test_a_recheck_that_is_too_soon_is_not_retried_and_carries_its_wait(
+    server: RecordingServer, sleeps: list[float]
+) -> None:
+    client = make_client(server, sleeps)
+    server.enqueue_recording("validation-recheck-429")
+
+    with pytest.raises(RateLimitError) as raised:
+        client.validations.recheck("0194e5a0-0000-7000-8000-000000000001")
+
+    assert raised.value.code == "recheck_rate_limited"
+    assert raised.value.retry_after == 420
+    assert len(server.requests) == 1
+    assert sleeps == []
+
+
+def test_a_429_for_the_export_limit_waits_what_retry_after_says_and_repeats(
+    server: RecordingServer, sleeps: list[float]
+) -> None:
+    client = make_client(server, sleeps)
+    server.enqueue_recording("finance-cep-export-429")
+    server.enqueue_recording("finance-cep-export-queued")
+
+    export = client.finance.create_cep_export(from_="2025-03-01", to="2025-03-31")
+
+    assert export.status == "queued"
+    assert len(server.requests) == 2
+    assert sleeps == [60.0]
+
+
 def test_a_422_is_not_retried(client: Veriko, server: RecordingServer) -> None:
     server.enqueue_recording("validate-422")
 

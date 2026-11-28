@@ -256,6 +256,11 @@ class PayloadTooLargeError(InvalidRequestError):
 class RateLimitError(APIError):
     """`429`. Rate limit exceeded, or plan quota exhausted.
 
+    `code` tells which one: `rate_limit_exceeded` (the key's request limit),
+    `quota_exceeded` (see `QuotaExceededError`), `recheck_rate_limited` (a
+    validation accepts one recheck every 10 minutes) or `export_limit_reached`
+    (the account already has the maximum number of CEP exports in progress).
+
     `retry_after` is the number of seconds the response asks to wait, when it
     carries one. `limit`, `remaining` and `reset` read the `X-RateLimit-*`
     headers; `reset` is a Unix timestamp in seconds.

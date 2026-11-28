@@ -2259,7 +2259,9 @@ class Finance(_Resource):
 
         `POST /v1/finance/ceps/exports`. Returns the export with `status` as
         `queued`, its `id` and `links.self`. If an export of the same range is
-        already under way, it returns that one.
+        already under way, it returns that one. When the account already has
+        the maximum number of exports in progress, it answers `429` with
+        `export_limit_reached`: the SDK waits `Retry-After` and repeats the call.
         """
         response = self._transport.request(
             "POST",

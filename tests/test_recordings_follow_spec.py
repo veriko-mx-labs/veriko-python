@@ -31,7 +31,7 @@ OPERATION_RECORDINGS = {
     "getFinanceByBank": ("finance-by-bank",),
     "getFinanceAccounting": ("finance-accounting",),
     "getFinanceCeps": ("finance-ceps",),
-    "createFinanceCepExport": ("finance-cep-export-queued",),
+    "createFinanceCepExport": ("finance-cep-export-429", "finance-cep-export-queued"),
     "listFinanceCepExports": ("finance-cep-exports",),
     "getFinanceCepExport": ("finance-cep-export-ready",),
     "billingGetSubscription": ("billing-subscription",),
@@ -64,6 +64,7 @@ OPERATION_RECORDINGS = {
     ),
     "recheckValidation": (
         "validation-purged-410",
+        "validation-recheck-429",
         "validation-recheck-returned",
         "validation-recheck-unchanged",
     ),

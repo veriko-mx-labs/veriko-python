@@ -5,7 +5,11 @@ versiones según [SemVer](https://semver.org/lang/es/).
 
 ## [No publicado]
 
-Sin cambios todavía.
+### Cambiado
+
+- El README explica los cuatro códigos que traen los `429` de la API pública (`rate_limit_exceeded`,
+  `quota_exceeded`, `recheck_rate_limited` y `export_limit_reached`) y qué hace el SDK con cada uno. No
+  cambia el comportamiento: sólo la documentación y las pruebas.
 
 ## [0.8.3] — 2026-11-26
 

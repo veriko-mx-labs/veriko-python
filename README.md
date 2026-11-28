@@ -347,10 +347,20 @@ El SDK reintenta lo que es seguro repetir, con espera exponencial y variación a
 
 | situación | se reintenta |
 | --- | --- |
-| `429` (`rate_limit_exceeded`) | siempre |
+| `429` | siempre, salvo los dos casos de abajo |
 | `429` con `quota_exceeded` | nunca: la cuota se renueva en el siguiente periodo |
+| `429` de `validations.recheck()` | nunca: la respuesta ya trae cuánto esperar (`retry_after`) |
 | `408`, `5xx` y errores de red | `GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`, y un `POST` con `Idempotency-Key` |
 | Fallas de TLS y de certificado | nunca |
+
+Los `429` que declara la API pública traen uno de estos códigos en `error.code`:
+
+| código | dónde sale | qué hace el SDK |
+| --- | --- | --- |
+| `rate_limit_exceeded` | cualquier operación, por el límite de peticiones de la clave de API | espera `Retry-After` y repite |
+| `quota_exceeded` | `validate_transfer()` y `validations.validate_ocr()` | levanta `QuotaExceededError` sin repetir |
+| `recheck_rate_limited` | `validations.recheck()`, que acepta una consulta cada 10 minutos por validación | levanta `RateLimitError` con `retry_after` y no repite |
+| `export_limit_reached` | `finance.create_cep_export()`, cuando la cuenta ya tiene el máximo de exportaciones en curso | espera `Retry-After` y repite |
 
 Se respeta `Retry-After`. Cuando excede `RetryConfig.max_retry_after_seconds` (60), el error se levanta
 de inmediato con `retry_after` puesto. Un `DELETE` que responde `404` después de un reintento cuenta como
